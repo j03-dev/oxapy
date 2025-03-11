@@ -40,8 +40,14 @@ use pyo3::prelude::*;
 
 type MatchitRoute = &'static Match<'static, 'static, &'static Route>;
 
-fn to_py_exception<T, E: ToString>(result: Result<T, E>) -> PyResult<T> {
-    result.map_err(|err| PyException::new_err(err.to_string()))
+trait IntoPyException<T, E> {
+    fn into_py_exception(self) -> PyResult<T>;
+}
+
+impl<T, E: ToString> IntoPyException<T, E> for Result<T, E> {
+    fn into_py_exception(self) -> PyResult<T> {
+        self.map_err(|err| PyException::new_err(err.to_string()))
+    }
 }
 
 struct ProcessRequest {
@@ -149,7 +155,7 @@ impl HttpServer {
 
                 tokio::spawn(async move {
                     let _permit = permit;
-                    let result = http1::Builder::new()
+                    http1::Builder::new()
                         .serve_connection(
                             io,
                             service_fn(move |req| {
@@ -171,8 +177,8 @@ impl HttpServer {
                                 }
                             }),
                         )
-                        .await;
-                    to_py_exception(result)
+                        .await
+                        .into_py_exception()
                 });
             }
         });
