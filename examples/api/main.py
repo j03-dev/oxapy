@@ -1,7 +1,6 @@
 import sqlite3
 from utils import hash_password, create_jwt, check_password
 from middlewares import jwt_middleware
-from oxapy import templating
 
 from oxapy import (
     HttpServer,
@@ -72,34 +71,14 @@ def user_info(user_id: int, app_data) -> Response:
     return Response(Status.OK, {"user": result.fetchone()})
 
 
-# @get("/")
-# def index(app_data):
-#     return Response(
-#         Status.OK,
-#         app_data.tera.render("index.html", {"name": "world"}),
-#         content_type="text/html",
-#     )
-
-
-@get("/")
-def index(app_data):
-    return Response(
-        Status.OK,
-        app_data.jinja.render("index.html", {"name": "world"}),
-        content_type="text/html",
-    )
-
-
 class AppData:
     def __init__(self):
         self.conn = sqlite3.connect("database.db")
         self.n = 0
-        self.tera = templating.Tera("./templates/**/*.html")
-        self.jinja = templating.Jinja("./templates/**/*.html")
 
 
 pub_router = Router()
-pub_router.routes([hello_world, login, register, add, index])
+pub_router.routes([hello_world, login, register, add])
 pub_router.route(static_file("./static", "static"))
 
 sec_router = Router()

@@ -1,0 +1,26 @@
+{% extends 'layout.html.j2' %}
+
+{% block content %}
+<div class="flex items-center justify-center min-h-screen bg-gray-100">
+  <div class="bg-white p-8 rounded shadow-md w-full max-w-md">
+    <form hx-target="#response" hx-post="/login" hx-ext="json-enc" class="space-y-4">
+      <div>
+        <label for="username" class="block text-gray-700">Username</label>
+        <input type="text" name="username" id="username" placeholder="Username" required
+          class="w-full px-4 py-2 mt-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-600">
+      </div>
+      <div>
+        <label for="password" class="block text-gray-700">Password</label>
+        <input type="password" name="password" id="password" placeholder="Password" required
+          class="w-full px-4 py-2 mt-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-600">
+      </div>
+      <div>
+        <button type="submit"
+          class="w-full px-4 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:bg-blue-700">Login</button>
+      </div>
+    </form>
+    <div id="response" class="mt-4">
+    </div>
+  </div>
+</div>
+{% endblock %}
