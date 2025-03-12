@@ -34,7 +34,7 @@ def login_form(cred, app_data):
     return Response(
         Status.OK,
         app_data.template.render(
-            "error_message.html.j2",
+            "components/error_message.html.j2",
             {"error_message": "login failed: Unauthorized"},
         ),
         "text/html",

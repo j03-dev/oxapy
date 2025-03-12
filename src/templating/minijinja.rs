@@ -22,11 +22,11 @@ impl Jinja {
         for entry in paths {
             let path = entry.into_py_exception()?;
             if path.is_file() {
-                let name = path
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| "unknown.html".to_string());
+                let name = {
+                    let full_path = path.to_str().unwrap().to_string();
+                    let name = full_path.split("/").into_iter().skip(1);
+                    name.collect::<Vec<_>>().join("/")
+                };
                 let content = std::fs::read_to_string(&path)?;
                 let name = Box::leak(name.into_boxed_str());
                 let content = Box::leak(content.into_boxed_str());
