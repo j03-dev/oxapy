@@ -48,14 +48,8 @@ def logger(request, next, **kwargs):
 
 router = Router()
 router.middleware(logger)
-router.routes(
-    [
-        index_page,
-        login_page,
-        login_form,
-        static_file("./static", "static"),
-    ]
-)
+router.routes([index_page, login_page, login_form])
+router.route(static_file("./static", "static"))
 
 
 server = HttpServer(("127.0.0.1", 8080))

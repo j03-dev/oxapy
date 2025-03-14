@@ -1,7 +1,4 @@
-use pyo3::{
-    types::{PyAnyMethods, PyDict, PyModule},
-    Py, PyObject, PyResult, Python,
-};
+use pyo3::{prelude::*, types::PyDict};
 
 pub fn dumps(data: &PyObject) -> PyResult<String> {
     Python::with_gil(|py| {
