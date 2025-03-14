@@ -6,6 +6,7 @@ mod middleware;
 mod request;
 mod response;
 mod routing;
+mod serializer;
 mod status;
 mod templating;
 
@@ -55,7 +56,6 @@ struct ProcessRequest {
     router: Arc<Router>,
     route: MatchitRoute,
     response_sender: Sender<Response>,
-    app_data: Option<Arc<Py<PyAny>>>,
     cors: Option<Arc<Cors>>,
 }
 

@@ -26,7 +26,7 @@ pub async fn handle_request(
         return convert_to_hyper_response(response);
     }
 
-    let request = convert_hyper_request(req).await.unwrap();
+    let request = convert_hyper_request(req, app_data).await.unwrap();
 
     for router in &routers {
         if let Some(route) = router.find(&request.method, &request.uri) {
@@ -39,7 +39,6 @@ pub async fn handle_request(
                 router: router.clone(),
                 route,
                 response_sender,
-                app_data,
                 cors: cors.clone(),
             };
 
@@ -63,6 +62,7 @@ pub async fn handle_request(
 
 async fn convert_hyper_request(
     req: HyperRequest<Incoming>,
+    app_data: Option<Arc<Py<PyAny>>>,
 ) -> Result<Request, Box<dyn std::error::Error + Sync + Send>> {
     let method = req.method().to_string();
     let uri = req.uri().to_string();
@@ -81,6 +81,9 @@ async fn convert_hyper_request(
     let body = String::from_utf8_lossy(&body_bytes).to_string();
     if !body.is_empty() {
         request.set_body(body);
+    }
+    if let Some(app_data) = app_data {
+        request.set_app_data(app_data);
     }
 
     Ok(request)
