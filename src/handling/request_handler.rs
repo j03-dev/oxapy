@@ -10,7 +10,7 @@ use tokio::sync::mpsc::{channel, Sender};
 
 use crate::{
     cors::Cors, into_response::IntoResponse, request::Request, response::Response, routing::Router,
-    status::Status, MatchitRoute, ProcessRequest,
+    status::Status, templating::Template, MatchitRoute, ProcessRequest,
 };
 
 pub async fn handle_request(
@@ -20,13 +20,16 @@ pub async fn handle_request(
     app_data: Option<Arc<Py<PyAny>>>,
     channel_capacity: usize,
     cors: Option<Arc<Cors>>,
+    template: Option<Arc<Template>>,
 ) -> Result<HyperResponse<Full<Bytes>>, hyper::http::Error> {
     if req.method() == hyper::Method::OPTIONS && cors.is_some() {
         let response = cors.as_ref().unwrap().into_response().unwrap();
         return convert_to_hyper_response(response);
     }
 
-    let request = convert_hyper_request(req, app_data).await.unwrap();
+    let request = convert_hyper_request(req, app_data, template)
+        .await
+        .unwrap();
 
     for router in &routers {
         if let Some(route) = router.find(&request.method, &request.uri) {
@@ -63,6 +66,7 @@ pub async fn handle_request(
 async fn convert_hyper_request(
     req: HyperRequest<Incoming>,
     app_data: Option<Arc<Py<PyAny>>>,
+    template: Option<Arc<Template>>,
 ) -> Result<Request, Box<dyn std::error::Error + Sync + Send>> {
     let method = req.method().to_string();
     let uri = req.uri().to_string();
@@ -79,11 +83,15 @@ async fn convert_hyper_request(
 
     let body_bytes = req.collect().await?.to_bytes();
     let body = String::from_utf8_lossy(&body_bytes).to_string();
+
     if !body.is_empty() {
         request.set_body(body);
     }
     if let Some(app_data) = app_data {
         request.set_app_data(app_data);
+    }
+    if let Some(template) = template {
+        request.set_app_template(template);
     }
 
     Ok(request)

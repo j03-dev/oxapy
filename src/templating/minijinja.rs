@@ -5,7 +5,7 @@ use pyo3::{prelude::*, types::PyDict, IntoPyObjectExt};
 
 use crate::IntoPyException;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[pyclass]
 pub struct Jinja {
     engine: Arc<Environment<'static>>,
@@ -14,7 +14,7 @@ pub struct Jinja {
 #[pymethods]
 impl Jinja {
     #[new]
-    fn new(dir: String) -> PyResult<Self> {
+    pub fn new(dir: String) -> PyResult<Self> {
         let mut env = Environment::new();
 
         let paths = glob::glob(&dir).into_py_exception()?;
@@ -40,7 +40,7 @@ impl Jinja {
     }
 
     #[pyo3(signature=(template_name, context=None))]
-    fn render(
+    pub fn render(
         &self,
         template_name: String,
         context: Option<Bound<'_, PyDict>>,

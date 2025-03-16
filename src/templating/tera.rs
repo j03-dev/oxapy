@@ -4,6 +4,7 @@ use pyo3::{prelude::*, types::PyDict, IntoPyObjectExt};
 
 use crate::IntoPyException;
 
+#[derive(Debug, Clone)]
 #[pyclass]
 pub struct Tera {
     engine: Arc<tera::Tera>,
@@ -12,15 +13,15 @@ pub struct Tera {
 #[pymethods]
 impl Tera {
     #[new]
-    fn new(dir: String) -> PyResult<Self> {
+    pub fn new(dir: String) -> PyResult<Self> {
         Ok(Self {
             engine: Arc::new(tera::Tera::new(&dir).into_py_exception()?),
         })
     }
 
     #[pyo3(signature=(template_name, context=None))]
-    fn render(
-        &mut self,
+    pub fn render(
+        &self,
         template_name: String,
         context: Option<Bound<'_, PyDict>>,
         py: Python<'_>,

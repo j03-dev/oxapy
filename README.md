@@ -18,11 +18,11 @@ from oxapy import HttpServer, get, Router, Status, Response
 
 
 @get("/")
-def welcome():
+def welcome(request):
     return Response(Status.OK, "Welcome to OxAPY!")
 
 @get("/hello/{name}")
-def hello(name):
+def hello(request, name):
     return Response(Status.OK, {"message": f"Hello, {name}!"})
 
 router = Router()
@@ -41,10 +41,10 @@ if __name__ == "__main__":
 def auth_middleware(request, next, **kwargs):
     if "Authorization" not in request.headers:
         return Status.UNAUTHORIZED
-    return next(**kwargs)
+    return next(request, **kwargs)
 
 @get("/protected")
-def protected():
+def protected(request):
     return "This is protected!"
 
 router = Router()
@@ -71,8 +71,8 @@ app = HttpServer(("127.0.0.1", 5555))
 app.app_data(AppState)
 
 @get("/count")
-def handler(app_data):
-    app_data.counter += 1
+def handler(request):
+    request.app_data.counter += 1
     return {"count": app_data.counter}
 
 

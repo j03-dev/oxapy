@@ -2,6 +2,8 @@ use std::{collections::HashMap, sync::Arc};
 
 use pyo3::{prelude::*, types::PyDict};
 
+use crate::templating::Template;
+
 type AppData = Arc<Py<PyAny>>;
 
 #[derive(Clone, Debug)]
@@ -12,6 +14,7 @@ pub struct Request {
     pub headers: HashMap<String, String>,
     pub body: Option<String>,
     pub app_data: Option<AppData>,
+    pub template: Option<Arc<Template>>,
 }
 
 #[pymethods]
@@ -24,6 +27,7 @@ impl Request {
             headers,
             app_data: None,
             body: None,
+            template: None,
         }
     }
 
@@ -93,5 +97,9 @@ impl Request {
 
     pub fn set_app_data(&mut self, app_data: AppData) {
         self.app_data = Some(app_data);
+    }
+
+    pub fn set_app_template(&mut self, template: Arc<Template>) {
+        self.template = Some(template);
     }
 }

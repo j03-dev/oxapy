@@ -136,7 +136,7 @@ pub fn static_file(directory: String, path: String, py: Python<'_>) -> PyResult<
     py.run(
         c_str!(
             r#"
-def static_file(path):
+def static_file(request, path):
     file_path = f"{directory}/{path}"
     try:
         with open(file_path, "rb") as f: content = f.read()

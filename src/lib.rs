@@ -41,6 +41,8 @@ use std::{
 
 use pyo3::prelude::*;
 
+use crate::templating::Template;
+
 type MatchitRoute = &'static Match<'static, 'static, &'static Route>;
 
 trait IntoPyException<T> {
@@ -70,6 +72,7 @@ struct HttpServer {
     max_connections: Arc<Semaphore>,
     channel_capacity: usize,
     cors_header: Option<Arc<Cors>>,
+    template: Option<Arc<Template>>,
 }
 
 #[pymethods]
@@ -84,6 +87,7 @@ impl HttpServer {
             max_connections: Arc::new(Semaphore::new(100)),
             channel_capacity: 100,
             cors_header: None,
+            template: None,
         })
     }
 
@@ -93,6 +97,10 @@ impl HttpServer {
 
     fn attach(&mut self, router: PyRef<'_, Router>) {
         self.routers.push(Arc::new(router.clone()));
+    }
+
+    fn template(&mut self, template: Template) {
+        self.template = Some(Arc::new(template))
     }
 
     fn run(&self) -> PyResult<()> {
@@ -144,6 +152,7 @@ impl HttpServer {
         let max_connections = self.max_connections.clone();
         let app_data = self.app_data.clone();
         let cors = self.cors_header.clone();
+        let template = self.template.clone();
 
         tokio::spawn(async move {
             while running_clone.load(Ordering::SeqCst) {
@@ -154,6 +163,7 @@ impl HttpServer {
                 let routers = routers.clone();
                 let app_data = app_data.clone();
                 let cors = cors.clone();
+                let template = template.clone();
 
                 tokio::spawn(async move {
                     let _permit = permit;
@@ -165,6 +175,7 @@ impl HttpServer {
                                 let routers = routers.clone();
                                 let app_data = app_data.clone();
                                 let cors = cors.clone();
+                                let template = template.clone();
 
                                 async move {
                                     handle_request(
@@ -174,6 +185,7 @@ impl HttpServer {
                                         app_data,
                                         channel_capacity,
                                         cors,
+                                        template,
                                     )
                                     .await
                                 }

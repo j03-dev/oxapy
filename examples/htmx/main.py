@@ -1,29 +1,16 @@
 from oxapy import templating
-from oxapy import static_file, get, post, HttpServer, Status, Router, Response
+from oxapy import static_file, get, post, HttpServer, Status, Router
 from oxapy import serializer
-
-
-class AppState:
-    def __init__(self):
-        self.template = templating.Jinja("./templates/**/*.html.j2")
 
 
 @get("/")
 def index_page(request):
-    return Response(
-        Status.OK,
-        request.app_data.template.render("index.html.j2", {"name": "world"}),
-        "text/html",
-    )
+    return templating.render(request, "index.html.j2", {"name": "word"})
 
 
 @get("/login")
 def login_page(request):
-    return Response(
-        Status.OK,
-        request.app_data.template.render("login.html.j2"),
-        "text/html",
-    )
+    return templating.render(request, "login.html.j2")
 
 
 class CredSerializer(serializer.Serializer):
@@ -33,25 +20,20 @@ class CredSerializer(serializer.Serializer):
 
 @post("/login")
 def login_form(request):
-    cred = CredSerializer()
+    cred = CredSerializer(request)
 
     try:
         cred.validate()
     except Exception as e:
-        return str(e), Status.BAD_REQUEST
+        return str(e), Status.OK
 
     username = cred.validate_data["username"]
     password = cred.validate_data["password"]
 
     if username == "admin" and password == "password":
         return "Login success", Status.OK
-    return Response(
-        Status.OK,
-        request.app_data.template.render(
-            "components/error_message.html.j2",
-            {"error_message": "login failed: Unauthorized"},
-        ),
-        "text/html",
+    return templating.render(
+        request, "components/error_mesage.html.j2", {"error_message": "Login failed"}
     )
 
 
@@ -68,7 +50,9 @@ router.route(static_file("./static", "static"))
 
 server = HttpServer(("127.0.0.1", 8080))
 server.attach(router)
-server.app_data(AppState())
+
+template = templating.Template("jinja", "./templates/**/*.html.j2")
+server.template(template)
 
 if __name__ == "__main__":
     server.run()
