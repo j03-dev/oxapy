@@ -15,17 +15,20 @@ struct Field {
     ty: String,
     #[pyo3(get)]
     format: Option<String>,
+    #[pyo3(get)]
+    many: Option<bool>,
 }
 
 #[pymethods]
 impl Field {
     #[new]
-    #[pyo3(signature = (ty, required = true, format = None))]
-    fn new(ty: String, required: Option<bool>, format: Option<String>) -> Self {
+    #[pyo3(signature = (ty, required = true, format = None, many = false))]
+    fn new(ty: String, required: Option<bool>, format: Option<String>, many: Option<bool>) -> Self {
         Self {
             required,
             ty,
             format,
+            many,
         }
     }
 }
@@ -36,6 +39,12 @@ impl Field {
         schema.insert("type".to_string(), Value::String(self.ty.clone()));
         if let Some(fmt) = &self.format {
             schema.insert("format".to_string(), Value::String(fmt.clone()));
+        }
+        if self.many.unwrap_or(false) {
+            let mut array_schema = serde_json::Map::new();
+            array_schema.insert("type".to_string(), Value::String("array".to_string()));
+            array_schema.insert("items".to_string(), Value::Object(schema));
+            return Value::Object(array_schema);
         }
         Value::Object(schema)
     }
@@ -53,14 +62,14 @@ struct Serializer {
 #[pymethods]
 impl Serializer {
     #[new]
-    #[pyo3(signature = (request = None, required = true))]
-    fn new(request: Option<Request>, required: Option<bool>) -> (Self, Field) {
+    #[pyo3(signature = (request = None, required = true, many = false))]
+    fn new(request: Option<Request>, required: Option<bool>, many: Option<bool>) -> (Self, Field) {
         (
             Self {
                 validate_data: None,
                 request,
             },
-            Field::new("object".to_string(), required, None),
+            Field::new("object".to_string(), required, None, many),
         )
     }
 
@@ -89,6 +98,7 @@ impl Serializer {
     fn json_schema_value(py: Python, cls: &Bound<'_, PyType>) -> PyResult<Value> {
         let mut properties = serde_json::Map::new();
         let mut required_fields = Vec::new();
+        let mut is_many = false;
 
         for attr in cls.dir()? {
             let attr_name = attr.to_string();
@@ -98,12 +108,18 @@ impl Serializer {
                     if field.required.unwrap_or(false) {
                         required_fields.push(attr_name);
                     }
-                } else if let Ok(_nested_serializer) = attr_obj.extract::<PyRef<Serializer>>() {
+                    if field.many.unwrap_or(false) {
+                        is_many = true;
+                    }
+                } else if let Ok(_) = attr_obj.extract::<PyRef<Serializer>>() {
                     let nested_schema = Self::json_schema_value(py, &attr_obj.get_type())?;
                     properties.insert(attr_name.clone(), nested_schema);
                     if let Ok(field) = attr_obj.extract::<PyRef<Field>>() {
                         if field.required.unwrap_or(false) {
                             required_fields.push(attr_name);
+                        }
+                        if field.many.unwrap_or(false) {
+                            is_many = true;
                         }
                     }
                 }
@@ -113,11 +129,22 @@ impl Serializer {
         let mut schema = serde_json::Map::new();
         schema.insert("type".to_string(), Value::String("object".to_string()));
         schema.insert("properties".to_string(), Value::Object(properties));
+
         if !required_fields.is_empty() {
             let reqs: Vec<Value> = required_fields.into_iter().map(Value::String).collect();
             schema.insert("required".to_string(), Value::Array(reqs));
         }
-        Ok(Value::Object(schema))
+
+        let final_schema = if is_many {
+            let mut array_schema = serde_json::Map::new();
+            array_schema.insert("type".to_string(), Value::String("array".to_string()));
+            array_schema.insert("items".to_string(), Value::Object(schema));
+            Value::Object(array_schema)
+        } else {
+            Value::Object(schema)
+        };
+
+        Ok(final_schema)
     }
 }
 
