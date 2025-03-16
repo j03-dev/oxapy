@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use pyo3::{
     prelude::*,
     types::{PyDict, PyType},
@@ -22,7 +20,7 @@ struct Field {
 #[pymethods]
 impl Field {
     #[new]
-    #[pyo3(signature = (ty, required = false, format = None))]
+    #[pyo3(signature = (ty, required = true, format = None))]
     fn new(ty: String, required: Option<bool>, format: Option<String>) -> Self {
         Self {
             required,
@@ -44,16 +42,18 @@ impl Field {
 }
 
 #[pyclass(subclass, extends=Field)]
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct Serializer {
-    validate_data: Option<Arc<Py<PyDict>>>,
+    #[pyo3(get, set)]
+    validate_data: Option<Py<PyDict>>,
+    #[pyo3(get, set)]
     request: Option<Request>,
 }
 
 #[pymethods]
 impl Serializer {
     #[new]
-    #[pyo3(signature = (request = None, required = false))]
+    #[pyo3(signature = (request = None, required = true))]
     fn new(request: Option<Request>, required: Option<bool>) -> (Self, Field) {
         (
             Self {
@@ -64,34 +64,24 @@ impl Serializer {
         )
     }
 
-    #[classmethod]
-    fn to_json_schema(cls: &Bound<'_, PyType>) -> PyResult<Py<PyDict>> {
-        Python::with_gil(|py| {
-            let schema_value = Self::json_schema_value(py, cls)?;
-            let schema_py = crate::json::loads(&schema_value.to_string())?;
-            Ok(schema_py)
-        })
-    }
-
-    fn validate(&mut self, py: Python<'_>) -> PyResult<bool> {
-        let request = self
+    fn validate(mut slf: PyRefMut<'_, Serializer>, py: Python<'_>) -> PyResult<()> {
+        let request = slf
             .request
             .as_ref()
             .ok_or_else(|| pyo3::exceptions::PyValueError::new_err("No request provided"))?;
 
-        let json_dict = request.json(py)?;
+        let json_dict = request.body.clone().unwrap();
         let json_value: Value = serde_json::from_str(&json_dict.to_string()).into_py_exception()?;
 
-        let schema_value = Self::json_schema_value(py, &py.get_type::<Serializer>())?;
+        let py_dict = crate::json::loads(&json_value.to_string())?;
 
-        let compiled_schema = jsonschema::options().build(&schema_value).map_err(|e| {
-            pyo3::exceptions::PyValueError::new_err(format!("Invalid schema: {}", e))
-        })?;
+        slf.validate_data = Some(py_dict);
 
-        compiled_schema.validate(&json_value).into_py_exception()?;
+        let schema_value = Self::json_schema_value(py, &slf.into_pyobject(py)?.get_type())?;
 
-        self.validate_data = Some(Arc::new(json_dict.into()));
-        Ok(true)
+        jsonschema::validate(&schema_value, &json_value).into_py_exception()?;
+
+        Ok(())
     }
 }
 

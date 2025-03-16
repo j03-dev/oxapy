@@ -2,6 +2,8 @@ import sqlite3
 from utils import hash_password, create_jwt, check_password
 from middlewares import jwt_middleware, logger
 
+from oxapy import serializer
+
 from oxapy import (
     HttpServer,
     Response,
@@ -13,23 +15,28 @@ from oxapy import (
 )
 
 
+class UserInputSerializer(serializer.Serializer):
+    username = serializer.Field("string")
+    password = serializer.Field("string")
+
+
 @post("/register")
 def register(request):
     conn = request.app_data.conn
 
-    data = request.json()
-    username = data.get("username")
-    password = data.get("password")
+    cred = UserInputSerializer(request)
 
-    if not username or not password:
-        return Status.BAD_REQUEST
+    try:
+        cred.validate()
+    except Exception as e:
+        return str(e), Status.BAD_REQUEST
 
-    hashed_password = hash_password(password)
+    hashed_password = hash_password(cred.validate_data["password"])
 
     try:
         conn.execute(
             "insert into user (username, password) values (?, ?)",
-            (username, hashed_password),
+            (cred.validate_data["username"], hashed_password),
         )
         conn.commit()
         return Status.CREATED
@@ -41,9 +48,15 @@ def register(request):
 def login(request):
     conn = request.app_data.conn
 
-    data = request.json()
-    username = data.get("username")
-    password = data.get("password")
+    user_input = UserInputSerializer(request)
+
+    try:
+        user_input.validate()
+    except Exception as e:
+        return str(e), Status.BAD_REQUEST
+
+    username = user_input.validate_data["username"]
+    password = user_input.validate_data["password"]
 
     cursor = conn.execute(
         "select id, password from user where username=?",
