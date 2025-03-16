@@ -19,12 +19,14 @@ use response::Response;
 use routing::{delete, get, patch, post, put, static_file, Route, Router};
 use status::Status;
 
+use serializer::serializer_submodule;
+use templating::templating_submodule;
+
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper_util::rt::TokioIo;
 
 use matchit::Match;
-use templating::templating_submodule;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::Semaphore;
@@ -205,6 +207,7 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(static_file, m)?)?;
 
     templating_submodule(m)?;
+    serializer_submodule(m)?;
 
     Ok(())
 }
