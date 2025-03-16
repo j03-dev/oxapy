@@ -138,6 +138,7 @@ impl Serializer {
         let mut schema = serde_json::Map::new();
         schema.insert("type".to_string(), Value::String("object".to_string()));
         schema.insert("properties".to_string(), Value::Object(properties));
+        schema.insert("additionalProperties".to_string(), Value::Bool(false));
 
         if !required_fields.is_empty() {
             let reqs: Vec<Value> = required_fields.into_iter().map(Value::String).collect();
