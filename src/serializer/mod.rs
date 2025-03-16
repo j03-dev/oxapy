@@ -88,7 +88,12 @@ impl Serializer {
 
         let schema_value = Self::json_schema_value(py, &slf.into_pyobject(py)?.get_type())?;
 
-        jsonschema::validate(&schema_value, &json_value).into_py_exception()?;
+        let validator = jsonschema::options()
+            .should_validate_formats(true)
+            .build(&schema_value)
+            .into_py_exception()?;
+
+        validator.validate(&json_value).into_py_exception()?;
 
         Ok(())
     }

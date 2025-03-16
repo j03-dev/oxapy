@@ -16,8 +16,8 @@ from oxapy import (
 
 
 class UserInputSerializer(serializer.Serializer):
-    username = serializer.Field("string")
-    password = serializer.Field("string", many=True)
+    username = serializer.Field("string", format="email")
+    password = serializer.Field("string")
 
 
 @post("/register")
