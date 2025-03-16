@@ -1,6 +1,6 @@
 use std::{collections::HashMap, mem::transmute, sync::Arc};
 
-use pyo3::{exceptions::PyException, ffi::c_str, prelude::*, pyclass, types::PyDict, Py, PyAny};
+use pyo3::{ffi::c_str, prelude::*, types::PyDict, Py, PyAny};
 
 use crate::{middleware::Middleware, IntoPyException};
 
@@ -12,26 +12,19 @@ pub struct Route {
     pub handler: Arc<Py<PyAny>>,
     pub args: Arc<Vec<String>>,
     pub content_type: String,
-    pub data: Option<String>,
 }
 
 #[pymethods]
 impl Route {
     #[new]
-    #[pyo3(signature=(path, method=None, content_type=None, data=None))]
-    pub fn new(
-        path: String,
-        method: Option<String>,
-        content_type: Option<String>,
-        data: Option<String>,
-    ) -> Self {
+    #[pyo3(signature=(path, method=None, content_type=None))]
+    pub fn new(path: String, method: Option<String>, content_type: Option<String>) -> Self {
         Route {
             method: method.unwrap_or_else(|| "GET".to_string()),
             path,
             handler: Arc::new(Python::with_gil(|py| py.None())),
             args: Arc::new(Vec::new()),
             content_type: content_type.unwrap_or_else(|| "application/json".to_string()),
-            data,
         }
     }
 
@@ -47,13 +40,6 @@ impl Route {
             let param = param?.into_pyobject(py)?;
             let name = param.getattr("name")?.extract()?;
             args.push(name);
-        }
-
-        if let Some(data) = self.data.clone() {
-            if !args.contains(&data) {
-                let message = format!("Missing argument '{data}'");
-                return Err(PyException::new_err(message));
-            }
         }
 
         Ok(Self {
@@ -72,13 +58,12 @@ macro_rules! method_decorator {
     ($($method:ident),*) => {
         $(
             #[pyfunction]
-            #[pyo3(signature = (path, *, content_type=None, data=None))]
-            pub fn $method(path: String, content_type: Option<String>, data: Option<String>)-> Route{
+            #[pyo3(signature = (path, *, content_type=None))]
+            pub fn $method(path: String, content_type: Option<String>)-> Route{
                 Route::new(
                     path,
                     Some(stringify!($method).to_string().to_uppercase()),
                     content_type,
-                    data,
                 )
             }
         )+
@@ -169,7 +154,6 @@ def static_file(path):
         format!("/{path}/{{*path}}"),
         Some("GET".to_string()),
         Some("text/plain".to_string()),
-        None,
     );
 
     let handler = globals.get_item("static_file")?.unwrap();

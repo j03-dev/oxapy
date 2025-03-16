@@ -1,5 +1,6 @@
 from oxapy import templating
 from oxapy import static_file, get, post, HttpServer, Status, Router, Response
+from oxapy import serializer
 
 
 class AppState:
@@ -8,32 +9,45 @@ class AppState:
 
 
 @get("/")
-def index_page(app_data):
+def index_page(request):
     return Response(
         Status.OK,
-        app_data.template.render("index.html.j2", {"name": "world"}),
+        request.app_data.template.render("index.html.j2", {"name": "world"}),
         "text/html",
     )
 
 
 @get("/login")
-def login_page(app_data):
+def login_page(request):
     return Response(
         Status.OK,
-        app_data.template.render("login.html.j2"),
+        request.app_data.template.render("login.html.j2"),
         "text/html",
     )
 
 
-@post("/login", data="cred")
-def login_form(cred, app_data):
-    username = cred.get("username")
-    password = cred.get("password")
+class CredSerializer(serializer.Serializer):
+    username = serializer.Field("string")
+    password = serializer.Field("string")
+
+
+@post("/login")
+def login_form(request):
+    cred = CredSerializer()
+
+    try:
+        cred.validate()
+    except Exception as e:
+        return str(e), Status.BAD_REQUEST
+
+    username = cred.validate_data["username"]
+    password = cred.validate_data["password"]
+
     if username == "admin" and password == "password":
         return "Login success", Status.OK
     return Response(
         Status.OK,
-        app_data.template.render(
+        request.app_data.template.render(
             "components/error_message.html.j2",
             {"error_message": "login failed: Unauthorized"},
         ),
@@ -43,7 +57,7 @@ def login_form(cred, app_data):
 
 def logger(request, next, **kwargs):
     print(f"{request.method} {request.uri}")
-    return next(**kwargs)
+    return next(request, **kwargs)
 
 
 router = Router()

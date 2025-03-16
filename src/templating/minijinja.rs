@@ -24,7 +24,7 @@ impl Jinja {
             if path.is_file() {
                 let name = {
                     let full_path = path.to_str().unwrap().to_string();
-                    let name = full_path.split("/").into_iter().skip(1);
+                    let name = full_path.split("/").skip(1);
                     name.collect::<Vec<_>>().join("/")
                 };
                 let content = std::fs::read_to_string(&path)?;

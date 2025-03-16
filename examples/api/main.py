@@ -1,6 +1,8 @@
 import sqlite3
 from utils import hash_password, create_jwt, check_password
-from middlewares import jwt_middleware
+from middlewares import jwt_middleware, logger
+
+from oxapy import serializer
 
 from oxapy import (
     HttpServer,
@@ -13,21 +15,28 @@ from oxapy import (
 )
 
 
-@post("/register", data="user_input")
-def register(user_input, app_data):
-    conn = app_data.conn
-    username = user_input.get("username")
-    password = user_input.get("password")
+class UserInputSerializer(serializer.Serializer):
+    username = serializer.Field("string")
+    password = serializer.Field("string")
 
-    if not username or not password:
-        return Status.BAD_REQUEST
 
-    hashed_password = hash_password(password)
+@post("/register")
+def register(request):
+    conn = request.app_data.conn
+
+    cred = UserInputSerializer(request)
+
+    try:
+        cred.validate()
+    except Exception as e:
+        return str(e), Status.BAD_REQUEST
+
+    hashed_password = hash_password(cred.validate_data["password"])
 
     try:
         conn.execute(
             "insert into user (username, password) values (?, ?)",
-            (username, hashed_password),
+            (cred.validate_data["username"], hashed_password),
         )
         conn.commit()
         return Status.CREATED
@@ -35,11 +44,19 @@ def register(user_input, app_data):
         return Status.CONFLICT
 
 
-@post("/login", data="cred")
-def login(cred, app_data):
-    conn = app_data.conn
-    username = cred.get("username")
-    password = cred.get("password")
+@post("/login")
+def login(request):
+    conn = request.app_data.conn
+
+    user_input = UserInputSerializer(request)
+
+    try:
+        user_input.validate()
+    except Exception as e:
+        return str(e), Status.BAD_REQUEST
+
+    username = user_input.validate_data["username"]
+    password = user_input.validate_data["password"]
 
     cursor = conn.execute(
         "select id, password from user where username=?",
@@ -55,18 +72,20 @@ def login(cred, app_data):
 
 
 @get("/hello/{name}")
-def hello_world(name):
+def hello_world(request, name):
     return f"Hello {name}"
 
 
 @get("/add")
-def add(app_data):
+def add(request):
+    app_data = request.app_data
     app_data.n += 1
     return app_data.n
 
 
 @get("/me")
-def user_info(user_id: int, app_data) -> Response:
+def user_info(request, user_id: int) -> Response:
+    app_data = request.app_data
     result = app_data.conn.execute("select * from user where id=?", (user_id,))
     return Response(Status.OK, {"user": result.fetchone()})
 
@@ -79,11 +98,13 @@ class AppData:
 
 pub_router = Router()
 pub_router.routes([hello_world, login, register, add])
+pub_router.middleware(logger)
 pub_router.route(static_file("./static", "static"))
 
 sec_router = Router()
 sec_router.route(user_info)
 sec_router.middleware(jwt_middleware)
+sec_router.middleware(logger)
 
 server = HttpServer(("127.0.0.1", 5555))
 server.app_data(AppData())

@@ -1,6 +1,8 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use pyo3::{prelude::*, types::PyDict};
+
+type AppData = Arc<Py<PyAny>>;
 
 #[derive(Clone, Debug)]
 #[pyclass]
@@ -9,6 +11,7 @@ pub struct Request {
     pub uri: String,
     pub headers: HashMap<String, String>,
     pub body: Option<String>,
+    pub app_data: Option<AppData>,
 }
 
 #[pymethods]
@@ -19,6 +22,7 @@ impl Request {
             method,
             uri,
             headers,
+            app_data: None,
             body: None,
         }
     }
@@ -51,6 +55,11 @@ impl Request {
         self.method.clone()
     }
 
+    #[getter]
+    fn app_data(&self, py: Python<'_>) -> Option<Py<PyAny>> {
+        self.app_data.clone().map(|d| d.clone_ref(py))
+    }
+
     fn query(&self) -> PyResult<Option<HashMap<String, String>>> {
         let query_string = self.uri.split('?').nth(1);
         if let Some(query) = query_string {
@@ -80,5 +89,9 @@ impl Request {
 
     pub fn set_body(&mut self, body: String) {
         self.body = Some(body);
+    }
+
+    pub fn set_app_data(&mut self, app_data: AppData) {
+        self.app_data = Some(app_data);
     }
 }
