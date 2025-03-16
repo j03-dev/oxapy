@@ -16,7 +16,7 @@ from oxapy import (
 
 
 class UserInputSerializer(serializer.Serializer):
-    username = serializer.Field("string", format="email")
+    username = serializer.Field("string")
     password = serializer.Field("string")
 
 

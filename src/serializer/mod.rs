@@ -1,4 +1,5 @@
 use pyo3::{
+    exceptions::PyValueError,
     prelude::*,
     types::{PyDict, PyType},
 };
@@ -77,7 +78,7 @@ impl Serializer {
         let request = slf
             .request
             .as_ref()
-            .ok_or_else(|| pyo3::exceptions::PyValueError::new_err("No request provided"))?;
+            .ok_or_else(|| PyValueError::new_err("No request provided"))?;
 
         let json_dict = request.body.clone().unwrap();
         let json_value: Value = serde_json::from_str(&json_dict.to_string()).into_py_exception()?;
