@@ -68,7 +68,7 @@ class AppState:
         self.counter = 0
 
 app = HttpServer(("127.0.0.1", 5555))
-app.app_data(AppState)
+app.app_data(AppState())
 
 @get("/count")
 def handler(request):
