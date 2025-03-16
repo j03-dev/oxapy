@@ -80,7 +80,11 @@ impl Serializer {
             .as_ref()
             .ok_or_else(|| PyValueError::new_err("No request provided"))?;
 
-        let json_dict = request.body.clone().unwrap();
+        let json_dict = request
+            .body
+            .clone()
+            .ok_or_else(|| PyValueError::new_err("Request body is empty"))?;
+
         let json_value: Value = serde_json::from_str(&json_dict.to_string()).into_py_exception()?;
 
         let py_dict = crate::json::loads(&json_value.to_string())?;
@@ -120,13 +124,12 @@ impl Serializer {
                 } else if let Ok(_) = attr_obj.extract::<PyRef<Serializer>>() {
                     let nested_schema = Self::json_schema_value(py, &attr_obj.get_type())?;
                     properties.insert(attr_name.clone(), nested_schema);
-                    if let Ok(field) = attr_obj.extract::<PyRef<Field>>() {
-                        if field.required.unwrap_or(false) {
-                            required_fields.push(attr_name);
-                        }
-                        if field.many.unwrap_or(false) {
-                            is_many = true;
-                        }
+                    let field = attr_obj.extract::<PyRef<Field>>()?;
+                    if field.required.unwrap_or(false) {
+                        required_fields.push(attr_name);
+                    }
+                    if field.many.unwrap_or(false) {
+                        is_many = true;
                     }
                 }
             }
