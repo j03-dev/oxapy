@@ -73,7 +73,7 @@ impl Serializer {
     }
 
     fn to_representation<'l>(
-        slf: Bound<'_, Serializer>,
+        slf: Bound<'_, Self>,
         instance: Bound<PyAny>,
         py: Python<'l>,
     ) -> PyResult<Bound<'l, PyDict>> {
@@ -92,22 +92,21 @@ impl Serializer {
     }
 
     #[getter]
-    fn data<'l>(slf: PyRef<'_, Self>, py: Python<'l>) -> PyResult<Bound<'l, PyAny>> {
-        let obj = slf.into_pyobject(py)?;
-        if obj.as_super().getattr("many")?.extract::<bool>()? {
+    fn data<'l>(slf: Bound<'l, Self>, py: Python<'l>) -> PyResult<Bound<'l, PyAny>> {
+        if slf.as_super().getattr("many")?.extract::<bool>()? {
             let mut many_result = Vec::new();
-            if let Some(instances) = obj
+            if let Some(instances) = slf
                 .getattr("instance")?
                 .extract::<Option<Vec<Bound<PyAny>>>>()?
             {
                 for inst in instances {
-                    many_result.push(Self::to_representation(obj.clone(), inst, py)?);
+                    many_result.push(Self::to_representation(slf.clone(), inst, py)?);
                 }
             }
             return Ok(PyList::new(py, many_result)?.into_any());
         } else {
-            if let Some(instance) = obj.getattr("instance")?.extract::<Option<Bound<PyAny>>>()? {
-                return Ok(Self::to_representation(obj, instance, py)?.into_any());
+            if let Some(instance) = slf.getattr("instance")?.extract::<Option<Bound<PyAny>>>()? {
+                return Ok(Self::to_representation(slf, instance, py)?.into_any());
             }
         }
         Ok(py.None().into_bound_py_any(py)?)
