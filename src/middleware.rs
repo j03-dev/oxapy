@@ -48,7 +48,8 @@ impl MiddlewareChain {
         let globals = PyDict::new(py);
         globals.set_item("middleware", middleware.handler.clone_ref(py))?;
         globals.set_item("next_fn", next)?;
-        let wrapper_code = c_str!(r#"lambda **kwargs: middleware(next=next_fn, **kwargs)"#);
+        let wrapper_code =
+            c_str!(r#"lambda *args, **kwargs: middleware(next=next_fn, *args, **kwargs)"#);
         let wrapper = py.eval(wrapper_code, Some(&globals), None)?;
         Ok(wrapper.into())
     }
