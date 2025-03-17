@@ -7,49 +7,9 @@ use serde_json::Value;
 
 use crate::{request::Request, IntoPyException};
 
-#[pyclass(subclass)]
-#[derive(Debug, Clone)]
-struct Field {
-    #[pyo3(get)]
-    required: Option<bool>,
-    #[pyo3(get)]
-    ty: String,
-    #[pyo3(get)]
-    format: Option<String>,
-    #[pyo3(get)]
-    many: Option<bool>,
-}
+use fields::{CharField, EmailField, Field, IntegerField};
 
-#[pymethods]
-impl Field {
-    #[new]
-    #[pyo3(signature = (ty, required = true, format = None, many = false))]
-    fn new(ty: String, required: Option<bool>, format: Option<String>, many: Option<bool>) -> Self {
-        Self {
-            required,
-            ty,
-            format,
-            many,
-        }
-    }
-}
-
-impl Field {
-    fn to_json_schema_value(&self) -> Value {
-        let mut schema = serde_json::Map::new();
-        schema.insert("type".to_string(), Value::String(self.ty.clone()));
-        if let Some(fmt) = &self.format {
-            schema.insert("format".to_string(), Value::String(fmt.clone()));
-        }
-        if self.many.unwrap_or(false) {
-            let mut array_schema = serde_json::Map::new();
-            array_schema.insert("type".to_string(), Value::String("array".to_string()));
-            array_schema.insert("items".to_string(), Value::Object(schema));
-            return Value::Object(array_schema);
-        }
-        Value::Object(schema)
-    }
-}
+mod fields;
 
 #[pyclass(subclass, extends=Field)]
 #[derive(Debug)]
@@ -162,6 +122,9 @@ impl Serializer {
 pub fn serializer_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let serializer = PyModule::new(m.py(), "serializer")?;
     serializer.add_class::<Field>()?;
+    serializer.add_class::<EmailField>()?;
+    serializer.add_class::<IntegerField>()?;
+    serializer.add_class::<CharField>()?;
     serializer.add_class::<Serializer>()?;
     m.add_submodule(&serializer)?;
     Ok(())

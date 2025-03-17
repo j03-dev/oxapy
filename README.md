@@ -1,6 +1,6 @@
 # OxAPY
 
-_OxAPY is Python HTTP server library build in Rust - a fast, safe and feature-rich HTTP server implementation.
+OxAPY is Python HTTP server library build in Rust - a fast, safe and feature-rich HTTP server implementation.
 
 ## Features
 
