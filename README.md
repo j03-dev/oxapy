@@ -72,7 +72,8 @@ app.app_data(AppState())
 
 @get("/count")
 def handler(request):
-    request.app_data.counter += 1
+    app_data = request.app_data
+    app_data.counter += 1
     return {"count": app_data.counter}
 
 
@@ -90,7 +91,7 @@ Todo:
 - [x] app data
 - [x] pass request in handler
 - [x] serve static file
-- [ ] templating
+- [x] templating
 - [x] query uri
 - [ ] security submodule (jwt,bcrypt..)
 - [ ] websocket
