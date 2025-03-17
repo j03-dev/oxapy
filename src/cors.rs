@@ -4,10 +4,15 @@ use pyo3::prelude::*;
 #[derive(Clone, Debug)]
 #[pyclass]
 pub struct Cors {
+    #[pyo3(get, set)]
     pub origins: Vec<String>,
+    #[pyo3(get, set)]
     pub methods: Vec<String>,
+    #[pyo3(get, set)]
     pub headers: Vec<String>,
+    #[pyo3(get, set)]
     pub allow_credentials: bool,
+    #[pyo3(get, set)]
     pub max_age: u32,
 }
 
@@ -28,31 +33,6 @@ impl Cors {
     #[new]
     fn new() -> Self {
         Self::default()
-    }
-
-    #[setter]
-    fn origins(&mut self, origin: Vec<String>) {
-        self.origins = origin;
-    }
-
-    #[setter]
-    fn methods(&mut self, method: Vec<String>) {
-        self.methods = method;
-    }
-
-    #[setter]
-    fn headers(&mut self, header: Vec<String>) {
-        self.headers = header;
-    }
-
-    #[setter]
-    fn allow_credentials(&mut self, allow: bool) {
-        self.allow_credentials = allow;
-    }
-
-    #[setter]
-    fn max_age(&mut self, age: u32) {
-        self.max_age = age;
     }
 
     fn __repr__(&self) -> String {

@@ -9,9 +9,13 @@ type AppData = Arc<Py<PyAny>>;
 #[derive(Clone, Debug)]
 #[pyclass]
 pub struct Request {
+    #[pyo3(get, set)]
     pub method: String,
+    #[pyo3(get, set)]
     pub uri: String,
+    #[pyo3(get, set)]
     pub headers: HashMap<String, String>,
+    #[pyo3(get, set)]
     pub body: Option<String>,
     pub app_data: Option<AppData>,
     pub template: Option<Arc<Template>>,
@@ -40,28 +44,8 @@ impl Request {
     }
 
     #[getter]
-    fn body(&self) -> Option<String> {
-        self.body.clone()
-    }
-
-    #[getter]
-    fn headers(&self) -> HashMap<String, String> {
-        self.headers.clone()
-    }
-
-    #[getter]
-    fn uri(&self) -> String {
-        self.uri.clone()
-    }
-
-    #[getter]
-    fn method(&self) -> String {
-        self.method.clone()
-    }
-
-    #[getter]
     fn app_data(&self, py: Python<'_>) -> Option<Py<PyAny>> {
-        self.app_data.clone().map(|d| d.clone_ref(py))
+        self.app_data.as_ref().map(|d| d.clone_ref(py))
     }
 
     fn query(&self) -> PyResult<Option<HashMap<String, String>>> {
