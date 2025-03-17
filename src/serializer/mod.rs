@@ -77,12 +77,23 @@ impl Serializer {
         instance: Bound<PyAny>,
         py: Python<'l>,
     ) -> PyResult<Bound<'l, PyDict>> {
-        Self::repr(py, &slf.into_pyobject(py)?.get_type(), instance)
+        let dict = PyDict::new(py);
+        let columns = instance
+            .getattr("__table__")?
+            .getattr("columns")?
+            .try_iter()?;
+        for c in columns {
+            let col = c.unwrap().getattr("name")?.to_string();
+            if slf.getattr(&col).is_ok() {
+                dict.set_item(&col, instance.getattr(&col)?)?;
+            }
+        }
+        Ok(dict)
     }
 
     #[getter]
     fn data<'l>(slf: PyRef<'_, Self>, py: Python<'l>) -> PyResult<Bound<'l, PyAny>> {
-        let obj = &slf.into_pyobject(py)?;
+        let obj = slf.into_pyobject(py)?;
         if obj.as_super().getattr("many")?.extract::<bool>()? {
             let mut many_result = Vec::new();
             if let Some(instances) = obj
@@ -96,7 +107,7 @@ impl Serializer {
             return Ok(PyList::new(py, many_result)?.into_any());
         } else {
             if let Some(instance) = obj.getattr("instance")?.extract::<Option<Bound<PyAny>>>()? {
-                return Ok(Self::to_representation(obj.clone(), instance, py)?.into_any());
+                return Ok(Self::to_representation(obj, instance, py)?.into_any());
             }
         }
         Ok(py.None().into_bound_py_any(py)?)
@@ -104,25 +115,6 @@ impl Serializer {
 }
 
 impl Serializer {
-    fn repr<'l>(
-        py: Python<'l>,
-        cls: &Bound<'_, PyType>,
-        instance: Bound<PyAny>,
-    ) -> PyResult<Bound<'l, PyDict>> {
-        let dict = PyDict::new(py);
-        let columns = instance
-            .getattr("__table__")?
-            .getattr("columns")?
-            .try_iter()?;
-        for c in columns {
-            let col = c.unwrap().getattr("name")?.to_string();
-            if cls.getattr(&col).is_ok() {
-                dict.set_item(&col, instance.getattr(&col)?)?;
-            }
-        }
-        return Ok(dict);
-    }
-
     fn json_schema_value(py: Python, cls: &Bound<'_, PyType>) -> PyResult<Value> {
         let mut properties = serde_json::Map::new();
         let mut required_fields = Vec::new();
