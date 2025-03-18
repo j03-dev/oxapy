@@ -22,7 +22,8 @@ pub enum Template {
 #[pymethods]
 impl Template {
     #[new]
-    fn new(engine: String, dir: String) -> PyResult<Template> {
+    #[pyo3(signature=(dir="./templates/**/*.html".to_string(), engine="jinja".to_string()))]
+    fn new(dir: String, engine: String) -> PyResult<Template> {
         match engine.as_str() {
             "jinja" => Ok(Template::Jinja(self::minijinja::Jinja::new(dir)?)),
             "tera" => Ok(Template::Tera(self::tera::Tera::new(dir)?)),
