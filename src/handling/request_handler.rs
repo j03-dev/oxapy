@@ -67,7 +67,7 @@ async fn convert_hyper_request(
     req: HyperRequest<Incoming>,
     app_data: Option<Arc<Py<PyAny>>>,
     template: Option<Arc<Template>>,
-) -> Result<Request, Box<dyn std::error::Error + Sync + Send>> {
+) -> Result<Arc<Request>, Box<dyn std::error::Error + Sync + Send>> {
     let method = req.method().to_string();
     let uri = req.uri().to_string();
 
@@ -94,7 +94,7 @@ async fn convert_hyper_request(
         request.set_app_template(template);
     }
 
-    Ok(request)
+    Ok(Arc::new(request))
 }
 
 fn convert_to_hyper_response(

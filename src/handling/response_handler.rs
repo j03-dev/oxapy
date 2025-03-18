@@ -14,10 +14,13 @@ use crate::{
     MatchitRoute, ProcessRequest,
 };
 
-pub async fn handle_response(shutdown_rx: &mut Receiver<()>, rx: &mut Receiver<ProcessRequest>) {
+pub async fn handle_response(
+    shutdown_rx: &mut Receiver<()>,
+    request_receiver: &mut Receiver<ProcessRequest>,
+) {
     loop {
         tokio::select! {
-            Some(process_request) = rx.recv() => {
+            Some(process_request) = request_receiver.recv() => {
                 let response = match process_response(
                     &process_request.router,
                     process_request.route,

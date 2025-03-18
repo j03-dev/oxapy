@@ -56,7 +56,7 @@ impl<T, E: ToString> IntoPyException<T> for Result<T, E> {
 }
 
 struct ProcessRequest {
-    request: Request,
+    request: Arc<Request>,
     router: Arc<Router>,
     route: MatchitRoute,
     response_sender: Sender<Response>,

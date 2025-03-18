@@ -14,8 +14,8 @@ def login_page(request):
 
 
 class CredSerializer(serializer.Serializer):
-    username = serializer.Field("string")
-    password = serializer.Field("string")
+    username = serializer.CharField()
+    password = serializer.CharField()
 
 
 @post("/login")
@@ -50,9 +50,7 @@ router.route(static_file("./static", "static"))
 
 server = HttpServer(("127.0.0.1", 8080))
 server.attach(router)
-
-template = templating.Template("jinja", "./templates/**/*.html.j2")
-server.template(template)
+server.template(templating.Template("./templates/**/*.html.j2"))
 
 if __name__ == "__main__":
     server.run()
