@@ -8,7 +8,7 @@ def jwt_middleware(request, next, **kwargs):
 
     if token:
         if payload := decode_jwt(token):
-            kwargs["user_id"] = payload["user_id"]
+            request.user_id = payload["user_id"]
             return next(request, **kwargs)
     return Status.UNAUTHORIZED
 

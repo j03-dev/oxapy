@@ -111,9 +111,9 @@ def add(request: Request):
 
 
 @get("/me")
-def user_info(request: Request, user_id: str) -> Response:
+def user_info(request: Request) -> Response:
     with Session(request.app_data.engine) as session:
-        if user := session.query(User).filter_by(id=user_id).first():
+        if user := session.query(User).filter_by(id=request.user_id).first():
             serializer = UserSerialzer(instance=user)
             return serializer.data
 
