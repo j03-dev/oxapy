@@ -60,7 +60,7 @@ impl Serializer {
 
         slf.validate_data = Some(py_dict);
 
-        let schema_value = Self::json_schema_value(py, &slf.into_pyobject(py)?.get_type())?;
+        let schema_value = Self::json_schema_value(&slf.into_pyobject(py)?.get_type())?;
 
         let validator = jsonschema::options()
             .should_validate_formats(true)
@@ -104,17 +104,15 @@ impl Serializer {
                 }
             }
             return Ok(PyList::new(py, many_result)?.into_any());
-        } else {
-            if let Some(instance) = slf.getattr("instance")?.extract::<Option<Bound<PyAny>>>()? {
-                return Ok(Self::to_representation(slf, instance, py)?.into_any());
-            }
+        } else if let Some(instance) = slf.getattr("instance")?.extract::<Option<Bound<PyAny>>>()? {
+            return Ok(Self::to_representation(slf, instance, py)?.into_any());
         }
-        Ok(py.None().into_bound_py_any(py)?)
+        py.None().into_bound_py_any(py)
     }
 }
 
 impl Serializer {
-    fn json_schema_value(py: Python, cls: &Bound<'_, PyType>) -> PyResult<Value> {
+    fn json_schema_value(cls: &Bound<'_, PyType>) -> PyResult<Value> {
         let mut properties = serde_json::Map::new();
         let mut required_fields = Vec::new();
         let mut is_many = false;
@@ -130,8 +128,8 @@ impl Serializer {
                     if field.many.unwrap_or(false) {
                         is_many = true;
                     }
-                } else if let Ok(_) = attr_obj.extract::<PyRef<Serializer>>() {
-                    let nested_schema = Self::json_schema_value(py, &attr_obj.get_type())?;
+                } else if attr_obj.extract::<PyRef<Serializer>>().is_ok() {
+                    let nested_schema = Self::json_schema_value(&attr_obj.get_type())?;
                     properties.insert(attr_name.clone(), nested_schema);
                     let field = attr_obj.extract::<PyRef<Field>>()?;
                     if field.required.unwrap_or(false) {

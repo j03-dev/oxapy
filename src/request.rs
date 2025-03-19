@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use pyo3::{prelude::*, types::PyDict};
+use pyo3::{exceptions::PyAttributeError, prelude::*, types::PyDict};
 
 use crate::templating::Template;
 
@@ -19,6 +19,7 @@ pub struct Request {
     pub body: Option<String>,
     pub app_data: Option<AppData>,
     pub template: Option<Arc<Template>>,
+    pub ext: HashMap<String, Arc<PyObject>>,
 }
 
 #[pymethods]
@@ -32,6 +33,7 @@ impl Request {
             app_data: None,
             body: None,
             template: None,
+            ext: HashMap::new(),
         }
     }
 
@@ -55,6 +57,26 @@ impl Request {
             return Ok(Some(query_params));
         }
         Ok(None)
+    }
+
+    fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<PyObject> {
+        if let Some(value) = self.ext.get(name) {
+            Ok(value.clone_ref(py))
+        } else {
+            Err(PyAttributeError::new_err(format!(
+                "Request object has no attribute {name}"
+            )))
+        }
+    }
+
+    fn __setattr__(&mut self, name: &str, value: PyObject) -> PyResult<()> {
+        match name {
+            "method" | "uri" | "headers" | "body" | "template" => Ok(()),
+            _ => {
+                self.ext.insert(name.to_string(), Arc::new(value));
+                Ok(())
+            }
+        }
     }
 
     pub fn __repr__(&self) -> String {
