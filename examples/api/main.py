@@ -119,7 +119,7 @@ def user_info(request: Request, user_id: str) -> Response:
 
 
 @get("/all")
-def all(request: Request, **kwargs) -> Response:
+def all(request: Request) -> Response:
     with Session(request.app_data.engine) as session:
         if user := session.query(User).all():
             serializer = UserSerialzer(instance=user, many=True)

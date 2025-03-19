@@ -42,8 +42,23 @@ impl Route {
             args.push(name);
         }
 
+        let globals = PyDict::new(py);
+        globals.set_item("orginal_handler", handler)?;
+        globals.set_item("expected_args", args.clone())?;
+
+        let code = c_str!(
+            r#"
+def wrapper(*args, **kwargs):
+    filtred_kwargs = {arg: kwargs[arg] for arg in expected_args if arg in kwargs}
+    return orginal_handler(*args, **filtred_kwargs);
+        "#
+        );
+
+        py.run(code, Some(&globals), None)?;
+        let wrapper = globals.get_item("wrapper")?.unwrap();
+
         Ok(Self {
-            handler: Arc::new(handler),
+            handler: Arc::new(wrapper.into()),
             args: Arc::new(args),
             ..self.clone()
         })
