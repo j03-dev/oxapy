@@ -30,7 +30,7 @@ pub async fn handle_response(
                     Err(e) => Status::INTERNAL_SERVER_ERROR
                         .into_response()
                         .unwrap()
-                        .body(e.to_string()),
+                        .set_body(e.to_string()),
                 };
 
                 let final_response = if let Some(cors) = process_request.cors {
