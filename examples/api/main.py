@@ -16,7 +16,6 @@ from oxapy import (
     serializer,
     get,
     post,
-    static_file,
 )
 
 import uuid
@@ -129,7 +128,6 @@ def all(request: Request) -> Response:
 pub_router = Router()
 pub_router.routes([hello_world, login, register, add])
 pub_router.middleware(logger)
-pub_router.route(static_file("./static", "static"))
 
 sec_router = Router()
 sec_router.routes([user_info, all])
