@@ -6,8 +6,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, Session
 from sqlalchemy import String
 
-from pprint import pprint as print
-
 
 from oxapy import (
     HttpServer,
@@ -50,13 +48,15 @@ class UserSerializer(serializer.Serializer):
     id = serializer.UUIDField()
     email = serializer.EmailField()
 
+
 class UserInputSerializer(serializer.Serializer):
     email = serializer.EmailField()
     password = serializer.CharField(
         min_length=8,
         title="Password",
-        description="User's password (min 8 characters)"
+        description="User's password (min 8 characters)",
     )
+
 
 @post("/register")
 def register(request: Request):
