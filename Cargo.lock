@@ -1050,6 +1050,7 @@ dependencies = [
  "jsonschema",
  "matchit",
  "minijinja",
+ "once_cell",
  "pyo3",
  "serde_json",
  "tera",
