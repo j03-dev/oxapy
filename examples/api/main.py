@@ -6,6 +6,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, Session
 from sqlalchemy import String
 
+from pprint import pprint as print
+
 
 from oxapy import (
     HttpServer,
@@ -44,15 +46,28 @@ class User(Base):
     password: Mapped[str] = mapped_column(String(255), nullable=False)
 
 
-class UserSerialzer(serializer.Serializer):
-    id = serializer.CharField()
-    email = serializer.EmailField()
 
+class UserSerializer(serializer.Serializer):
+    id = serializer.UUIDField(
+        title="User ID",
+        description="Unique identifier for the user"
+    )
+    email = serializer.EmailField(
+        title="Email Address",
+        pattern=r".*@example\.com$",
+        description="User's email address (must be from example.com)"
+    )
 
 class UserInputSerializer(serializer.Serializer):
-    email = serializer.EmailField()
-    password = serializer.CharField()
-
+    email = serializer.EmailField(
+        title="Email Address",
+        description="User's email address for login"
+    )
+    password = serializer.CharField(
+        min_length=8,
+        title="Password",
+        description="User's password (min 8 characters)"
+    )
 
 @post("/register")
 def register(request: Request):
@@ -113,7 +128,7 @@ def add(request: Request):
 def user_info(request: Request) -> Response:
     with Session(request.app_data.engine) as session:
         if user := session.query(User).filter_by(id=request.user_id).first():
-            serializer = UserSerialzer(instance=user)
+            serializer = UserSerializer(instance=user)
             return serializer.data
 
 
@@ -121,7 +136,7 @@ def user_info(request: Request) -> Response:
 def all(request: Request) -> Response:
     with Session(request.app_data.engine) as session:
         if user := session.query(User).all():
-            serializer = UserSerialzer(instance=user, many=True)
+            serializer = UserSerializer(instance=user, many=True)
             return serializer.data
 
 

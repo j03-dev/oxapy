@@ -8,7 +8,10 @@ use serde_json::Value;
 
 use crate::{request::Request, IntoPyException};
 
-use fields::{CharField, EmailField, Field, IntegerField};
+use fields::{
+    BooleanField, CharField, DateField, DateTimeField, EmailField, EnumField, Field, IntegerField,
+    NumberField, UUIDField,
+};
 
 mod fields;
 
@@ -26,12 +29,21 @@ struct Serializer {
 #[pymethods]
 impl Serializer {
     #[new]
-    #[pyo3(signature = (request = None, instance = None, required = true, many = false))]
+    #[pyo3(signature = (
+        request = None,
+        instance = None,
+        required = true,
+        many = false,
+        title = None,
+        description = None
+    ))]
     fn new(
         request: Option<Request>,
         instance: Option<Py<PyAny>>,
         required: Option<bool>,
         many: Option<bool>,
+        title: Option<String>,
+        description: Option<String>,
     ) -> (Self, Field) {
         (
             Self {
@@ -39,11 +51,29 @@ impl Serializer {
                 instance,
                 request,
             },
-            Field::new("object".to_string(), required, None, many),
+            Field::new(
+                "object".to_string(),
+                required,
+                None,
+                many,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                title,
+                description,
+            ),
         )
     }
 
-    fn validate(mut slf: PyRefMut<'_, Serializer>, py: Python<'_>) -> PyResult<()> {
+    fn schema(slf: PyRef<'_, Self>, py: Python<'_>) -> PyResult<Py<PyDict>> {
+        let schema_value = Self::json_schema_value(&slf.into_pyobject(py)?.get_type())?;
+        crate::json::loads(&schema_value.to_string())
+    }
+
+    fn validate(mut slf: PyRefMut<'_, Self>, py: Python<'_>) -> PyResult<()> {
         let request = slf
             .request
             .as_ref()
@@ -116,9 +146,27 @@ impl Serializer {
         let mut properties = serde_json::Map::new();
         let mut required_fields = Vec::new();
         let mut is_many = false;
+        let mut title = None;
+        let mut description = None;
+
+        if let Ok(cls_dict) = cls.getattr("__dict__") {
+            if let Ok(many) = cls_dict.get_item("many") {
+                is_many = many.extract::<bool>().unwrap_or(false);
+            }
+            if let Ok(t) = cls_dict.get_item("title") {
+                title = t.extract::<Option<String>>()?;
+            }
+            if let Ok(d) = cls_dict.get_item("description") {
+                description = d.extract::<Option<String>>()?;
+            }
+        }
 
         for attr in cls.dir()? {
             let attr_name = attr.to_string();
+            if attr_name.starts_with("_") {
+                continue;
+            }
+
             if let Ok(attr_obj) = cls.getattr(&attr_name) {
                 if let Ok(field) = attr_obj.extract::<PyRef<Field>>() {
                     properties.insert(attr_name.clone(), field.to_json_schema_value());
@@ -131,12 +179,14 @@ impl Serializer {
                 } else if attr_obj.extract::<PyRef<Serializer>>().is_ok() {
                     let nested_schema = Self::json_schema_value(&attr_obj.get_type())?;
                     properties.insert(attr_name.clone(), nested_schema);
-                    let field = attr_obj.extract::<PyRef<Field>>()?;
-                    if field.required.unwrap_or(false) {
-                        required_fields.push(attr_name);
-                    }
-                    if field.many.unwrap_or(false) {
-                        is_many = true;
+
+                    if let Ok(field) = attr_obj.extract::<PyRef<Field>>() {
+                        if field.required.unwrap_or(false) {
+                            required_fields.push(attr_name);
+                        }
+                        if field.many.unwrap_or(false) {
+                            is_many = true;
+                        }
                     }
                 }
             }
@@ -150,6 +200,14 @@ impl Serializer {
         if !required_fields.is_empty() {
             let reqs: Vec<Value> = required_fields.into_iter().map(Value::String).collect();
             schema.insert("required".to_string(), Value::Array(reqs));
+        }
+
+        if let Some(t) = title {
+            schema.insert("title".to_string(), Value::String(t));
+        }
+
+        if let Some(d) = description {
+            schema.insert("description".to_string(), Value::String(d));
         }
 
         let final_schema = if is_many {
@@ -172,6 +230,12 @@ pub fn serializer_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
     serializer.add_class::<EmailField>()?;
     serializer.add_class::<IntegerField>()?;
     serializer.add_class::<CharField>()?;
+    serializer.add_class::<BooleanField>()?;
+    serializer.add_class::<NumberField>()?;
+    serializer.add_class::<UUIDField>()?;
+    serializer.add_class::<DateField>()?;
+    serializer.add_class::<DateTimeField>()?;
+    serializer.add_class::<EnumField>()?;
     serializer.add_class::<Serializer>()?;
     m.add_submodule(&serializer)?;
     Ok(())
