@@ -6,6 +6,10 @@ use pyo3::{
 };
 use serde_json::Value;
 
+use once_cell::sync::Lazy;
+
+use std::{collections::HashMap, sync::Mutex};
+
 use crate::{request::Request, IntoPyException};
 
 use fields::{
@@ -141,6 +145,9 @@ impl Serializer {
     }
 }
 
+static CACHES_JSON_SCHEMA_VALUE: Lazy<Mutex<HashMap<String, Value>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
 static TYPE_STR: &str = "type";
 static ARRAY_STR: &str = "array";
 static OBJECT_STR: &str = "object";
@@ -158,6 +165,17 @@ impl Serializer {
         let mut is_many = false;
         let mut title = None;
         let mut description = None;
+
+        let class_name = cls.name()?;
+
+        if let Some(value) = CACHES_JSON_SCHEMA_VALUE
+            .lock()
+            .into_py_exception()?
+            .get(&class_name.to_string())
+            .cloned()
+        {
+            return Ok(value);
+        }
 
         if let Ok(cls_dict) = cls.getattr("__dict__") {
             if let Ok(many) = cls_dict.get_item("many") {
@@ -234,6 +252,11 @@ impl Serializer {
         } else {
             Value::Object(schema)
         };
+
+        CACHES_JSON_SCHEMA_VALUE
+            .lock()
+            .into_py_exception()?
+            .insert(class_name.to_string(), final_schema.clone());
 
         Ok(final_schema)
     }
