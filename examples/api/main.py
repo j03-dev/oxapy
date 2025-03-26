@@ -44,14 +44,18 @@ class User(Base):
     password: Mapped[str] = mapped_column(String(255), nullable=False)
 
 
-class UserSerialzer(serializer.Serializer):
-    id = serializer.CharField()
+class UserSerializer(serializer.Serializer):
+    id = serializer.UUIDField()
     email = serializer.EmailField()
 
 
 class UserInputSerializer(serializer.Serializer):
     email = serializer.EmailField()
-    password = serializer.CharField()
+    password = serializer.CharField(
+        min_length=8,
+        title="Password",
+        description="User's password (min 8 characters)",
+    )
 
 
 @post("/register")
@@ -113,7 +117,7 @@ def add(request: Request):
 def user_info(request: Request) -> Response:
     with Session(request.app_data.engine) as session:
         if user := session.query(User).filter_by(id=request.user_id).first():
-            serializer = UserSerialzer(instance=user)
+            serializer = UserSerializer(instance=user)
             return serializer.data
 
 
@@ -121,7 +125,7 @@ def user_info(request: Request) -> Response:
 def all(request: Request) -> Response:
     with Session(request.app_data.engine) as session:
         if user := session.query(User).all():
-            serializer = UserSerialzer(instance=user, many=True)
+            serializer = UserSerializer(instance=user, many=True)
             return serializer.data
 
 

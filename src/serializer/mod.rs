@@ -6,9 +6,16 @@ use pyo3::{
 };
 use serde_json::Value;
 
+use once_cell::sync::Lazy;
+
+use std::{collections::HashMap, sync::Mutex};
+
 use crate::{request::Request, IntoPyException};
 
-use fields::{CharField, EmailField, Field, IntegerField};
+use fields::{
+    BooleanField, CharField, DateField, DateTimeField, EmailField, EnumField, Field, IntegerField,
+    NumberField, UUIDField,
+};
 
 mod fields;
 
@@ -26,12 +33,21 @@ struct Serializer {
 #[pymethods]
 impl Serializer {
     #[new]
-    #[pyo3(signature = (request = None, instance = None, required = true, many = false))]
+    #[pyo3(signature = (
+        request = None,
+        instance = None,
+        required = true,
+        many = false,
+        title = None,
+        description = None
+    ))]
     fn new(
         request: Option<Request>,
         instance: Option<Py<PyAny>>,
         required: Option<bool>,
         many: Option<bool>,
+        title: Option<String>,
+        description: Option<String>,
     ) -> (Self, Field) {
         (
             Self {
@@ -39,11 +55,29 @@ impl Serializer {
                 instance,
                 request,
             },
-            Field::new("object".to_string(), required, None, many),
+            Field::new(
+                "object".to_string(),
+                required,
+                None,
+                many,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                title,
+                description,
+            ),
         )
     }
 
-    fn validate(mut slf: PyRefMut<'_, Serializer>, py: Python<'_>) -> PyResult<()> {
+    fn schema(slf: PyRef<'_, Self>, py: Python<'_>) -> PyResult<Py<PyDict>> {
+        let schema_value = Self::json_schema_value(&slf.into_pyobject(py)?.get_type())?;
+        crate::json::loads(&schema_value.to_string())
+    }
+
+    fn validate(mut slf: PyRefMut<'_, Self>, py: Python<'_>) -> PyResult<()> {
         let request = slf
             .request
             .as_ref()
@@ -111,55 +145,118 @@ impl Serializer {
     }
 }
 
+static CACHES_JSON_SCHEMA_VALUE: Lazy<Mutex<HashMap<String, Value>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
+static TYPE_STR: &str = "type";
+static ARRAY_STR: &str = "array";
+static OBJECT_STR: &str = "object";
+static ITEMS_STR: &str = "items";
+static TITLE_STR: &str = "title";
+static DESC_STR: &str = "description";
+static PROPS_STR: &str = "properties";
+static ADD_PROPS_STR: &str = "additionalProperties";
+static REQUIRED_STR: &str = "required";
+
 impl Serializer {
     fn json_schema_value(cls: &Bound<'_, PyType>) -> PyResult<Value> {
-        let mut properties = serde_json::Map::new();
-        let mut required_fields = Vec::new();
+        let mut properties = serde_json::Map::with_capacity(16);
+        let mut required_fields = Vec::with_capacity(8);
         let mut is_many = false;
+        let mut title = None;
+        let mut description = None;
 
-        for attr in cls.dir()? {
+        let class_name = cls.name()?;
+
+        if let Some(value) = CACHES_JSON_SCHEMA_VALUE
+            .lock()
+            .into_py_exception()?
+            .get(&class_name.to_string())
+            .cloned()
+        {
+            return Ok(value);
+        }
+
+        if let Ok(cls_dict) = cls.getattr("__dict__") {
+            if let Ok(many) = cls_dict.get_item("many") {
+                is_many = many.extract::<bool>().unwrap_or(false);
+            }
+            if let Ok(t) = cls_dict.get_item("title") {
+                title = t.extract::<Option<String>>()?;
+            }
+            if let Ok(d) = cls_dict.get_item("description") {
+                description = d.extract::<Option<String>>()?;
+            }
+        }
+
+        let attrs = cls.dir()?;
+        for attr in attrs.iter() {
             let attr_name = attr.to_string();
+            if attr_name.starts_with('_') {
+                continue;
+            }
+
             if let Ok(attr_obj) = cls.getattr(&attr_name) {
-                if let Ok(field) = attr_obj.extract::<PyRef<Field>>() {
-                    properties.insert(attr_name.clone(), field.to_json_schema_value());
-                    if field.required.unwrap_or(false) {
-                        required_fields.push(attr_name);
+                if let Ok(serializer) = attr_obj.extract::<PyRef<Serializer>>() {
+                    let field = serializer.as_super();
+                    let is_required = field.required.unwrap_or(false);
+                    let is_field_many = field.many.unwrap_or(false);
+
+                    if is_required {
+                        required_fields.push(attr_name.clone());
                     }
-                    if field.many.unwrap_or(false) {
-                        is_many = true;
-                    }
-                } else if attr_obj.extract::<PyRef<Serializer>>().is_ok() {
+
                     let nested_schema = Self::json_schema_value(&attr_obj.get_type())?;
-                    properties.insert(attr_name.clone(), nested_schema);
-                    let field = attr_obj.extract::<PyRef<Field>>()?;
+
+                    if is_field_many {
+                        let mut array_schema = serde_json::Map::with_capacity(2);
+                        array_schema
+                            .insert(TYPE_STR.to_string(), Value::String(ARRAY_STR.to_string()));
+                        array_schema.insert(ITEMS_STR.to_string(), nested_schema);
+                        properties.insert(attr_name, Value::Object(array_schema));
+                    } else {
+                        properties.insert(attr_name, nested_schema);
+                    }
+                } else if let Ok(field) = attr_obj.extract::<PyRef<Field>>() {
+                    properties.insert(attr_name.clone(), field.to_json_schema_value());
+
                     if field.required.unwrap_or(false) {
                         required_fields.push(attr_name);
-                    }
-                    if field.many.unwrap_or(false) {
-                        is_many = true;
                     }
                 }
             }
         }
 
-        let mut schema = serde_json::Map::new();
-        schema.insert("type".to_string(), Value::String("object".to_string()));
-        schema.insert("properties".to_string(), Value::Object(properties));
-        schema.insert("additionalProperties".to_string(), Value::Bool(false));
+        let mut schema = serde_json::Map::with_capacity(5);
+        schema.insert(TYPE_STR.to_string(), Value::String(OBJECT_STR.to_string()));
+        schema.insert(PROPS_STR.to_string(), Value::Object(properties));
+        schema.insert(ADD_PROPS_STR.to_string(), Value::Bool(false));
 
         if !required_fields.is_empty() {
             let reqs: Vec<Value> = required_fields.into_iter().map(Value::String).collect();
-            schema.insert("required".to_string(), Value::Array(reqs));
+            schema.insert(REQUIRED_STR.to_string(), Value::Array(reqs));
+        }
+
+        if let Some(t) = title {
+            schema.insert(TITLE_STR.to_string(), Value::String(t));
+        }
+        if let Some(d) = description {
+            schema.insert(DESC_STR.to_string(), Value::String(d));
         }
 
         let final_schema = if is_many {
-            let mut array_schema = serde_json::Map::new();
-            array_schema.insert("type".to_string(), Value::String("array".to_string()));
-            array_schema.insert("items".to_string(), Value::Object(schema));
+            let mut array_schema = serde_json::Map::with_capacity(2);
+            array_schema.insert(TYPE_STR.to_string(), Value::String(ARRAY_STR.to_string()));
+            array_schema.insert(ITEMS_STR.to_string(), Value::Object(schema));
             Value::Object(array_schema)
         } else {
             Value::Object(schema)
         };
+
+        CACHES_JSON_SCHEMA_VALUE
+            .lock()
+            .into_py_exception()?
+            .insert(class_name.to_string(), final_schema.clone());
 
         Ok(final_schema)
     }
@@ -172,6 +269,12 @@ pub fn serializer_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
     serializer.add_class::<EmailField>()?;
     serializer.add_class::<IntegerField>()?;
     serializer.add_class::<CharField>()?;
+    serializer.add_class::<BooleanField>()?;
+    serializer.add_class::<NumberField>()?;
+    serializer.add_class::<UUIDField>()?;
+    serializer.add_class::<DateField>()?;
+    serializer.add_class::<DateTimeField>()?;
+    serializer.add_class::<EnumField>()?;
     serializer.add_class::<Serializer>()?;
     m.add_submodule(&serializer)?;
     Ok(())
