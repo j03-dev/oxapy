@@ -32,6 +32,7 @@ pub struct Field {
 
 #[pymethods]
 impl  Field{
+    #[allow(clippy::too_many_arguments)]
     #[new]
     #[pyo3(signature = (
         ty,
@@ -183,6 +184,7 @@ macro_rules! define_fields {
             #[pyclass(subclass, extends=Field)]
             pub struct $class;
 
+            #[allow(clippy::too_many_arguments)]
             #[pymethods]
             impl $class {
                 #[new]
