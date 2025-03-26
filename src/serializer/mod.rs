@@ -153,7 +153,7 @@ static REQUIRED_STR: &str = "required";
 
 impl Serializer {
     fn json_schema_value(cls: &Bound<'_, PyType>) -> PyResult<Value> {
-        let mut properties = serde_json::Map::with_capacity(16); // Pre-allocate with reasonable size
+        let mut properties = serde_json::Map::with_capacity(16);
         let mut required_fields = Vec::with_capacity(8);
         let mut is_many = false;
         let mut title = None;
