@@ -46,23 +46,12 @@ class User(Base):
     password: Mapped[str] = mapped_column(String(255), nullable=False)
 
 
-
 class UserSerializer(serializer.Serializer):
-    id = serializer.UUIDField(
-        title="User ID",
-        description="Unique identifier for the user"
-    )
-    email = serializer.EmailField(
-        title="Email Address",
-        pattern=r".*@example\.com$",
-        description="User's email address (must be from example.com)"
-    )
+    id = serializer.UUIDField()
+    email = serializer.EmailField()
 
 class UserInputSerializer(serializer.Serializer):
-    email = serializer.EmailField(
-        title="Email Address",
-        description="User's email address for login"
-    )
+    email = serializer.EmailField()
     password = serializer.CharField(
         min_length=8,
         title="Password",

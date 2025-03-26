@@ -141,10 +141,20 @@ impl Serializer {
     }
 }
 
+static TYPE_STR: &str = "type";
+static ARRAY_STR: &str = "array";
+static OBJECT_STR: &str = "object";
+static ITEMS_STR: &str = "items";
+static TITLE_STR: &str = "title";
+static DESC_STR: &str = "description";
+static PROPS_STR: &str = "properties";
+static ADD_PROPS_STR: &str = "additionalProperties";
+static REQUIRED_STR: &str = "required";
+
 impl Serializer {
     fn json_schema_value(cls: &Bound<'_, PyType>) -> PyResult<Value> {
-        let mut properties = serde_json::Map::new();
-        let mut required_fields = Vec::new();
+        let mut properties = serde_json::Map::with_capacity(16); // Pre-allocate with reasonable size
+        let mut required_fields = Vec::with_capacity(8);
         let mut is_many = false;
         let mut title = None;
         let mut description = None;
@@ -161,29 +171,30 @@ impl Serializer {
             }
         }
 
-        for attr in cls.dir()? {
+        let attrs = cls.dir()?;
+        for attr in attrs.iter() {
             let attr_name = attr.to_string();
-            if attr_name.starts_with("_") {
+            if attr_name.starts_with('_') {
                 continue;
             }
 
             if let Ok(attr_obj) = cls.getattr(&attr_name) {
                 if let Ok(serializer) = attr_obj.extract::<PyRef<Serializer>>() {
                     let field = serializer.as_super();
-
                     let is_required = field.required.unwrap_or(false);
+                    let is_field_many = field.many.unwrap_or(false);
+
                     if is_required {
                         required_fields.push(attr_name.clone());
                     }
 
-                    let is_field_many = field.many.unwrap_or(false);
-
                     let nested_schema = Self::json_schema_value(&attr_obj.get_type())?;
 
                     if is_field_many {
-                        let mut array_schema = serde_json::Map::new();
-                        array_schema.insert("type".to_string(), Value::String("array".to_string()));
-                        array_schema.insert("items".to_string(), nested_schema);
+                        let mut array_schema = serde_json::Map::with_capacity(2);
+                        array_schema
+                            .insert(TYPE_STR.to_string(), Value::String(ARRAY_STR.to_string()));
+                        array_schema.insert(ITEMS_STR.to_string(), nested_schema);
                         properties.insert(attr_name, Value::Object(array_schema));
                     } else {
                         properties.insert(attr_name, nested_schema);
@@ -198,27 +209,27 @@ impl Serializer {
             }
         }
 
-        let mut schema = serde_json::Map::new();
-        schema.insert("type".to_string(), Value::String("object".to_string()));
-        schema.insert("properties".to_string(), Value::Object(properties));
-        schema.insert("additionalProperties".to_string(), Value::Bool(false));
+        let mut schema = serde_json::Map::with_capacity(5);
+        schema.insert(TYPE_STR.to_string(), Value::String(OBJECT_STR.to_string()));
+        schema.insert(PROPS_STR.to_string(), Value::Object(properties));
+        schema.insert(ADD_PROPS_STR.to_string(), Value::Bool(false));
 
         if !required_fields.is_empty() {
             let reqs: Vec<Value> = required_fields.into_iter().map(Value::String).collect();
-            schema.insert("required".to_string(), Value::Array(reqs));
+            schema.insert(REQUIRED_STR.to_string(), Value::Array(reqs));
         }
 
         if let Some(t) = title {
-            schema.insert("title".to_string(), Value::String(t));
+            schema.insert(TITLE_STR.to_string(), Value::String(t));
         }
         if let Some(d) = description {
-            schema.insert("description".to_string(), Value::String(d));
+            schema.insert(DESC_STR.to_string(), Value::String(d));
         }
 
         let final_schema = if is_many {
-            let mut array_schema = serde_json::Map::new();
-            array_schema.insert("type".to_string(), Value::String("array".to_string()));
-            array_schema.insert("items".to_string(), Value::Object(schema));
+            let mut array_schema = serde_json::Map::with_capacity(2);
+            array_schema.insert(TYPE_STR.to_string(), Value::String(ARRAY_STR.to_string()));
+            array_schema.insert(ITEMS_STR.to_string(), Value::Object(schema));
             Value::Object(array_schema)
         } else {
             Value::Object(schema)
