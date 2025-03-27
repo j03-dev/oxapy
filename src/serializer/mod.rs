@@ -72,8 +72,8 @@ impl Serializer {
         )
     }
 
-    fn schema(slf: PyRef<'_, Self>, py: Python<'_>) -> PyResult<Py<PyDict>> {
-        let schema_value = Self::json_schema_value(&slf.into_pyobject(py)?.get_type())?;
+    fn schema(slf: Bound<'_, Self>) -> PyResult<Py<PyDict>> {
+        let schema_value = Self::json_schema_value(&slf.get_type())?;
         crate::json::loads(&schema_value.to_string())
     }
 
@@ -262,7 +262,6 @@ impl Serializer {
     }
 }
 
-#[pymodule]
 pub fn serializer_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let serializer = PyModule::new(m.py(), "serializer")?;
     serializer.add_class::<Field>()?;

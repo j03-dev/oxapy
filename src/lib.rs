@@ -13,7 +13,6 @@ mod templating;
 use cors::Cors;
 use handling::request_handler::handle_request;
 use handling::response_handler::handle_response;
-use pyo3::exceptions::PyException;
 use request::Request;
 use response::Response;
 use routing::{delete, get, patch, post, put, static_file, Route, Router};
@@ -39,7 +38,7 @@ use std::{
     },
 };
 
-use pyo3::prelude::*;
+use pyo3::{exceptions::PyException, prelude::*};
 
 use crate::templating::Template;
 
@@ -141,7 +140,7 @@ impl HttpServer {
             let runtime = tokio::runtime::Runtime::new().unwrap();
             runtime.block_on(shutdown_tx.send(())).unwrap();
         })
-        .ok();
+        .into_py_exception()?;
 
         let listener = TcpListener::bind(addr).await?;
         println!("Listening on {}", addr);

@@ -4,8 +4,6 @@ use pyo3::{exceptions::PyAttributeError, prelude::*, types::PyDict};
 
 use crate::templating::Template;
 
-type AppData = Arc<Py<PyAny>>;
-
 #[derive(Clone, Debug)]
 #[pyclass]
 pub struct Request {
@@ -17,7 +15,7 @@ pub struct Request {
     pub headers: HashMap<String, String>,
     #[pyo3(get, set)]
     pub body: Option<String>,
-    pub app_data: Option<AppData>,
+    pub app_data: Option<Arc<Py<PyAny>>>,
     pub template: Option<Arc<Template>>,
     pub ext: HashMap<String, Arc<PyObject>>,
 }
@@ -101,7 +99,7 @@ impl Request {
         self.body = Some(body);
     }
 
-    pub fn set_app_data(&mut self, app_data: AppData) {
+    pub fn set_app_data(&mut self, app_data: Arc<Py<PyAny>>) {
         self.app_data = Some(app_data);
     }
 
