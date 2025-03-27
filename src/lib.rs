@@ -15,7 +15,7 @@ use handling::request_handler::handle_request;
 use handling::response_handler::handle_response;
 use request::Request;
 use response::Response;
-use routing::{delete, get, patch, post, put, static_file, Route, Router};
+use routing::{delete, get, head, options, patch, post, put, static_file, Route, Router};
 use status::Status;
 
 use serializer::serializer_submodule;
@@ -215,6 +215,8 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(delete, m)?)?;
     m.add_function(wrap_pyfunction!(patch, m)?)?;
     m.add_function(wrap_pyfunction!(put, m)?)?;
+    m.add_function(wrap_pyfunction!(head, m)?)?;
+    m.add_function(wrap_pyfunction!(options, m)?)?;
     m.add_function(wrap_pyfunction!(static_file, m)?)?;
 
     templating_submodule(m)?;

@@ -76,7 +76,7 @@ macro_rules! method_decorator {
     };
 }
 
-method_decorator!(get, post, put, patch, delete);
+method_decorator!(get, post, put, patch, delete, head, options);
 
 #[derive(Default, Clone, Debug)]
 #[pyclass]
