@@ -18,6 +18,8 @@ pub struct Request {
     pub app_data: Option<Arc<Py<PyAny>>>,
     pub template: Option<Arc<Template>>,
     pub ext: HashMap<String, Arc<PyObject>>,
+    pub form_data: Option<HashMap<String, String>>,
+    pub files: Option<HashMap<String, crate::multipart::File>>,
 }
 
 #[pymethods]
@@ -32,6 +34,8 @@ impl Request {
             body: None,
             template: None,
             ext: HashMap::new(),
+            form_data: None,
+            files: None,
         }
     }
 
@@ -55,6 +59,30 @@ impl Request {
             return Ok(Some(query_params));
         }
         Ok(None)
+    }
+
+    pub fn form(&self, py: Python<'_>) -> PyResult<Py<PyDict>> {
+        if let Some(ref form_data) = self.form_data {
+            let dict = PyDict::new(py);
+            for (key, value) in form_data {
+                dict.set_item(key, value)?;
+            }
+            Ok(dict.into())
+        } else {
+            Ok(PyDict::new(py).into())
+        }
+    }
+
+    pub fn files(&self, py: Python<'_>) -> PyResult<Py<PyDict>> {
+        if let Some(ref files) = self.files {
+            let dict = PyDict::new(py);
+            for (key, file) in files {
+                dict.set_item(key, file.clone())?; // Assuming File is PyClass
+            }
+            Ok(dict.into())
+        } else {
+            Ok(PyDict::new(py).into())
+        }
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<PyObject> {
@@ -93,17 +121,5 @@ impl Request {
                 Some((key, value))
             })
             .collect()
-    }
-
-    pub fn set_body(&mut self, body: String) {
-        self.body = Some(body);
-    }
-
-    pub fn set_app_data(&mut self, app_data: Arc<Py<PyAny>>) {
-        self.app_data = Some(app_data);
-    }
-
-    pub fn set_app_template(&mut self, template: Arc<Template>) {
-        self.template = Some(template);
     }
 }
