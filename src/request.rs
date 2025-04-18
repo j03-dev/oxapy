@@ -19,7 +19,7 @@ pub struct Request {
     pub template: Option<Arc<Template>>,
     pub ext: HashMap<String, Arc<PyObject>>,
     pub form_data: Option<HashMap<String, String>>,
-    pub files: Option<HashMap<String, crate::mutlipart::File>>,
+    pub files: Option<HashMap<String, crate::multipart::File>>,
 }
 
 #[pymethods]

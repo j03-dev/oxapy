@@ -3,7 +3,7 @@ mod handling;
 mod into_response;
 mod json;
 mod middleware;
-mod mutlipart;
+mod multipart;
 mod request;
 mod response;
 mod routing;

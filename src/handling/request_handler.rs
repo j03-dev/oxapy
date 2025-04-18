@@ -11,7 +11,7 @@ use tokio::sync::mpsc::{channel, Sender};
 use crate::{
     cors::Cors,
     into_response::IntoResponse,
-    mutlipart::{parse_mutltipart, MultiPart},
+    multipart::{parse_mutltipart, MultiPart},
     request::Request,
     response::Response,
     routing::Router,
