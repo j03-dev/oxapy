@@ -99,7 +99,9 @@ async fn convert_hyper_request(
             request.form_data = Some(fields);
             request.files = Some(files);
         }
-    } else if !body.is_empty() {
+    }
+
+    if !body.is_empty() {
         request.body = Some(body);
     }
 
