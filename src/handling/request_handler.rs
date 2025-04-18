@@ -1,4 +1,4 @@
-use std::{mem::transmute, sync::Arc};
+use std::{collections::HashMap, mem::transmute, sync::Arc};
 
 use http_body_util::{BodyExt, Full};
 use hyper::{
@@ -9,8 +9,15 @@ use pyo3::{Py, PyAny};
 use tokio::sync::mpsc::{channel, Sender};
 
 use crate::{
-    cors::Cors, into_response::IntoResponse, request::Request, response::Response, routing::Router,
-    status::Status, templating::Template, MatchitRoute, ProcessRequest,
+    cors::Cors,
+    into_response::IntoResponse,
+    mutlipart::{parse_mutltipart, MultiPart},
+    request::Request,
+    response::Response,
+    routing::Router,
+    status::Status,
+    templating::Template,
+    IntoPyException, MatchitRoute, ProcessRequest,
 };
 
 pub async fn handle_request(
@@ -71,7 +78,7 @@ async fn convert_hyper_request(
     let method = req.method().to_string();
     let uri = req.uri().to_string();
 
-    let mut headers = std::collections::HashMap::new();
+    let mut headers = HashMap::new();
     for (key, value) in req.headers() {
         headers.insert(
             key.to_string(),
@@ -79,20 +86,25 @@ async fn convert_hyper_request(
         );
     }
 
-    let mut request = Request::new(method, uri, headers);
+    let mut request = Request::new(method, uri, headers.clone());
 
     let body_bytes = req.collect().await?.to_bytes();
     let body = String::from_utf8_lossy(&body_bytes).to_string();
 
-    if !body.is_empty() {
-        request.set_body(body);
+    if let Some(content_type) = headers.get("content-type") {
+        if content_type.starts_with("multipart/form-data") {
+            let MultiPart { fields, files } = parse_mutltipart(content_type, body_bytes)
+                .await
+                .into_py_exception()?;
+            request.form_data = Some(fields);
+            request.files = Some(files);
+        }
+    } else if !body.is_empty() {
+        request.body = Some(body);
     }
-    if let Some(app_data) = app_data {
-        request.set_app_data(app_data);
-    }
-    if let Some(template) = template {
-        request.set_app_template(template);
-    }
+
+    request.app_data = app_data;
+    request.template = template;
 
     Ok(Arc::new(request))
 }

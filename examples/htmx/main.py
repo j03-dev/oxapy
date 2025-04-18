@@ -13,6 +13,13 @@ def login_page(request):
     return templating.render(request, "login.html.j2")
 
 
+@post("/upload-file")
+def upload_file(request):
+    if file := request.files().get("file"):
+        file.save(f"media/{file.name}")
+    return Status.OK
+
+
 class CredSerializer(serializer.Serializer):
     username = serializer.CharField()
     password = serializer.CharField()
@@ -44,7 +51,7 @@ def logger(request, next, **kwargs):
 
 router = Router()
 router.middleware(logger)
-router.routes([index_page, login_page, login_form])
+router.routes([index_page, login_page, login_form, upload_file])
 router.route(static_file("./static", "static"))
 
 
