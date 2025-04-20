@@ -4,7 +4,7 @@ use pyo3::{exceptions::PyAttributeError, prelude::*, types::PyDict};
 
 use crate::templating::Template;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 #[pyclass]
 pub struct Request {
     #[pyo3(get, set)]
@@ -30,12 +30,7 @@ impl Request {
             method,
             uri,
             headers,
-            app_data: None,
-            body: None,
-            template: None,
-            ext: HashMap::new(),
-            form_data: None,
-            files: None,
+            ..Default::default()
         }
     }
 
