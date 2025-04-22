@@ -142,7 +142,7 @@ impl Serializer {
                     results.push(dict.into());
                 }
             }
-            return Ok(PyList::new(py, results)?.into_py_any(py)?);
+            return PyList::new(py, results)?.into_py_any(py);
         }
 
         if let Some(inst) = slf.getattr("instance")?.extract::<Option<PyObject>>()? {
@@ -150,10 +150,10 @@ impl Serializer {
                 .as_ref()
                 .call_method1("to_representation", (inst.clone_ref(py),))?;
             let dict: Bound<PyDict> = py_repr.extract()?;
-            return Ok(dict.into_py_any(py)?);
+            return dict.into_py_any(py);
         }
 
-        Ok(py.None().into())
+        Ok(py.None())
     }
 }
 

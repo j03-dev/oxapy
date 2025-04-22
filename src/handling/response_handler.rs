@@ -21,10 +21,11 @@ pub async fn handle_response(
     loop {
         tokio::select! {
             Some(process_request) = request_receiver.recv() => {
-                let response = match process_response(
+                let request: &Request = &process_request.request;
+                let mut response = match process_response(
                     &process_request.router,
                     process_request.route,
-                    &process_request.request,
+                    request,
                 ) {
                     Ok(response) => response,
                     Err(e) => Status::INTERNAL_SERVER_ERROR
@@ -33,13 +34,23 @@ pub async fn handle_response(
                         .set_body(e.to_string()),
                 };
 
-                let final_response = if let Some(cors) = process_request.cors {
-                    cors.apply_to_response(response).unwrap()
-                } else {
-                    response
-                };
+                if let Some(cors) = process_request.cors {
+                   response = cors.apply_to_response(response).unwrap();
+                }
 
-                _ = process_request.response_sender.send(final_response).await;
+                if let Some(status_catcher) = process_request.status_catcher {
+                    if let Some(catcher) = status_catcher.get(&response.status) {
+                        Python::with_gil(|py| {
+                            if let Ok(catcher_response) = catcher.call(py, (request.clone(), response.clone()), None) {
+                                if let Ok(resp) = convert_to_response(catcher_response, py) {
+                                    response = resp;
+                                }
+                            }
+                        });
+                    }
+                }
+
+                _ = process_request.response_sender.send(response).await;
             }
             _ = shutdown_rx.recv() => {break}
         }
