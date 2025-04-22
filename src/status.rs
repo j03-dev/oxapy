@@ -5,7 +5,7 @@ use pyo3::prelude::*;
 
 use crate::{into_response::IntoResponse, response::Response};
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[pyclass]
 pub struct Status(pub u16);
 
