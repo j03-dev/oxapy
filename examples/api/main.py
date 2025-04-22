@@ -16,6 +16,7 @@ from oxapy import (
     serializer,
     get,
     post,
+    catcher,
 )
 
 import uuid
@@ -62,10 +63,7 @@ class UserInputSerializer(serializer.Serializer):
 def register(request: Request):
     new_user = UserInputSerializer(request)
 
-    try:
-        new_user.validate()
-    except Exception as e:
-        return str(e), Status.BAD_REQUEST
+    new_user.validate()
 
     password = new_user.validate_data["password"]
     email = new_user.validate_data["email"]
@@ -85,10 +83,7 @@ def register(request: Request):
 def login(request: Request):
     user_input = UserInputSerializer(request)
 
-    try:
-        user_input.validate()
-    except Exception as e:
-        return str(e), Status.BAD_REQUEST
+    user_input.validate()
 
     email = user_input.validate_data["email"]
     password = user_input.validate_data["password"]
@@ -129,6 +124,11 @@ def all(request: Request) -> Response:
             return serializer.data
 
 
+@catcher(Status.INTERNAL_SERVER_ERROR)
+def catch_500(req: Request, res: Response):
+    return {"error": res.body}, Status.BAD_REQUEST
+
+
 pub_router = Router()
 pub_router.routes([hello_world, login, register, add])
 pub_router.middleware(logger)
@@ -138,8 +138,10 @@ sec_router.routes([user_info, all])
 sec_router.middleware(jwt_middleware)
 sec_router.middleware(logger)
 
+
 server = HttpServer(("127.0.0.1", 5555))
 server.app_data(AppData())
+server.catcher(catch_500)
 server.attach(sec_router)
 server.attach(pub_router)
 

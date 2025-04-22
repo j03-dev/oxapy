@@ -1,3 +1,4 @@
+mod catcher;
 mod cors;
 mod handling;
 mod into_response;
@@ -11,6 +12,7 @@ mod serializer;
 mod status;
 mod templating;
 
+use catcher::Catcher;
 use cors::Cors;
 use handling::request_handler::handle_request;
 use handling::response_handler::handle_response;
@@ -32,6 +34,7 @@ use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::Semaphore;
 
 use std::{
+    collections::HashMap,
     net::SocketAddr,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -55,12 +58,14 @@ impl<T, E: ToString> IntoPyException<T> for Result<T, E> {
     }
 }
 
+#[derive(Clone)]
 struct ProcessRequest {
     request: Arc<Request>,
     router: Arc<Router>,
     route: MatchitRoute,
     response_sender: Sender<Response>,
     cors: Option<Arc<Cors>>,
+    status_catcher: Option<Arc<HashMap<Status, Py<PyAny>>>>,
 }
 
 #[derive(Clone)]
@@ -73,6 +78,7 @@ struct HttpServer {
     channel_capacity: usize,
     cors_header: Option<Arc<Cors>>,
     template: Option<Arc<Template>>,
+    status_catchers: Option<Arc<HashMap<Status, Py<PyAny>>>>,
 }
 
 #[pymethods]
@@ -88,6 +94,7 @@ impl HttpServer {
             channel_capacity: 100,
             cors_header: None,
             template: None,
+            status_catchers: None,
         })
     }
 
@@ -101,6 +108,15 @@ impl HttpServer {
 
     fn template(&mut self, template: Template) {
         self.template = Some(Arc::new(template))
+    }
+
+    fn catcher(&mut self, catcher: Catcher, py: Python<'_>) {
+        if self.status_catchers.is_none() {
+            self.status_catchers = Some(Arc::new(HashMap::new()));
+        }
+        if let Some(catchers) = Arc::get_mut(self.status_catchers.as_mut().unwrap()) {
+            catchers.insert(catcher.status, catcher.handler.clone_ref(py));
+        }
     }
 
     fn run(&self) -> PyResult<()> {
@@ -153,6 +169,7 @@ impl HttpServer {
         let app_data = self.app_data.clone();
         let cors = self.cors_header.clone();
         let template = self.template.clone();
+        let status_catcher = self.status_catchers.clone();
 
         tokio::spawn(async move {
             while running_clone.load(Ordering::SeqCst) {
@@ -164,6 +181,7 @@ impl HttpServer {
                 let app_data = app_data.clone();
                 let cors = cors.clone();
                 let template = template.clone();
+                let status_catcher = status_catcher.clone();
 
                 tokio::spawn(async move {
                     let _permit = permit;
@@ -176,6 +194,7 @@ impl HttpServer {
                                 let app_data = app_data.clone();
                                 let cors = cors.clone();
                                 let template = template.clone();
+                                let status_catcher = status_catcher.clone();
 
                                 async move {
                                     handle_request(
@@ -186,6 +205,7 @@ impl HttpServer {
                                         channel_capacity,
                                         cors,
                                         template,
+                                        status_catcher,
                                     )
                                     .await
                                 }
@@ -219,6 +239,7 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(head, m)?)?;
     m.add_function(wrap_pyfunction!(options, m)?)?;
     m.add_function(wrap_pyfunction!(static_file, m)?)?;
+    m.add_function(wrap_pyfunction!(catcher::catcher, m)?)?;
 
     templating_submodule(m)?;
     serializer_submodule(m)?;

@@ -18,7 +18,7 @@ impl Route {
     #[new]
     #[pyo3(signature=(path, method=None))]
     pub fn new(path: String, method: Option<String>, py: Python<'_>) -> Self {
-        Route {
+        Self {
             method: method.unwrap_or_else(|| "GET".to_string()),
             path,
             handler: Arc::new(py.None()),

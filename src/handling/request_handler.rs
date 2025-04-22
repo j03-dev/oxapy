@@ -20,6 +20,7 @@ use crate::{
     IntoPyException, MatchitRoute, ProcessRequest,
 };
 
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_request(
     req: HyperRequest<Incoming>,
     request_sender: Sender<ProcessRequest>,
@@ -28,6 +29,7 @@ pub async fn handle_request(
     channel_capacity: usize,
     cors: Option<Arc<Cors>>,
     template: Option<Arc<Template>>,
+    status_catcher: Option<Arc<HashMap<Status, Py<PyAny>>>>,
 ) -> Result<HyperResponse<Full<Bytes>>, hyper::http::Error> {
     if req.method() == hyper::Method::OPTIONS && cors.is_some() {
         let response = cors.as_ref().unwrap().into_response().unwrap();
@@ -50,6 +52,7 @@ pub async fn handle_request(
                 route,
                 response_sender,
                 cors: cors.clone(),
+                status_catcher,
             };
 
             if request_sender.send(process_request).await.is_ok() {
