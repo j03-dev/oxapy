@@ -55,6 +55,70 @@ impl<T, E: ToString> IntoPyException<T> for Result<T, E> {
     }
 }
 
+#[derive(Clone)]
+#[pyclass]
+struct Config {
+    addr: SocketAddr,
+    cors: Option<Arc<Cors>>,
+    template: Option<Arc<Template>>,
+    app_data: Option<Arc<Py<PyAny>>>,
+    max_connections: Arc<Semaphore>,
+    #[pyo3(set)]
+    channel_capacity: usize,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        let ip = "127.0.0.1".parse().expect("faild to part ipv4");
+        Self {
+            addr: SocketAddr::new(ip, 5555),
+            cors: None,
+            template: None,
+            app_data: None,
+            max_connections: Arc::new(Semaphore::new(100)),
+            channel_capacity: 100,
+        }
+    }
+}
+
+#[pymethods]
+impl Config {
+    #[new]
+    fn new() -> Self {
+        Self::default()
+    }
+
+    #[setter]
+    fn addr(&mut self, addr: (String, u16)) -> PyResult<()> {
+        self.addr = SocketAddr::new(addr.0.parse()?, addr.1);
+        Ok(())
+    }
+
+    #[setter]
+    fn cors(&mut self, cors: Cors) -> PyResult<()> {
+        self.cors = Some(Arc::new(cors));
+        Ok(())
+    }
+
+    #[setter]
+    fn template(&mut self, template: Template) -> PyResult<()> {
+        self.template = Some(Arc::new(template));
+        Ok(())
+    }
+
+    #[setter]
+    pub fn app_data(&mut self, app_data: Py<PyAny>) -> PyResult<()> {
+        self.app_data = Some(Arc::new(app_data));
+        Ok(())
+    }
+
+    #[setter]
+    pub fn max_connections(&mut self, max_connections: usize) -> PyResult<()> {
+        self.max_connections = Arc::new(Semaphore::new(max_connections));
+        Ok(())
+    }
+}
+
 struct ProcessRequest {
     request: Arc<Request>,
     router: Arc<Router>,
@@ -66,41 +130,26 @@ struct ProcessRequest {
 #[derive(Clone)]
 #[pyclass]
 struct HttpServer {
-    addr: SocketAddr,
     routers: Vec<Arc<Router>>,
-    app_data: Option<Arc<Py<PyAny>>>,
-    max_connections: Arc<Semaphore>,
-    channel_capacity: usize,
-    cors_header: Option<Arc<Cors>>,
-    template: Option<Arc<Template>>,
+    config: Config,
 }
 
 #[pymethods]
 impl HttpServer {
     #[new]
-    fn new(addr: (String, u16)) -> PyResult<Self> {
-        let (ip, port) = addr;
+    fn new() -> PyResult<Self> {
         Ok(Self {
-            addr: SocketAddr::new(ip.parse()?, port),
             routers: Vec::new(),
-            app_data: None,
-            max_connections: Arc::new(Semaphore::new(100)),
-            channel_capacity: 100,
-            cors_header: None,
-            template: None,
+            config: Config::new(),
         })
-    }
-
-    fn app_data(&mut self, app_data: Py<PyAny>) {
-        self.app_data = Some(Arc::new(app_data))
     }
 
     fn attach(&mut self, router: PyRef<'_, Router>) {
         self.routers.push(Arc::new(router.clone()));
     }
 
-    fn template(&mut self, template: Template) {
-        self.template = Some(Arc::new(template))
+    fn config(&mut self, config: PyRef<'_, Config>) {
+        self.config = config.clone();
     }
 
     fn run(&self) -> PyResult<()> {
@@ -110,27 +159,14 @@ impl HttpServer {
         runtime.block_on(async move { self.run_server().await })?;
         Ok(())
     }
-
-    #[pyo3(signature=(max_connections = 100, channel_capacity = 100, cors=None))]
-    fn config(
-        &mut self,
-        max_connections: usize,
-        channel_capacity: usize,
-        cors: Option<PyRef<Cors>>,
-    ) -> PyResult<()> {
-        self.max_connections = Arc::new(Semaphore::new(max_connections));
-        self.channel_capacity = channel_capacity;
-        self.cors_header = cors.map(|c| Arc::new(c.clone()));
-        Ok(())
-    }
 }
 
 impl HttpServer {
     async fn run_server(&self) -> PyResult<()> {
         let running = Arc::new(AtomicBool::new(true));
         let r = running.clone();
-        let addr = self.addr;
-        let channel_capacity = self.channel_capacity;
+        let addr = self.config.addr;
+        let channel_capacity = self.config.channel_capacity;
 
         let (request_sender, mut request_receiver) = channel::<ProcessRequest>(channel_capacity);
         let (shutdown_tx, mut shutdown_rx) = channel::<()>(1);
@@ -149,10 +185,10 @@ impl HttpServer {
         let routers = self.routers.clone();
         let running_clone = running.clone();
         let request_sender = request_sender.clone();
-        let max_connections = self.max_connections.clone();
-        let app_data = self.app_data.clone();
-        let cors = self.cors_header.clone();
-        let template = self.template.clone();
+        let max_connections = self.config.max_connections.clone();
+        let app_data = self.config.app_data.clone();
+        let cors = self.config.cors.clone();
+        let template = self.config.template.clone();
 
         tokio::spawn(async move {
             while running_clone.load(Ordering::SeqCst) {
@@ -210,6 +246,7 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Status>()?;
     m.add_class::<Response>()?;
     m.add_class::<Request>()?;
+    m.add_class::<Config>()?;
     m.add_class::<Cors>()?;
     m.add_function(wrap_pyfunction!(get, m)?)?;
     m.add_function(wrap_pyfunction!(post, m)?)?;

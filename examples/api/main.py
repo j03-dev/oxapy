@@ -6,13 +6,14 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, Session
 from sqlalchemy import String
 
-
 from oxapy import (
     HttpServer,
     Response,
     Router,
+    Cors,
     Status,
     Request,
+    Config,
     serializer,
     get,
     post,
@@ -138,10 +139,18 @@ sec_router.routes([user_info, all])
 sec_router.middleware(jwt_middleware)
 sec_router.middleware(logger)
 
-server = HttpServer(("127.0.0.1", 5555))
-server.app_data(AppData())
+
+config = Config()
+config.cors = Cors()
+config.app_data = AppData()
+config.max_connections = 200
+config.channel_capacity = 150
+
+server = HttpServer()
+server.config(config)
 server.attach(sec_router)
 server.attach(pub_router)
+
 
 if __name__ == "__main__":
     server.run()
