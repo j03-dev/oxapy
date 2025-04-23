@@ -113,7 +113,6 @@ sec_router.middleware(jwt_middleware)
 sec_router.middleware(logger)
 
 server = HttpServer()
-server.config()
 server.attach(sec_router)
 server.attach(pub_router)
 
