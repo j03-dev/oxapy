@@ -14,6 +14,7 @@ mod templating;
 use cors::Cors;
 use handling::request_handler::handle_request;
 use handling::response_handler::handle_response;
+use pyo3::IntoPyObjectExt;
 use request::Request;
 use response::Response;
 use routing::{delete, get, head, options, patch, post, put, static_file, Route, Router};
@@ -55,7 +56,7 @@ impl<T, E: ToString> IntoPyException<T> for Result<T, E> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 #[pyclass]
 struct Config {
     addr: SocketAddr,
@@ -72,7 +73,7 @@ impl Default for Config {
         let ip = "127.0.0.1".parse().expect("faild to part ipv4");
         Self {
             addr: SocketAddr::new(ip, 5555),
-            cors: None,
+            cors: Some(Arc::new(Cors::default())),
             template: None,
             app_data: None,
             max_connections: Arc::new(Semaphore::new(100)),
@@ -127,7 +128,7 @@ struct ProcessRequest {
     cors: Option<Arc<Cors>>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 #[pyclass]
 struct HttpServer {
     routers: Vec<Arc<Router>>,
@@ -137,11 +138,13 @@ struct HttpServer {
 #[pymethods]
 impl HttpServer {
     #[new]
-    fn new() -> PyResult<Self> {
-        Ok(Self {
+    fn new(py: Python<'_>) -> PyResult<Self> {
+        let mut slf = Self {
             routers: Vec::new(),
             config: Config::new(),
-        })
+        };
+        slf.load_settings(py)?;
+        Ok(slf)
     }
 
     fn attach(&mut self, router: PyRef<'_, Router>) {
@@ -152,16 +155,75 @@ impl HttpServer {
         self.config = config.clone();
     }
 
-    fn run(&self) -> PyResult<()> {
+    fn run(&mut self) -> PyResult<()> {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()?;
         runtime.block_on(async move { self.run_server().await })?;
         Ok(())
     }
+
+    fn __repr__(&self) -> String {
+        format!("{:#?}", self)
+    }
 }
 
 impl HttpServer {
+    fn load_settings(&mut self, py: Python<'_>) -> PyResult<()> {
+        if let Ok(settings) = PyModule::import(py, "settings") {
+            if let Ok(addr) = settings.getattr("ADDR") {
+                let addr: (String, u16) = addr.extract()?;
+                self.config.addr = SocketAddr::new(addr.0.parse()?, addr.1);
+            }
+
+            if let Ok(origins) = settings.getattr("ORIGINS") {
+                let origins: Vec<String> = origins.extract()?;
+                let arc_cors = self.config.cors.as_mut().unwrap();
+                let cors = Arc::get_mut(arc_cors).unwrap();
+                cors.origins = origins;
+            }
+
+            if let Ok(methods) = settings.getattr("METHODS") {
+                let methods: Vec<String> = methods.extract()?;
+                let arc_cors = self.config.cors.as_mut().unwrap();
+                let cors = Arc::get_mut(arc_cors).unwrap();
+                cors.methods = methods;
+            }
+
+            if let Ok(headers) = settings.getattr("HEADERS") {
+                let headers: Vec<String> = headers.extract()?;
+                let arc_cors = self.config.cors.as_mut().unwrap();
+                let cors = Arc::get_mut(arc_cors).unwrap();
+                cors.headers = headers;
+            }
+
+            if let Ok(template) = settings.getattr("TEMPLATE") {
+                let template: Template = template.extract()?;
+                self.config.template = Some(Arc::new(template));
+            }
+
+            if let Ok(app_data) = settings.getattr("APP_DATA") {
+                self.config.app_data = Some(Arc::new(app_data.into_py_any(py)?));
+            }
+
+            if let Ok(routers) = settings.getattr("ROUTERS") {
+                let routers: Vec<Router> = routers.extract()?;
+                self.routers = routers.into_iter().map(|r| Arc::new(r)).collect();
+            }
+
+            if let Ok(max_connections) = settings.getattr("MAX_CONNECTIONS") {
+                let max_connections: usize = max_connections.extract()?;
+                self.config.max_connections = Arc::new(Semaphore::new(max_connections));
+            }
+
+            if let Ok(channel_capacity) = settings.getattr("CHANNEL_CAPACITY") {
+                let channel_capacity: usize = channel_capacity.extract()?;
+                self.config.channel_capacity = channel_capacity;
+            }
+        }
+        Ok(())
+    }
+
     async fn run_server(&self) -> PyResult<()> {
         let running = Arc::new(AtomicBool::new(true));
         let r = running.clone();

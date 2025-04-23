@@ -1,48 +1,21 @@
 from utils import hash_password, create_jwt, check_password
 from middlewares import jwt_middleware, logger
 
-
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, Session
-from sqlalchemy import String
+from models import User
+from sqlalchemy.orm import Session
 
 from oxapy import (
     HttpServer,
     Response,
     Router,
-    Cors,
     Status,
     Request,
-    Config,
     serializer,
     get,
     post,
 )
 
 import uuid
-
-
-class AppData:
-    def __init__(self):
-        self.engine = create_engine("sqlite:///database.db")
-        self.n = 0
-        Base.metadata.create_all(self.engine)
-
-
-class Base(DeclarativeBase):
-    pass
-
-
-class User(Base):
-    __tablename__ = "users"
-
-    id: Mapped[str] = mapped_column(primary_key=True)
-    email: Mapped[str] = mapped_column(
-        String(255),
-        primary_key=True,
-        unique=True,
-    )
-    password: Mapped[str] = mapped_column(String(255), nullable=False)
 
 
 class UserSerializer(serializer.Serializer):
@@ -139,18 +112,10 @@ sec_router.routes([user_info, all])
 sec_router.middleware(jwt_middleware)
 sec_router.middleware(logger)
 
-
-config = Config()
-config.cors = Cors()
-config.app_data = AppData()
-config.max_connections = 200
-config.channel_capacity = 150
-
 server = HttpServer()
-server.config(config)
+server.config()
 server.attach(sec_router)
 server.attach(pub_router)
-
 
 if __name__ == "__main__":
     server.run()

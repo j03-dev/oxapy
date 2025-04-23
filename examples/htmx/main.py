@@ -1,4 +1,4 @@
-from oxapy import templating
+from oxapy import templating, Config
 from oxapy import static_file, get, post, HttpServer, Status, Router
 from oxapy import serializer
 
@@ -55,9 +55,8 @@ router.routes([index_page, login_page, login_form, upload_file])
 router.route(static_file("./static", "static"))
 
 
-server = HttpServer(("127.0.0.1", 8080))
+server = HttpServer()
 server.attach(router)
-server.template(templating.Template("./templates/**/*.html.j2"))
 
 if __name__ == "__main__":
     server.run()
