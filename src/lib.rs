@@ -73,7 +73,7 @@ struct HttpServer {
     app_data: Option<Arc<Py<PyAny>>>,
     max_connections: Arc<Semaphore>,
     channel_capacity: usize,
-    cors_header: Option<Arc<Cors>>,
+    cors: Option<Arc<Cors>>,
     template: Option<Arc<Template>>,
     session_store: Option<Arc<SessionStore>>,
 }
@@ -89,7 +89,7 @@ impl HttpServer {
             app_data: None,
             max_connections: Arc::new(Semaphore::new(100)),
             channel_capacity: 100,
-            cors_header: None,
+            cors: None,
             template: None,
             session_store: None,
         })
@@ -111,24 +111,23 @@ impl HttpServer {
         self.template = Some(Arc::new(template))
     }
 
+    fn cors(&mut self, cors: PyRef<'_, Cors>) {
+        self.cors = Some(Arc::new(cors.clone()));
+    }
+
+    fn max_connections(&mut self, max_connections: usize) {
+        self.max_connections = Arc::new(Semaphore::new(max_connections));
+    }
+
+    fn channel_capacity(&mut self, channel_capacity: usize) {
+        self.channel_capacity = channel_capacity;
+    }
+
     fn run(&self) -> PyResult<()> {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()?;
         runtime.block_on(async move { self.run_server().await })?;
-        Ok(())
-    }
-
-    #[pyo3(signature=(max_connections = 100, channel_capacity = 100, cors=None))]
-    fn config(
-        &mut self,
-        max_connections: usize,
-        channel_capacity: usize,
-        cors: Option<PyRef<Cors>>,
-    ) -> PyResult<()> {
-        self.max_connections = Arc::new(Semaphore::new(max_connections));
-        self.channel_capacity = channel_capacity;
-        self.cors_header = cors.map(|c| Arc::new(c.clone()));
         Ok(())
     }
 }
@@ -159,7 +158,7 @@ impl HttpServer {
         let request_sender = request_sender.clone();
         let max_connections = self.max_connections.clone();
         let app_data = self.app_data.clone();
-        let cors = self.cors_header.clone();
+        let cors = self.cors.clone();
         let template = self.template.clone();
         let session_store = self.session_store.clone();
 
