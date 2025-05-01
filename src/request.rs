@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use pyo3::{exceptions::PyAttributeError, prelude::*, types::PyDict, IntoPyObjectExt};
+use pyo3::{exceptions::PyAttributeError, prelude::*, types::PyDict};
 
 use crate::{
     multipart,

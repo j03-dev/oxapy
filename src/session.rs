@@ -230,8 +230,7 @@ impl SessionStore {
                     .into_py_exception()?
                     .as_secs();
 
-                let session: &Session = session.as_ref();
-                return Ok(session.clone());
+                return Ok(session.as_ref().clone());
             }
         }
 
@@ -243,22 +242,8 @@ impl SessionStore {
     }
 
     fn clear_session(&self, session_id: &str) -> PyResult<bool> {
--        let mut sessions = self.sessions.write().unwrap();
-+        let mut sessions = self.sessions.write().into_py_exception()?;
+        let mut sessions = self.sessions.write().into_py_exception()?;
         Ok(sessions.remove(session_id).is_some())
-    }
-            let mut sessions = self.sessions.write().unwrap();
-            let before_len = sessions.len();
-
-            sessions.retain(|_, session| {
-                let last_accessed = *session.last_accessed.lock().unwrap();
-                (now - last_accessed) < expiry
-            });
-
-            Ok(before_len - sessions.len())
-        } else {
-            Ok(0)
-        }
     }
 
     fn session_count(&self) -> usize {
