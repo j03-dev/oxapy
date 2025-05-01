@@ -73,3 +73,31 @@ impl Response {
         self.headers.insert("Set-Cookie".to_string(), cookie_header);
     }
 }
+
+#[pyclass]
+pub struct Redirect {
+    #[pyo3(get, set)]
+    location: String,
+    #[pyo3(get, set)]
+    status: Status,
+}
+
+#[pymethods]
+impl Redirect {
+    #[new]
+    #[pyo3(signature = (location, status= None))]
+    fn new(location: String, status: Option<Status>) -> Self {
+        Self {
+            location,
+            status: status.unwrap_or(Status::MOVED_PERMANENTLY),
+        }
+    }
+}
+
+impl IntoResponse for Redirect {
+    fn into_response(&self) -> PyResult<Response> {
+        let mut response = self.status.into_response()?;
+        response.header("Location".to_string(), self.location.clone());
+        Ok(response)
+    }
+}

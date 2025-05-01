@@ -1,13 +1,14 @@
 from oxapy import templating
-from oxapy import static_file, get, post, HttpServer, Status, Router
+from oxapy import static_file, get, post, HttpServer, Status, Router, Redirect
 from oxapy import serializer, Request, SessionStore, Session
 
 
 @get("/")
 def index_page(request: Request):
     session: Session = request.session()
-    print(session.get("is_auth"))
-    return templating.render(request, "index.html.j2", {"name": "word"})
+    if session.get("is_auth"):
+        return templating.render(request, "index.html.j2", {"name": "word"})
+    return Redirect("/login")
 
 
 @get("/login")

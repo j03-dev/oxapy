@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{status::Status, Response};
+use crate::{response::Redirect, status::Status, Response};
 use pyo3::{prelude::*, types::PyAny, Py};
 
 pub trait IntoResponse {
@@ -68,6 +68,7 @@ pub fn convert_to_response(result: Py<PyAny>, py: Python<'_>) -> PyResult<Respon
         py,
         PyRef<'_, Response>,
         PyRef<'_, Status>,
+        PyRef<'_, Redirect>,
         (String, Status),
         (PyObject, Status),
         String,
