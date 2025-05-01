@@ -16,7 +16,7 @@ use cors::Cors;
 use handling::request_handler::handle_request;
 use handling::response_handler::handle_response;
 use request::Request;
-use response::Response;
+use response::{Redirect, Response};
 use routing::{delete, get, head, options, patch, post, put, static_file, Route, Router};
 use session::{Session, SessionStore};
 use status::Status;
@@ -224,6 +224,7 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Cors>()?;
     m.add_class::<Session>()?;
     m.add_class::<SessionStore>()?;
+    m.add_class::<Redirect>()?;
     m.add_function(wrap_pyfunction!(get, m)?)?;
     m.add_function(wrap_pyfunction!(post, m)?)?;
     m.add_function(wrap_pyfunction!(delete, m)?)?;
