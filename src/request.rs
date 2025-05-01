@@ -1,8 +1,8 @@
 use std::{collections::HashMap, sync::Arc};
 
-use pyo3::{exceptions::PyAttributeError, prelude::*, types::PyDict};
+use pyo3::{exceptions::PyAttributeError, prelude::*, types::PyDict, IntoPyObjectExt};
 
-use crate::templating::Template;
+use crate::{multipart, session, templating::Template};
 
 #[derive(Clone, Debug, Default)]
 #[pyclass]
@@ -19,7 +19,9 @@ pub struct Request {
     pub template: Option<Arc<Template>>,
     pub ext: HashMap<String, Arc<PyObject>>,
     pub form_data: Option<HashMap<String, String>>,
-    pub files: Option<HashMap<String, crate::multipart::File>>,
+    pub files: Option<HashMap<String, multipart::File>>,
+    pub session: Option<Arc<session::Session>>,
+    pub session_store: Option<Arc<session::SessionStore>>,
 }
 
 #[pymethods]
@@ -77,6 +79,17 @@ impl Request {
             Ok(dict.into())
         } else {
             Ok(PyDict::new(py).into())
+        }
+    }
+
+    pub fn session(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        if let Some(ref session) = self.session {
+            let session: &session::Session = session;
+            Ok(session.clone().into_py_any(py)?)
+        } else {
+            Err(pyo3::exceptions::PyAttributeError::new_err(
+                "Session not available. Make sure you've configured SessionStore.",
+            ))
         }
     }
 

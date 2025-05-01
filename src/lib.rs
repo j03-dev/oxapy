@@ -8,6 +8,7 @@ mod request;
 mod response;
 mod routing;
 mod serializer;
+mod session;
 mod status;
 mod templating;
 
@@ -17,6 +18,7 @@ use handling::response_handler::handle_response;
 use request::Request;
 use response::Response;
 use routing::{delete, get, head, options, patch, post, put, static_file, Route, Router};
+use session::{Session, SessionStore};
 use status::Status;
 
 use serializer::serializer_submodule;
@@ -73,6 +75,7 @@ struct HttpServer {
     channel_capacity: usize,
     cors_header: Option<Arc<Cors>>,
     template: Option<Arc<Template>>,
+    session_store: Option<Arc<SessionStore>>,
 }
 
 #[pymethods]
@@ -88,6 +91,7 @@ impl HttpServer {
             channel_capacity: 100,
             cors_header: None,
             template: None,
+            session_store: None,
         })
     }
 
@@ -97,6 +101,10 @@ impl HttpServer {
 
     fn attach(&mut self, router: PyRef<'_, Router>) {
         self.routers.push(Arc::new(router.clone()));
+    }
+
+    fn session_store(&mut self, session_store: SessionStore) {
+        self.session_store = Some(Arc::new(session_store));
     }
 
     fn template(&mut self, template: Template) {
@@ -153,6 +161,7 @@ impl HttpServer {
         let app_data = self.app_data.clone();
         let cors = self.cors_header.clone();
         let template = self.template.clone();
+        let session_store = self.session_store.clone();
 
         tokio::spawn(async move {
             while running_clone.load(Ordering::SeqCst) {
@@ -164,6 +173,7 @@ impl HttpServer {
                 let app_data = app_data.clone();
                 let cors = cors.clone();
                 let template = template.clone();
+                let session_store = session_store.clone();
 
                 tokio::spawn(async move {
                     let _permit = permit;
@@ -176,6 +186,7 @@ impl HttpServer {
                                 let app_data = app_data.clone();
                                 let cors = cors.clone();
                                 let template = template.clone();
+                                let session_store = session_store.clone();
 
                                 async move {
                                     handle_request(
@@ -186,6 +197,7 @@ impl HttpServer {
                                         channel_capacity,
                                         cors,
                                         template,
+                                        session_store,
                                     )
                                     .await
                                 }
@@ -211,6 +223,8 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Response>()?;
     m.add_class::<Request>()?;
     m.add_class::<Cors>()?;
+    m.add_class::<Session>()?;
+    m.add_class::<SessionStore>()?;
     m.add_function(wrap_pyfunction!(get, m)?)?;
     m.add_function(wrap_pyfunction!(post, m)?)?;
     m.add_function(wrap_pyfunction!(delete, m)?)?;
