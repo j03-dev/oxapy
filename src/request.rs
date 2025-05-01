@@ -78,7 +78,7 @@ impl Request {
         if let Some(ref files) = self.files {
             let dict = PyDict::new(py);
             for (key, file) in files {
-                dict.set_item(key, file.clone())?; // Assuming File is PyClass
+                dict.set_item(key, file.clone())?;
             }
             Ok(dict.into())
         } else {
