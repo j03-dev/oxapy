@@ -4,7 +4,12 @@ use std::str;
 use hyper::body::Bytes;
 use pyo3::{prelude::*, types::PyBytes};
 
-use crate::{into_response::IntoResponse, status::Status, IntoPyException};
+use crate::{
+    into_response::IntoResponse,
+    session::{Session, SessionStore},
+    status::Status,
+    IntoPyException,
+};
 
 #[derive(Clone)]
 #[pyclass]
@@ -61,5 +66,10 @@ impl Response {
     pub fn set_body(mut self, body: String) -> Self {
         self.body = body.into();
         self
+    }
+
+    pub fn set_session_cookie(&mut self, session: &Session, store: &SessionStore) {
+        let cookie_header = store.get_cookie_header(session);
+        self.headers.insert("Set-Cookie".to_string(), cookie_header);
     }
 }

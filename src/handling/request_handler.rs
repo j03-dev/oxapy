@@ -15,11 +15,23 @@ use crate::{
     request::Request,
     response::Response,
     routing::Router,
+    session::SessionStore,
     status::Status,
     templating::Template,
     IntoPyException, MatchitRoute, ProcessRequest,
 };
 
+fn convert_to_hyper_response(
+    response: Response,
+) -> Result<HyperResponse<Full<Bytes>>, hyper::http::Error> {
+    let mut response_builder = HyperResponse::builder().status(response.status.code());
+    for (key, value) in response.headers {
+        response_builder = response_builder.header(key, value);
+    }
+    response_builder.body(Full::new(response.body))
+}
+
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_request(
     req: HyperRequest<Incoming>,
     request_sender: Sender<ProcessRequest>,
@@ -28,13 +40,14 @@ pub async fn handle_request(
     channel_capacity: usize,
     cors: Option<Arc<Cors>>,
     template: Option<Arc<Template>>,
+    session_store: Option<Arc<SessionStore>>,
 ) -> Result<HyperResponse<Full<Bytes>>, hyper::http::Error> {
     if req.method() == hyper::Method::OPTIONS && cors.is_some() {
         let response = cors.as_ref().unwrap().into_response().unwrap();
         return convert_to_hyper_response(response);
     }
 
-    let request = convert_hyper_request(req, app_data, template)
+    let request = convert_hyper_request(req, app_data, template, session_store)
         .await
         .unwrap();
 
@@ -70,10 +83,35 @@ pub async fn handle_request(
     convert_to_hyper_response(response.unwrap())
 }
 
+fn extract_session_id_from_cookie(
+    cookie_header: Option<&String>,
+    cookie_name: &str,
+) -> Option<String> {
+    cookie_header.and_then(|cookies| {
+        cookies
+            .split(';')
+            .filter_map(|cookie| {
+                let cookie = cookie.trim();
+                let mut parts = cookie.splitn(2, '=');
+                if let (Some(name), Some(value)) = (
+                    parts.next().map(|s| s.trim()),
+                    parts.next().map(|s| s.trim()),
+                ) {
+                    if name == cookie_name {
+                        return Some(value.to_string());
+                    }
+                }
+                None
+            })
+            .next()
+    })
+}
+
 async fn convert_hyper_request(
     req: HyperRequest<Incoming>,
     app_data: Option<Arc<Py<PyAny>>>,
     template: Option<Arc<Template>>,
+    session_store: Option<Arc<SessionStore>>,
 ) -> Result<Arc<Request>, Box<dyn std::error::Error + Sync + Send>> {
     let method = req.method().to_string();
     let uri = req.uri().to_string();
@@ -87,6 +125,19 @@ async fn convert_hyper_request(
     }
 
     let mut request = Request::new(method, uri, headers.clone());
+
+    if let Some(ref store) = session_store {
+        let session_id = extract_session_id_from_cookie(headers.get("cookie"), &store.cookie_name);
+
+        let session = store.get_session(session_id).map_err(|e| {
+            Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Failed to get session: {}", e),
+            ))
+        })?;
+        request.session = Some(Arc::new(session));
+        request.session_store = Some(store.clone());
+    }
 
     let body_bytes = req.collect().await?.to_bytes();
     let body = String::from_utf8_lossy(&body_bytes).to_string();
@@ -109,14 +160,4 @@ async fn convert_hyper_request(
     request.template = template;
 
     Ok(Arc::new(request))
-}
-
-fn convert_to_hyper_response(
-    response: Response,
-) -> Result<HyperResponse<Full<Bytes>>, hyper::http::Error> {
-    let mut response_builder = HyperResponse::builder().status(response.status.code());
-    for (key, value) in response.headers {
-        response_builder = response_builder.header(key, value);
-    }
-    response_builder.body(Full::new(response.body))
 }
