@@ -143,9 +143,14 @@ impl Session {
         }
     }
 
-    fn __len__(&self) -> usize {
-        let data = self.data.read().unwrap();
-        data.len()
+    fn __len__(&self) -> PyResult<usize> {
+        *self.last_accessed.lock().into_py_exception()? = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .into_py_exception()?
+            .as_secs();
+
+        let data = self.data.read().into_py_exception()?;
+        Ok(data.len())
     }
 
     fn __repr__(&self) -> String {
