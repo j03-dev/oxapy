@@ -162,16 +162,6 @@ impl Session {
     }
 }
 
-impl Session {
-    pub fn is_modified(&self) -> bool {
-        *self.modified.lock().unwrap()
-    }
-
-    pub fn reset_modified(&self) {
-        *self.modified.lock().unwrap() = false;
-    }
-}
-
 #[derive(Clone, Debug)]
 #[pyclass]
 pub struct SessionStore {
