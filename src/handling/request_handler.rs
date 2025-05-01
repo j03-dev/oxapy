@@ -93,24 +93,38 @@ async fn convert_hyper_request(
     let mut request = Request::new(method, uri, headers.clone());
 
     if let Some(ref store) = session_store {
-        let session_id = headers.get("cookie").and_then(|cookies| {
+        let session_id = extract_session_id_from_cookie(headers.get("cookie"), &store.cookie_name);
+
+        let session = store.get_session(session_id)
+            .map_err(|e| {
+                Box::new(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("Failed to get session: {}", e)
+                ))
+            })?;
+        request.session = Some(Arc::new(session));
+        request.session_store = Some(store.clone());
+    }
+
+    // Add this function elsewhere in the file
+    fn extract_session_id_from_cookie(cookie_header: Option<&String>, cookie_name: &str) -> Option<String> {
+        cookie_header.and_then(|cookies| {
             cookies
                 .split(';')
                 .filter_map(|cookie| {
+                    let cookie = cookie.trim();
                     let mut parts = cookie.splitn(2, '=');
-                    if let (Some(name), Some(value)) = (parts.next(), parts.next()) {
-                        if name == store.cookie_name {
+                    if let (Some(name), Some(value)) =
+                        (parts.next().map(|s| s.trim()), parts.next().map(|s| s.trim()))
+                    {
+                        if name == cookie_name {
                             return Some(value.to_string());
                         }
                     }
                     None
                 })
                 .next()
-        });
-
-        let session = store.get_session(session_id)?;
-        request.session = Some(Arc::new(session));
-        request.session_store = Some(store.clone());
+        })
     }
 
     let body_bytes = req.collect().await?.to_bytes();
