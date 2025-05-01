@@ -243,17 +243,10 @@ impl SessionStore {
     }
 
     fn clear_session(&self, session_id: &str) -> PyResult<bool> {
-        let mut sessions = self.sessions.write().unwrap();
+-        let mut sessions = self.sessions.write().unwrap();
++        let mut sessions = self.sessions.write().into_py_exception()?;
         Ok(sessions.remove(session_id).is_some())
     }
-
-    fn clear_expired_sessions(&self) -> PyResult<usize> {
-        if let Some(expiry) = self.expiry_seconds {
-            let now = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs();
-
             let mut sessions = self.sessions.write().unwrap();
             let before_len = sessions.len();
 
