@@ -50,7 +50,7 @@ impl Session {
     }
 
     fn get(&self, key: &str, py: Python<'_>) -> PyResult<PyObject> {
-        *self.last_accessed.lock().unwrap() = SystemTime::now()
+        *self.last_accessed.lock().into_py_exception()? = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .into_py_exception()?
             .as_secs();
