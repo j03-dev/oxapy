@@ -251,9 +251,9 @@ impl SessionStore {
         Ok(sessions.remove(session_id).is_some())
     }
 
-    fn session_count(&self) -> usize {
-        let sessions = self.sessions.read().unwrap();
-        sessions.len()
+    fn session_count(&self) -> PyResult<usize> {
+        let sessions = self.sessions.read().into_py_exception()?;
+        Ok(sessions.len())
     }
 
     pub fn get_cookie_header(&self, session: &Session) -> String {
