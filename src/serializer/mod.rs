@@ -191,13 +191,19 @@ impl Serializer {
 
         if let Ok(cls_dict) = cls.getattr("__dict__") {
             if let Ok(many) = cls_dict.get_item("many") {
-                is_many = many.extract::<bool>().unwrap_or(false);
+                if let Ok(is_many_extract) = many.extract::<bool>() {
+                    is_many = is_many_extract;
+                }
             }
             if let Ok(t) = cls_dict.get_item("title") {
-                title = t.extract::<Option<String>>()?;
+                if let Ok(titre_extract) = t.extract::<Option<String>>() {
+                    title = titre_extract;
+                }
             }
             if let Ok(d) = cls_dict.get_item("description") {
-                description = d.extract::<Option<String>>()?;
+                if let Ok(description_extract) = d.extract::<Option<String>>() {
+                    description = description_extract;
+                }
             }
         }
 

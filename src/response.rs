@@ -12,7 +12,7 @@ use crate::{
 };
 
 #[derive(Clone)]
-#[pyclass]
+#[pyclass(subclass)]
 pub struct Response {
     #[pyo3(get, set)]
     pub status: Status,
@@ -51,8 +51,14 @@ impl Response {
         Ok(str::from_utf8(&self.body).into_py_exception()?.to_string())
     }
 
-    pub fn header(&mut self, key: String, value: String) {
+    pub fn header(&mut self, key: String, value: String) -> Self {
         self.headers.insert(key, value);
+        self.clone()
+    }
+
+    pub fn status(&mut self, status: PyRef<Status>) -> Self {
+        self.status = status.clone();
+        self.clone()
     }
 }
 
@@ -74,30 +80,23 @@ impl Response {
     }
 }
 
-#[pyclass]
-pub struct Redirect {
-    #[pyo3(get, set)]
-    location: String,
-    #[pyo3(get, set)]
-    status: Status,
-}
+#[pyclass(subclass, extends=Response)]
+pub struct Redirect;
 
 #[pymethods]
 impl Redirect {
     #[new]
-    #[pyo3(signature = (location, status= None))]
-    fn new(location: String, status: Option<Status>) -> Self {
-        Self {
-            location,
-            status: status.unwrap_or(Status::MOVED_PERMANENTLY),
-        }
-    }
-}
-
-impl IntoResponse for Redirect {
-    fn into_response(&self) -> PyResult<Response> {
-        let mut response = self.status.into_response()?;
-        response.header("Location".to_string(), self.location.clone());
-        Ok(response)
+    fn new(location: String) -> (Self, Response) {
+        (
+            Self,
+            Response {
+                status: Status::MOVED_PERMANENTLY,
+                body: Bytes::new(),
+                headers: HashMap::from([
+                    ("Content-Type".to_string(), "text/html".to_string()),
+                    ("Location".to_string(), location.to_string()),
+                ]),
+            },
+        )
     }
 }
