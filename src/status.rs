@@ -5,23 +5,15 @@ use pyo3::prelude::*;
 
 use crate::{into_response::IntoResponse, response::Response};
 
-#[derive(Clone)]
-#[pyclass]
-pub struct Status(pub u16);
-
 macro_rules! status_codes {
     ($(($num:expr, $kconst:ident);)+) => {
-        #[pymethods]
-        impl Status {
-        $(
-            #[classattr]
-            pub const $kconst: Status = Status($num);
-        )+
-
-            #[getter]
-            pub fn code(&self) -> u16 {
-                self.0
-            }
+        #[derive(Clone)]
+        #[pyclass]
+        #[allow(non_camel_case_types)]
+        pub enum Status {
+            $(
+             $kconst = $num,
+            )+
         }
     }
 }
