@@ -10,9 +10,16 @@ use thiserror::Error;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
+    iss: Option<String>,
+    sub: Option<String>,
+    aud: Option<String>,
     exp: u64,
+    nbf: Option<u64>,
+    iat: Option<u64>,
+    jti: Option<String>,
+
     #[serde(flatten)]
-    payload: serde_json::Value,
+    extra: serde_json::Value,
 }
 
 #[derive(Debug, Error)]
@@ -31,16 +38,16 @@ impl std::convert::From<JwtError> for PyErr {
     }
 }
 
-#[pyclass]
+#[pyclass(name = "JwtManager")]
 #[derive(Clone)]
-pub struct Jwt {
+pub struct JwtManager {
     secret: String,
     algorithm: Algorithm,
     expiration: Duration,
 }
 
 #[pymethods]
-impl Jwt {
+impl JwtManager {
     #[new]
     #[pyo3(signature = (secret, algorithm="HS256", expiration_minutes=60))]
     pub fn new(secret: String, algorithm: &str, expiration_minutes: u64) -> PyResult<Self> {
@@ -48,16 +55,12 @@ impl Jwt {
             "HS256" => Algorithm::HS256,
             "HS384" => Algorithm::HS384,
             "HS512" => Algorithm::HS512,
-            "RS256" => Algorithm::RS256,
-            "RS384" => Algorithm::RS384,
-            "RS512" => Algorithm::RS512,
-            "ES256" => Algorithm::ES256,
-            "ES384" => Algorithm::ES384,
-            _ => {
+            "RS256" | "RS384" | "RS512" | "ES256" | "ES384" => {
                 return Err(pyo3::exceptions::PyValueError::new_err(
-                    "Unsupported algorithm",
+                    "Asymmetric algorithms are not yet supported – use HS256/384/512",
                 ))
             }
+            &_ => todo!(),
         };
 
         Ok(Self {
@@ -73,37 +76,117 @@ impl Jwt {
             .call_method("dumps", (claims,), None)?
             .extract()?;
 
-        let payload: serde_json::Value =
+        let raw_payload: serde_json::Value =
             serde_json::from_str(&claims_json).map_err(|_| JwtError::InvalidPayload)?;
 
-        let exp = SystemTime::now()
+        let mut standard = Claims {
+            iss: None,
+            sub: None,
+            aud: None,
+            exp: 0,
+            nbf: None,
+            iat: None,
+            jti: None,
+            extra: serde_json::Value::Null,
+        };
+
+        let mut extras = serde_json::Map::new();
+
+        if let serde_json::Value::Object(map) = raw_payload {
+            for (k, v) in map {
+                match k.as_str() {
+                    "iss" | "sub" | "aud" | "jti" => {
+                        if let serde_json::Value::String(s) = v {
+                            match k.as_str() {
+                                "iss" => standard.iss = Some(s),
+                                "sub" => standard.sub = Some(s),
+                                "aud" => standard.aud = Some(s),
+                                "jti" => standard.jti = Some(s),
+                                _ => {}
+                            }
+                        } else {
+                            return Err(JwtError::InvalidPayload.into());
+                        }
+                    }
+                    "nbf" | "iat" => {
+                        if let serde_json::Value::Number(n) = v {
+                            if let Some(u) = n.as_u64() {
+                                match k.as_str() {
+                                    "nbf" => standard.nbf = Some(u),
+                                    "iat" => standard.iat = Some(u),
+                                    _ => {}
+                                }
+                            } else {
+                                return Err(JwtError::InvalidPayload.into());
+                            }
+                        } else {
+                            return Err(JwtError::InvalidPayload.into());
+                        }
+                    }
+                    "exp" => continue,
+                    _ => {
+                        extras.insert(k, v);
+                    }
+                }
+            }
+        }
+
+        let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .map_err(|e| JwtError::Time(e))?
+            .map_err(JwtError::Time)?;
+        standard.iat.get_or_insert(now.as_secs());
+
+        let exp = now
             .checked_add(self.expiration)
             .ok_or(JwtError::InvalidPayload)?
             .as_secs();
 
-        let claims = Claims { exp, payload };
+        standard.exp = exp;
+        standard.extra = serde_json::Value::Object(extras);
 
         encode(
             &Header::new(self.algorithm),
-            &claims,
+            &standard,
             &EncodingKey::from_secret(self.secret.as_bytes()),
         )
         .map_err(|e| JwtError::Jwt(e).into())
     }
 
     pub fn verify_token<'a>(&self, py: Python<'a>, token: &str) -> PyResult<Bound<'a, PyDict>> {
+        let mut validation = Validation::new(self.algorithm);
+        validation.required_spec_claims = ["exp"].iter().map(|&s| s.to_string()).collect();
+
         let token_data = decode::<Claims>(
             token,
             &DecodingKey::from_secret(self.secret.as_bytes()),
-            &Validation::new(self.algorithm),
+            &validation,
         )
-        .map_err(|e| JwtError::Jwt(e))?;
+        .map_err(JwtError::Jwt)?;
 
         let dict = PyDict::new(py);
-        if let serde_json::Value::Object(payload) = token_data.claims.payload {
-            for (key, value) in payload {
+
+        if let Some(iss) = token_data.claims.iss {
+            dict.set_item("iss", iss)?;
+        }
+        if let Some(sub) = token_data.claims.sub {
+            dict.set_item("sub", sub)?;
+        }
+        if let Some(aud) = token_data.claims.aud {
+            dict.set_item("aud", aud)?;
+        }
+        if let Some(nbf) = token_data.claims.nbf {
+            dict.set_item("nbf", nbf)?;
+        }
+        if let Some(iat) = token_data.claims.iat {
+            dict.set_item("iat", iat)?;
+        }
+        if let Some(jti) = token_data.claims.jti {
+            dict.set_item("jti", jti)?;
+        }
+        dict.set_item("exp", token_data.claims.exp)?;
+
+        if let serde_json::Value::Object(extra) = token_data.claims.extra {
+            for (key, value) in extra {
                 let py_value = match value {
                     serde_json::Value::Null => py.None(),
                     serde_json::Value::Bool(b) => b.into_py(py),
@@ -123,6 +206,7 @@ impl Jwt {
                 dict.set_item(key, py_value)?;
             }
         }
+
         Ok(dict)
     }
 
@@ -137,7 +221,8 @@ impl Jwt {
     }
 }
 
-pub fn jwt_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<Jwt>()?;
-    Ok(())
+pub fn jwt_submodule(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
+    let jwt = PyModule::new(parent_module.py(), "jwt")?;
+    jwt.add_class::<JwtManager>()?;
+    parent_module.add_submodule(&jwt)
 }
