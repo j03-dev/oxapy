@@ -49,7 +49,6 @@ impl IntoResponse for Cors {
 }
 
 impl Cors {
-    // Centralized method to apply CORS headers to any response
     pub fn apply_headers(&self, response: &mut Response) {
         response.header(
             "Access-Control-Allow-Origin".to_string(),

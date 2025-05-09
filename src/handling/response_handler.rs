@@ -21,7 +21,7 @@ pub async fn handle_response(
     loop {
         tokio::select! {
             Some(process_request) = request_receiver.recv() => {
-                let response = match process_response(
+                let mut response = match process_response(
                     &process_request.router,
                     process_request.route,
                     &process_request.request,
@@ -33,13 +33,15 @@ pub async fn handle_response(
                         .set_body(e.to_string()),
                 };
 
-                let final_response = if let Some(cors) = process_request.cors {
-                    cors.apply_to_response(response).unwrap()
-                } else {
-                    response
-                };
+                if let (Some(session), Some(store)) = (&process_request.request.session, &process_request.request.session_store) {
+                    response.set_session_cookie(session, store);
+                }
 
-                _ = process_request.response_sender.send(final_response).await;
+               if let Some(cors) = process_request.cors {
+                    response = cors.apply_to_response(response).unwrap()
+                }
+
+                _ = process_request.response_sender.send(response).await;
             }
             _ = shutdown_rx.recv() => {break}
         }

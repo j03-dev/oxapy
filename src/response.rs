@@ -4,10 +4,15 @@ use std::str;
 use hyper::body::Bytes;
 use pyo3::{prelude::*, types::PyBytes};
 
-use crate::{into_response::IntoResponse, status::Status, IntoPyException};
+use crate::{
+    into_response::IntoResponse,
+    session::{Session, SessionStore},
+    status::Status,
+    IntoPyException,
+};
 
 #[derive(Clone)]
-#[pyclass]
+#[pyclass(subclass)]
 pub struct Response {
     #[pyo3(get, set)]
     pub status: Status,
@@ -46,8 +51,14 @@ impl Response {
         Ok(str::from_utf8(&self.body).into_py_exception()?.to_string())
     }
 
-    pub fn header(&mut self, key: String, value: String) {
+    pub fn header(&mut self, key: String, value: String) -> Self {
         self.headers.insert(key, value);
+        self.clone()
+    }
+
+    pub fn status(&mut self, status: PyRef<Status>) -> Self {
+        self.status = status.clone();
+        self.clone()
     }
 }
 
@@ -61,5 +72,31 @@ impl Response {
     pub fn set_body(mut self, body: String) -> Self {
         self.body = body.into();
         self
+    }
+
+    pub fn set_session_cookie(&mut self, session: &Session, store: &SessionStore) {
+        let cookie_header = store.get_cookie_header(session);
+        self.headers.insert("Set-Cookie".to_string(), cookie_header);
+    }
+}
+
+#[pyclass(subclass, extends=Response)]
+pub struct Redirect;
+
+#[pymethods]
+impl Redirect {
+    #[new]
+    fn new(location: String) -> (Self, Response) {
+        (
+            Self,
+            Response {
+                status: Status::MOVED_PERMANENTLY,
+                body: Bytes::new(),
+                headers: HashMap::from([
+                    ("Content-Type".to_string(), "text/html".to_string()),
+                    ("Location".to_string(), location.to_string()),
+                ]),
+            },
+        )
     }
 }

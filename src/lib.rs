@@ -8,6 +8,7 @@ mod request;
 mod response;
 mod routing;
 mod serializer;
+mod session;
 mod status;
 mod templating;
 mod jwt;
@@ -16,8 +17,9 @@ use cors::Cors;
 use handling::request_handler::handle_request;
 use handling::response_handler::handle_response;
 use request::Request;
-use response::Response;
+use response::{Redirect, Response};
 use routing::{delete, get, head, options, patch, post, put, static_file, Route, Router};
+use session::{Session, SessionStore};
 use status::Status;
 
 use serializer::serializer_submodule;
@@ -73,8 +75,9 @@ struct HttpServer {
     app_data: Option<Arc<Py<PyAny>>>,
     max_connections: Arc<Semaphore>,
     channel_capacity: usize,
-    cors_header: Option<Arc<Cors>>,
+    cors: Option<Arc<Cors>>,
     template: Option<Arc<Template>>,
+    session_store: Option<Arc<SessionStore>>,
 }
 
 #[pymethods]
@@ -88,8 +91,9 @@ impl HttpServer {
             app_data: None,
             max_connections: Arc::new(Semaphore::new(100)),
             channel_capacity: 100,
-            cors_header: None,
+            cors: None,
             template: None,
+            session_store: None,
         })
     }
 
@@ -101,8 +105,24 @@ impl HttpServer {
         self.routers.push(Arc::new(router.clone()));
     }
 
+    fn session_store(&mut self, session_store: SessionStore) {
+        self.session_store = Some(Arc::new(session_store));
+    }
+
     fn template(&mut self, template: Template) {
         self.template = Some(Arc::new(template))
+    }
+
+    fn cors(&mut self, cors: PyRef<'_, Cors>) {
+        self.cors = Some(Arc::new(cors.clone()));
+    }
+
+    fn max_connections(&mut self, max_connections: usize) {
+        self.max_connections = Arc::new(Semaphore::new(max_connections));
+    }
+
+    fn channel_capacity(&mut self, channel_capacity: usize) {
+        self.channel_capacity = channel_capacity;
     }
 
     fn run(&self) -> PyResult<()> {
@@ -110,19 +130,6 @@ impl HttpServer {
             .enable_all()
             .build()?;
         runtime.block_on(async move { self.run_server().await })?;
-        Ok(())
-    }
-
-    #[pyo3(signature=(max_connections = 100, channel_capacity = 100, cors=None))]
-    fn config(
-        &mut self,
-        max_connections: usize,
-        channel_capacity: usize,
-        cors: Option<PyRef<Cors>>,
-    ) -> PyResult<()> {
-        self.max_connections = Arc::new(Semaphore::new(max_connections));
-        self.channel_capacity = channel_capacity;
-        self.cors_header = cors.map(|c| Arc::new(c.clone()));
         Ok(())
     }
 }
@@ -153,8 +160,9 @@ impl HttpServer {
         let request_sender = request_sender.clone();
         let max_connections = self.max_connections.clone();
         let app_data = self.app_data.clone();
-        let cors = self.cors_header.clone();
+        let cors = self.cors.clone();
         let template = self.template.clone();
+        let session_store = self.session_store.clone();
 
         tokio::spawn(async move {
             while running_clone.load(Ordering::SeqCst) {
@@ -166,6 +174,7 @@ impl HttpServer {
                 let app_data = app_data.clone();
                 let cors = cors.clone();
                 let template = template.clone();
+                let session_store = session_store.clone();
 
                 tokio::spawn(async move {
                     let _permit = permit;
@@ -178,6 +187,7 @@ impl HttpServer {
                                 let app_data = app_data.clone();
                                 let cors = cors.clone();
                                 let template = template.clone();
+                                let session_store = session_store.clone();
 
                                 async move {
                                     handle_request(
@@ -188,6 +198,7 @@ impl HttpServer {
                                         channel_capacity,
                                         cors,
                                         template,
+                                        session_store,
                                     )
                                     .await
                                 }
@@ -213,6 +224,9 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Response>()?;
     m.add_class::<Request>()?;
     m.add_class::<Cors>()?;
+    m.add_class::<Session>()?;
+    m.add_class::<SessionStore>()?;
+    m.add_class::<Redirect>()?;
     m.add_function(wrap_pyfunction!(get, m)?)?;
     m.add_function(wrap_pyfunction!(post, m)?)?;
     m.add_function(wrap_pyfunction!(delete, m)?)?;
