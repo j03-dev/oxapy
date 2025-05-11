@@ -85,24 +85,29 @@ impl Serializer {
         crate::json::loads(&schema_value.to_string())
     }
 
-    fn validate(mut slf: PyRefMut<'_, Self>, py: Python<'_>) -> PyResult<()> {
-        let request = slf
-            .request
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No request provided"))?;
+    fn is_valid(slf: &Bound<'_, Self>) -> PyResult<()> {
+        let request: Request = slf.getattr("request")?.extract()?;
 
-        let json_dict = request
+        let json_string: String = request
             .body
             .clone()
             .ok_or_else(|| PyValueError::new_err("Request body is empty"))?;
 
-        let json_value: Value = serde_json::from_str(&json_dict.to_string()).into_py_exception()?;
+        let attr = crate::json::loads(&json_string)?;
 
-        let py_dict = crate::json::loads(&json_value.to_string())?;
+        let validated_data: Option<Bound<PyDict>> =
+            slf.call_method1("validate", (attr,))?.extract()?;
 
-        slf.validate_data = Some(py_dict);
+        slf.setattr("validate_data", validated_data)?;
+        Ok(())
+    }
 
-        let schema_value = Self::json_schema_value(&slf.into_pyobject(py)?.get_type())?;
+    fn validate<'a>(slf: Bound<'a, Self>, attr: Bound<'a, PyDict>) -> PyResult<Bound<'a, PyDict>> {
+        let data = crate::json::dumps(&attr.clone().into())?;
+        let json_value: Value = serde_json::from_str(&data.to_string())
+            .map_err(|_| PyException::new_err("error on serializer"))?;
+
+        let schema_value = Self::json_schema_value(&slf.get_type())?;
 
         let validator = jsonschema::options()
             .should_validate_formats(true)
@@ -113,7 +118,7 @@ impl Serializer {
             .validate(&json_value)
             .map_err(|err| ValidationException::new_err(err.to_string()))?;
 
-        Ok(())
+        Ok(attr)
     }
 
     fn to_representation<'l>(
