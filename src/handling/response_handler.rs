@@ -10,6 +10,7 @@ use crate::{
     request::Request,
     response::Response,
     routing::Router,
+    serializer::ValidationException,
     status::Status,
     MatchitRoute, ProcessRequest,
 };
@@ -27,10 +28,15 @@ pub async fn handle_response(
                     &process_request.request,
                 ) {
                     Ok(response) => response,
-                    Err(e) => Status::INTERNAL_SERVER_ERROR
-                        .into_response()
-                        .unwrap()
-                        .set_body(e.to_string()),
+                    Err(err) => {
+                        Python::with_gil(|py|{
+                            if err.is_instance_of::<ValidationException>(py) {
+                                Status::BAD_REQUEST.into_response().unwrap().set_body(err.to_string())
+                            } else {
+                                Status::INTERNAL_SERVER_ERROR.into_response().unwrap().set_body(err.to_string())
+                            }
+                        })
+                    }
                 };
 
                 if let (Some(session), Some(store)) = (&process_request.request.session, &process_request.request.session_store) {

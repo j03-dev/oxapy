@@ -13,16 +13,26 @@ pub struct Route {
     pub args: Arc<Vec<String>>,
 }
 
+impl Default for Route {
+    fn default() -> Self {
+        Python::with_gil(|py| Self {
+            method: "GET".to_string(),
+            path: String::default(),
+            handler: Arc::new(py.None()),
+            args: Arc::new(Vec::new()),
+        })
+    }
+}
+
 #[pymethods]
 impl Route {
     #[new]
     #[pyo3(signature=(path, method=None))]
-    pub fn new(path: String, method: Option<String>, py: Python<'_>) -> Self {
+    pub fn new(path: String, method: Option<String>) -> Self {
         Route {
             method: method.unwrap_or_else(|| "GET".to_string()),
             path,
-            handler: Arc::new(py.None()),
-            args: Arc::new(Vec::new()),
+            ..Default::default()
         }
     }
 
@@ -57,11 +67,10 @@ macro_rules! method_decorator {
         $(
             #[pyfunction]
             #[pyo3(signature = (path, *))]
-            pub fn $method(path: String, py: Python<'_>) -> Route {
+            pub fn $method(path: String) -> Route {
                 Route::new(
                     path,
                     Some(stringify!($method).to_string().to_uppercase()),
-                    py,
                 )
             }
         )+
@@ -148,7 +157,10 @@ def static_file(request, path):
         None,
     )?;
 
-    let route = Route::new(format!("/{path}/{{*path}}"), Some("GET".to_string()), py);
+    let route = Route {
+        path: format!("/{path}/{{*path}}"),
+        ..Default::default()
+    };
 
     let handler = globals.get_item("static_file")?.unwrap();
 

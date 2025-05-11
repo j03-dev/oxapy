@@ -1,5 +1,6 @@
 use pyo3::{
-    exceptions::PyValueError,
+    create_exception,
+    exceptions::{PyException, PyValueError},
     prelude::*,
     types::{PyDict, PyList, PyType},
     IntoPyObjectExt,
@@ -18,6 +19,13 @@ use fields::{
 };
 
 mod fields;
+
+create_exception!(
+    serializer,
+    ValidationException,
+    PyException,
+    "Validation Exception"
+);
 
 #[pyclass(subclass, extends=Field)]
 #[derive(Debug)]
@@ -101,13 +109,15 @@ impl Serializer {
             .build(&schema_value)
             .into_py_exception()?;
 
-        validator.validate(&json_value).into_py_exception()?;
+        validator
+            .validate(&json_value)
+            .map_err(|err| ValidationException::new_err(err.to_string()))?;
 
         Ok(())
     }
 
     fn to_representation<'l>(
-        slf: Bound<'_, Self>,
+        slf: &Bound<'_, Self>,
         instance: Bound<PyAny>,
         py: Python<'l>,
     ) -> PyResult<Bound<'l, PyDict>> {
@@ -154,6 +164,46 @@ impl Serializer {
         }
 
         Ok(py.None())
+    }
+
+    fn create(
+        slf: &Bound<Self>,
+        session: PyObject,
+        validate_data: Bound<PyDict>,
+        py: Python<'_>,
+    ) -> PyResult<()> {
+        if let Ok(class_meta) = slf.getattr("Meta") {
+            let model = class_meta.getattr("model")?;
+            let instance = model.call((), Some(&validate_data))?;
+            session.call_method1(py, "add", (instance,))?;
+            session.call_method0(py, "commit")?;
+        }
+        Ok(())
+    }
+
+    fn save(slf: Bound<'_, Self>, session: PyObject, py: Python<'_>) -> PyResult<()> {
+        let validate_data = slf.getattr("validate_data")?;
+        Self::create(
+            &slf.into_pyobject(py)?,
+            session,
+            validate_data.downcast()?.clone(),
+            py,
+        )?;
+        Ok(())
+    }
+
+    fn update(
+        slf: Bound<'_, Self>,
+        instance: PyObject,
+        session: PyObject,
+        py: Python<'_>,
+    ) -> PyResult<()> {
+        let validate_data: Vec<(String, PyObject)> = slf.getattr("validate_data")?.extract()?;
+        for (key, value) in validate_data {
+            instance.setattr(py, key, value)?;
+        }
+        session.call_method0(py, "commit")?;
+        Ok(())
     }
 }
 
@@ -293,6 +343,10 @@ pub fn serializer_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
     serializer.add_class::<DateTimeField>()?;
     serializer.add_class::<EnumField>()?;
     serializer.add_class::<Serializer>()?;
+    serializer.add(
+        "ValidationException",
+        m.py().get_type::<ValidationException>(),
+    )?;
     m.add_submodule(&serializer)?;
     Ok(())
 }
