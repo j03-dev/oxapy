@@ -6,6 +6,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, Session
 from sqlalchemy import String
 
+from functools import wraps
+from typing import TypeVar, Callable, Any
 
 from oxapy import (
     HttpServer,
@@ -19,6 +21,18 @@ from oxapy import (
 )
 
 import uuid
+
+
+F = TypeVar("F", bound=Callable[..., Any])
+
+
+def with_session(func: F) -> F:
+    @wraps(func)
+    def wrapper(request: Request, *args, **kwargs):
+        with Session(request.app_data.engine) as session:
+            return func(request, session, *args, **kwargs)
+
+    return wrapper
 
 
 class AppData:
@@ -58,7 +72,8 @@ class UserInputSerializer(serializer.Serializer):
 
 
 @post("/register")
-def register(request: Request):
+@with_session
+def register(request: Request, session: Session):
     new_user = UserInputSerializer(request)
     new_user.validate()
     new_user.validate_data.update(
@@ -68,30 +83,25 @@ def register(request: Request):
         }
     )
 
-    with Session(request.app_data.engine) as session:
-        if (
-            not session.query(User)
-            .filter_by(email=new_user.validate_data["email"])
-            .first()
-        ):
-            new_user.save(session)
-            return Status.OK
-        return Status.CONFLICT
+    if not session.query(User).filter_by(email=new_user.validate_data["email"]).first():
+        new_user.save(session)
+        return Status.OK
+    return Status.CONFLICT
 
 
 @post("/login")
-def login(request: Request):
+@with_session
+def login(request: Request, session: Session):
     user_input = UserInputSerializer(request)
     user_input.validate()
     email = user_input.validate_data["email"]
     password = user_input.validate_data["password"]
 
-    with Session(request.app_data.engine) as session:
-        user = session.query(User).filter_by(email=email).first()
-        if user and check_password(user.password, password):
-            token = create_jwt(user_id=user.id)
-            return {"token": token}
-        return Status.UNAUTHORIZED
+    user = session.query(User).filter_by(email=email).first()
+    if user and check_password(user.password, password):
+        token = create_jwt(user_id=user.id)
+        return {"token": token}
+    return Status.UNAUTHORIZED
 
 
 @get("/hello/{name}")
@@ -107,19 +117,19 @@ def add(request: Request):
 
 
 @get("/me")
-def user_info(request: Request) -> Response:
-    with Session(request.app_data.engine) as session:
-        if user := session.query(User).filter_by(id=request.user_id).first():
-            serializer = UserSerializer(instance=user)
-            return serializer.data
+@with_session
+def user_info(request: Request, session: Session) -> Response:
+    if user := session.query(User).filter_by(id=request.user_id).first():
+        serializer = UserSerializer(instance=user)
+        return serializer.data
 
 
 @get("/all")
-def all(request: Request) -> Response:
-    with Session(request.app_data.engine) as session:
-        if user := session.query(User).all():
-            serializer = UserSerializer(instance=user, many=True)
-            return serializer.data
+@with_session
+def all(request: Request, session: Session) -> Response:
+    if user := session.query(User).all():
+        serializer = UserSerializer(instance=user, many=True)
+        return serializer.data
 
 
 pub_router = Router()
