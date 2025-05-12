@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 use serde_json::Value;
 
 #[pyclass(subclass)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Field {
     #[pyo3(get)]
     pub required: Option<bool>,

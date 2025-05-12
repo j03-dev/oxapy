@@ -10,6 +10,7 @@ macro_rules! status_codes {
         #[derive(Clone)]
         #[pyclass]
         #[allow(non_camel_case_types)]
+        #[allow(clippy::upper_case_acronyms)]
         pub enum Status {
             $(
              $kconst = $num,

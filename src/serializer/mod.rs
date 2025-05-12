@@ -1,5 +1,6 @@
 use pyo3::{
-    exceptions::PyValueError,
+    create_exception,
+    exceptions::{PyException, PyValueError},
     prelude::*,
     types::{PyDict, PyList, PyType},
     IntoPyObjectExt,
@@ -18,6 +19,13 @@ use fields::{
 };
 
 mod fields;
+
+create_exception!(
+    serializer,
+    ValidationException,
+    PyException,
+    "Validation Exception"
+);
 
 #[pyclass(subclass, extends=Field)]
 #[derive(Debug)]
@@ -55,20 +63,14 @@ impl Serializer {
                 instance,
                 request,
             },
-            Field::new(
-                "object".to_string(),
+            Field {
                 required,
-                None,
+                ty: "object".to_string(),
                 many,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
                 title,
                 description,
-            ),
+                ..Default::default()
+            },
         )
     }
 
@@ -77,37 +79,44 @@ impl Serializer {
         crate::json::loads(&schema_value.to_string())
     }
 
-    fn validate(mut slf: PyRefMut<'_, Self>, py: Python<'_>) -> PyResult<()> {
-        let request = slf
-            .request
-            .as_ref()
-            .ok_or_else(|| PyValueError::new_err("No request provided"))?;
+    fn is_valid(slf: &Bound<'_, Self>) -> PyResult<()> {
+        let request: Request = slf.getattr("request")?.extract()?;
 
-        let json_dict = request
+        let json_string: String = request
             .body
             .clone()
             .ok_or_else(|| PyValueError::new_err("Request body is empty"))?;
 
-        let json_value: Value = serde_json::from_str(&json_dict.to_string()).into_py_exception()?;
+        let attr = crate::json::loads(&json_string)?;
 
-        let py_dict = crate::json::loads(&json_value.to_string())?;
+        let validated_data: Option<Bound<PyDict>> =
+            slf.call_method1("validate", (attr,))?.extract()?;
 
-        slf.validate_data = Some(py_dict);
+        slf.setattr("validate_data", validated_data)?;
+        Ok(())
+    }
 
-        let schema_value = Self::json_schema_value(&slf.into_pyobject(py)?.get_type())?;
+    fn validate<'a>(slf: Bound<'a, Self>, attr: Bound<'a, PyDict>) -> PyResult<Bound<'a, PyDict>> {
+        let data = crate::json::dumps(&attr.clone().into())?;
+        let json_value: Value = serde_json::from_str(&data.to_string())
+            .map_err(|_| PyException::new_err("error on serializer"))?;
+
+        let schema_value = Self::json_schema_value(&slf.get_type())?;
 
         let validator = jsonschema::options()
             .should_validate_formats(true)
             .build(&schema_value)
             .into_py_exception()?;
 
-        validator.validate(&json_value).into_py_exception()?;
+        validator
+            .validate(&json_value)
+            .map_err(|err| ValidationException::new_err(err.to_string()))?;
 
-        Ok(())
+        Ok(attr)
     }
 
     fn to_representation<'l>(
-        slf: Bound<'_, Self>,
+        slf: &Bound<'_, Self>,
         instance: Bound<PyAny>,
         py: Python<'l>,
     ) -> PyResult<Bound<'l, PyDict>> {
@@ -154,6 +163,48 @@ impl Serializer {
         }
 
         Ok(py.None())
+    }
+
+    fn create(
+        slf: &Bound<Self>,
+        session: PyObject,
+        validate_data: Bound<PyDict>,
+        py: Python<'_>,
+    ) -> PyResult<()> {
+        if let Ok(class_meta) = slf.getattr("Meta") {
+            let model = class_meta.getattr("model")?;
+            let instance = model.call((), Some(&validate_data))?;
+            session.call_method1(py, "add", (instance,))?;
+            session.call_method0(py, "commit")?;
+        }
+        Ok(())
+    }
+
+    fn save(slf: Bound<'_, Self>, session: PyObject, py: Python<'_>) -> PyResult<()> {
+        let validate_data: Bound<PyDict> = slf
+            .getattr("validate_data")?
+            .extract::<Option<Bound<PyDict>>>()?
+            .ok_or_else(|| PyException::new_err("call `is_valid()` before `save()`"))?;
+
+        Self::create(&slf, session, validate_data, py)?;
+        Ok(())
+    }
+
+    fn update(
+        slf: Bound<'_, Self>,
+        instance: PyObject,
+        session: PyObject,
+        py: Python<'_>,
+    ) -> PyResult<()> {
+        let validate_data = slf
+            .getattr("validate_data")?
+            .extract::<Option<HashMap<String, PyObject>>>()?
+            .ok_or_else(|| PyException::new_err("call `is_valid()` before `save()`"))?;
+        for (key, value) in validate_data {
+            instance.setattr(py, key, value)?;
+        }
+        session.call_method0(py, "commit")?;
+        Ok(())
     }
 }
 
@@ -293,6 +344,10 @@ pub fn serializer_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
     serializer.add_class::<DateTimeField>()?;
     serializer.add_class::<EnumField>()?;
     serializer.add_class::<Serializer>()?;
+    serializer.add(
+        "ValidationException",
+        m.py().get_type::<ValidationException>(),
+    )?;
     m.add_submodule(&serializer)?;
     Ok(())
 }

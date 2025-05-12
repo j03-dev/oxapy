@@ -1,4 +1,4 @@
-use std::{collections::HashMap, mem::transmute, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use pyo3::{ffi::c_str, prelude::*, types::PyDict, Py, PyAny};
 
@@ -10,39 +10,33 @@ pub struct Route {
     pub method: String,
     pub path: String,
     pub handler: Arc<Py<PyAny>>,
-    pub args: Arc<Vec<String>>,
+}
+
+impl Default for Route {
+    fn default() -> Self {
+        Python::with_gil(|py| Self {
+            method: "GET".to_string(),
+            path: String::default(),
+            handler: Arc::new(py.None()),
+        })
+    }
 }
 
 #[pymethods]
 impl Route {
     #[new]
     #[pyo3(signature=(path, method=None))]
-    pub fn new(path: String, method: Option<String>, py: Python<'_>) -> Self {
+    pub fn new(path: String, method: Option<String>) -> Self {
         Route {
             method: method.unwrap_or_else(|| "GET".to_string()),
             path,
-            handler: Arc::new(py.None()),
-            args: Arc::new(Vec::new()),
+            ..Default::default()
         }
     }
 
-    fn __call__(&self, handler: Py<PyAny>, py: Python<'_>) -> PyResult<Self> {
-        let inspect = PyModule::import(py, "inspect")?;
-        let sig = inspect.call_method("signature", (handler.clone_ref(py),), None)?;
-        let parameters = sig.getattr("parameters")?;
-        let values = parameters.call_method("values", (), None)?.try_iter()?;
-
-        let mut args: Vec<String> = Vec::new();
-
-        for param in values {
-            let param = param?.into_pyobject(py)?;
-            let name = param.getattr("name")?.extract()?;
-            args.push(name);
-        }
-
+    fn __call__(&self, handler: Py<PyAny>) -> PyResult<Self> {
         Ok(Self {
             handler: Arc::new(handler),
-            args: Arc::new(args),
             ..self.clone()
         })
     }
@@ -57,11 +51,10 @@ macro_rules! method_decorator {
         $(
             #[pyfunction]
             #[pyo3(signature = (path, *))]
-            pub fn $method(path: String, py: Python<'_>) -> Route {
+            pub fn $method(path: String) -> Route {
                 Route::new(
                     path,
                     Some(stringify!($method).to_string().to_uppercase()),
-                    py,
                 )
             }
         )+
@@ -106,11 +99,14 @@ impl Router {
 }
 
 impl Router {
-    pub fn find<'l>(&self, method: &str, uri: &str) -> Option<matchit::Match<'l, 'l, &'l Route>> {
+    pub fn find<'l>(
+        &'l self,
+        method: &str,
+        uri: &'l str,
+    ) -> Option<matchit::Match<'l, 'l, &'l Route>> {
         let path = uri.split('?').next().unwrap_or(uri);
         if let Some(router) = self.routes.get(method) {
             if let Ok(route) = router.at(path) {
-                let route: matchit::Match<'l, 'l, &Route> = unsafe { transmute(route) };
                 return Some(route);
             }
         }
@@ -148,9 +144,12 @@ def static_file(request, path):
         None,
     )?;
 
-    let route = Route::new(format!("/{path}/{{*path}}"), Some("GET".to_string()), py);
+    let route = Route {
+        path: format!("/{path}/{{*path}}"),
+        ..Default::default()
+    };
 
     let handler = globals.get_item("static_file")?.unwrap();
 
-    route.__call__(handler.into(), py)
+    route.__call__(handler.into())
 }
