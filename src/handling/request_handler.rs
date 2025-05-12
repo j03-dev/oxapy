@@ -10,7 +10,6 @@ use tokio::sync::mpsc::{channel, Sender};
 
 use crate::{
     cors::Cors,
-    into_response::IntoResponse,
     multipart::{parse_mutltipart, MultiPart},
     request::Request,
     response::Response,
@@ -43,7 +42,7 @@ pub async fn handle_request(
     session_store: Option<Arc<SessionStore>>,
 ) -> Result<HyperResponse<Full<Bytes>>, hyper::http::Error> {
     if req.method() == hyper::Method::OPTIONS && cors.is_some() {
-        let response = cors.as_ref().unwrap().into_response().unwrap();
+        let response = cors.unwrap().as_ref().clone().into();
         return convert_to_hyper_response(response);
     }
 
@@ -75,12 +74,14 @@ pub async fn handle_request(
     }
 
     let response = if let Some(cors_config) = cors {
-        cors_config.apply_to_response(Status::NOT_FOUND.into_response().unwrap())
+        cors_config
+            .apply_to_response(Status::NOT_FOUND.into())
+            .unwrap()
     } else {
-        Status::NOT_FOUND.into_response()
+        Status::NOT_FOUND.into()
     };
 
-    convert_to_hyper_response(response.unwrap())
+    convert_to_hyper_response(response)
 }
 
 fn extract_session_id_from_cookie(
