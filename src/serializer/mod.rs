@@ -202,7 +202,10 @@ impl Serializer {
         session: PyObject,
         py: Python<'_>,
     ) -> PyResult<()> {
-        let validate_data: HashMap<String, PyObject> = slf.getattr("validate_data")?.extract()?;
+        let validate_data = slf
+            .getattr("validate_data")?
+            .extract::<Option<HashMap<String, PyObject>>>()?
+            .ok_or_else(|| PyException::new_err("call `is_valid()` before `save()`"))?;
         for (key, value) in validate_data {
             instance.setattr(py, key, value)?;
         }
