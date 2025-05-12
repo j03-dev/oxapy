@@ -63,20 +63,14 @@ impl Serializer {
                 instance,
                 request,
             },
-            Field::new(
-                "object".to_string(),
+            Field {
                 required,
-                None,
+                ty: "object".to_string(),
                 many,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
                 title,
                 description,
-            ),
+                ..Default::default()
+            },
         )
     }
 
