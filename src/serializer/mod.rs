@@ -187,13 +187,12 @@ impl Serializer {
     }
 
     fn save(slf: Bound<'_, Self>, session: PyObject, py: Python<'_>) -> PyResult<()> {
-        let validate_data = slf.getattr("validate_data")?;
-        Self::create(
-            &slf.into_pyobject(py)?,
-            session,
-            validate_data.downcast()?.clone(),
-            py,
-        )?;
+        let validate_data: Bound<PyDict> = slf
+            .getattr("validate_data")?
+            .extract::<Option<Bound<PyDict>>>()?
+            .ok_or_else(|| PyException::new_err("call `is_valid()` before `save()`"))?;
+
+        Self::create(&slf, session, validate_data, py)?;
         Ok(())
     }
 
