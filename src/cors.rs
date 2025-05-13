@@ -40,10 +40,10 @@ impl Cors {
     }
 }
 
-impl Into<Response> for Cors {
-    fn into(self) -> Response {
+impl From<Cors> for Response {
+    fn from(val: Cors) -> Self {
         let mut response = Status::NO_CONTENT.into();
-        self.apply_headers(&mut response);
+        val.apply_headers(&mut response);
         response
     }
 }

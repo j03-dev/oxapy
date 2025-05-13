@@ -3,42 +3,42 @@ use std::collections::HashMap;
 use crate::{status::Status, Response};
 use pyo3::{prelude::*, types::PyAny, Py};
 
-impl Into<Response> for String {
-    fn into(self) -> Response {
+impl From<String> for Response {
+    fn from(val: String) -> Self {
         Response {
             status: Status::OK,
             headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
-            body: self.clone().into(),
+            body: val.clone().into(),
         }
     }
 }
 
-impl Into<Response> for PyObject {
-    fn into(self) -> Response {
+impl From<PyObject> for Response {
+    fn from(val: PyObject) -> Self {
         Response {
             status: Status::OK,
             headers: HashMap::from([("Content-Type".to_string(), "application/json".to_string())]),
-            body: crate::json::dumps(&self).unwrap().into(),
+            body: crate::json::dumps(&val).unwrap().into(),
         }
     }
 }
 
-impl Into<Response> for (String, Status) {
-    fn into(self) -> Response {
+impl From<(String, Status)> for Response {
+    fn from(val: (String, Status)) -> Self {
         Response {
-            status: self.1.clone(),
+            status: val.1.clone(),
             headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
-            body: self.0.clone().into(),
+            body: val.0.clone().into(),
         }
     }
 }
 
-impl Into<Response> for (PyObject, Status) {
-    fn into(self) -> Response {
+impl From<(PyObject, Status)> for Response {
+    fn from(val: (PyObject, Status)) -> Self {
         Response {
-            status: self.1.clone(),
+            status: val.1.clone(),
             headers: HashMap::from([("Content-Type".to_string(), "application/json".to_string())]),
-            body: crate::json::dumps(&self.0).unwrap().into(),
+            body: crate::json::dumps(&val.0).unwrap().into(),
         }
     }
 }

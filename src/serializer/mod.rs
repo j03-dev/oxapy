@@ -98,7 +98,7 @@ impl Serializer {
 
     fn validate<'a>(slf: Bound<'a, Self>, attr: Bound<'a, PyDict>) -> PyResult<Bound<'a, PyDict>> {
         let data = crate::json::dumps(&attr.clone().into())?;
-        let json_value: Value = serde_json::from_str(&data.to_string()).into_py_exception()?;
+        let json_value: Value = serde_json::from_str(&data).into_py_exception()?;
 
         let schema_value = Self::json_schema_value(&slf.get_type())?;
 
@@ -135,30 +135,24 @@ impl Serializer {
 
     #[getter]
     fn data<'l>(slf: Bound<'l, Self>, py: Python<'l>) -> PyResult<PyObject> {
-        let many = slf.as_super().getattr("many")?.extract::<bool>()?;
+        let many = slf.getattr("many")?.extract::<bool>()?;
         if many {
             let mut results: Vec<PyObject> = Vec::new();
             if let Some(instances) = slf
                 .getattr("instance")?
                 .extract::<Option<Vec<PyObject>>>()?
             {
-                for inst in instances {
-                    let py_repr = slf
-                        .as_ref()
-                        .call_method1("to_representation", (inst.clone_ref(py),))?;
-                    let dict: Bound<PyDict> = py_repr.extract()?;
-                    results.push(dict.into());
+                for instance in instances {
+                    let repr = slf.call_method1("to_representation", (instance,))?;
+                    results.push(repr.extract()?);
                 }
             }
             return PyList::new(py, results)?.into_py_any(py);
         }
 
-        if let Some(inst) = slf.getattr("instance")?.extract::<Option<PyObject>>()? {
-            let py_repr = slf
-                .as_ref()
-                .call_method1("to_representation", (inst.clone_ref(py),))?;
-            let dict: Bound<PyDict> = py_repr.extract()?;
-            return dict.into_py_any(py);
+        if let Some(instance) = slf.getattr("instance")?.extract::<Option<PyObject>>()? {
+            let repr = slf.call_method1("to_representation", (instance,))?;
+            return repr.extract();
         }
 
         Ok(py.None())

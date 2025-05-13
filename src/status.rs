@@ -19,10 +19,10 @@ macro_rules! status_codes {
     }
 }
 
-impl Into<Response> for Status {
-    fn into(self) -> Response {
+impl From<Status> for Response {
+    fn from(val: Status) -> Self {
         Response {
-            status: self.clone(),
+            status: val.clone(),
             headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
             body: Bytes::new(),
         }
