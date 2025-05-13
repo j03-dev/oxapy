@@ -42,8 +42,8 @@ pub async fn handle_request(
     session_store: Option<Arc<SessionStore>>,
 ) -> Result<HyperResponse<Full<Bytes>>, hyper::http::Error> {
     if req.method() == hyper::Method::OPTIONS && cors.is_some() {
-        let response = cors.unwrap().as_ref().clone().into();
-        return convert_to_hyper_response(response);
+        let response = cors.unwrap().as_ref().clone();
+        return convert_to_hyper_response(response.into());
     }
 
     let request = convert_hyper_request(req, app_data, template, session_store)

@@ -87,23 +87,21 @@ impl Request {
     }
 
     pub fn session(&self) -> PyResult<Session> {
-        if let Some(ref session) = self.session {
-            Ok(session.as_ref().clone())
-        } else {
-            Err(pyo3::exceptions::PyAttributeError::new_err(
-                "Session not available. Make sure you've configured SessionStore.",
-            ))
-        }
+        let message = "Session not available. Make sure you've configured SessionStore.";
+        let session = self
+            .session
+            .as_ref()
+            .ok_or_else(|| PyAttributeError::new_err(message))?;
+        Ok(session.as_ref().clone())
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<PyObject> {
-        if let Some(value) = self.ext.get(name) {
-            Ok(value.clone_ref(py))
-        } else {
-            Err(PyAttributeError::new_err(format!(
-                "Request object has no attribute {name}"
-            )))
-        }
+        let message = format!("Request object has no attribute {name}");
+        let obj = self
+            .ext
+            .get(name)
+            .ok_or_else(|| PyAttributeError::new_err(message))?;
+        Ok(obj.clone_ref(py))
     }
 
     fn __setattr__(&mut self, name: &str, value: PyObject) -> PyResult<()> {
