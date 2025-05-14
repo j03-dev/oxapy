@@ -109,11 +109,6 @@ def login(request: Request, session: Session):
     return Status.UNAUTHORIZED
 
 
-@get("/hello/{name}")
-def hello_world(request: Request, name: str):
-    return f"Hello {name}"
-
-
 @get("/add")
 def add(request: Request):
     app_data = request.app_data
@@ -140,12 +135,10 @@ def all(request: Request, session: Session) -> Response:
 pub_router = Router()
 
 
-@pub_router.get("/test")
-def test(request: Request):
-    return "hello world"
+@pub_router.get("/hello/{name}")
+def hello_world(request: Request, name: str):
+    return f"Hello {name}"
 
-
-print(pub_router)
 
 # pub_router.routes([hello_world, login, register, add])
 # pub_router.middleware(logger)
@@ -154,7 +147,6 @@ print(pub_router)
 # sec_router.routes([user_info, all])
 # sec_router.middleware(jwt_middleware)
 # sec_router.middleware(logger)
-
 server = HttpServer(("127.0.0.1", 5555))
 server.app_data(AppData())
 # server.attach(sec_router)
