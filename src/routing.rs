@@ -1,4 +1,8 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    mem::transmute,
+    sync::{Arc, Mutex},
+};
 
 use pyo3::{ffi::c_str, prelude::*, types::PyDict, Py, PyAny};
 
@@ -64,10 +68,36 @@ macro_rules! method_decorator {
 
 method_decorator!(get, post, put, patch, delete, head, options);
 
+#[derive(Clone)]
+#[pyclass]
+struct Decorator {
+    method: String,
+    routes: Arc<Mutex<HashMap<String, matchit::Router<Route>>>>,
+    path: String,
+}
+
+#[pymethods]
+impl Decorator {
+    fn __call__(&self, handler: Py<PyAny>) -> PyResult<Route> {
+        let route = Route {
+            method: self.method.clone(),
+            path: self.path.clone(),
+            handler: Arc::new(handler),
+        };
+
+        let mut ptr_mr = self.routes.lock().unwrap();
+        let method_router = ptr_mr.entry(route.method.clone()).or_default();
+        method_router
+            .insert(&route.path, route.clone())
+            .into_py_exception()?;
+        Ok(route)
+    }
+}
+
 #[derive(Default, Clone, Debug)]
 #[pyclass]
 pub struct Router {
-    pub routes: HashMap<String, matchit::Router<Route>>,
+    pub routes: Arc<Mutex<HashMap<String, matchit::Router<Route>>>>,
     pub middlewares: Vec<Middleware>,
 }
 
@@ -84,11 +114,7 @@ impl Router {
     }
 
     fn route(&mut self, route: PyRef<Route>) -> PyResult<()> {
-        let method_router = self.routes.entry(route.method.clone()).or_default();
-        method_router
-            .insert(&route.path, route.clone())
-            .into_py_exception()?;
-        Ok(())
+        self.add(route.clone())
     }
 
     fn routes(&mut self, routes: Vec<PyRef<Route>>) -> PyResult<()> {
@@ -96,6 +122,18 @@ impl Router {
             self.route(route)?;
         }
         Ok(())
+    }
+
+    fn get(&self, path: String) -> PyResult<Decorator> {
+        Ok(Decorator {
+            method: "GET".to_string(),
+            routes: self.routes.clone(),
+            path,
+        })
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{:#?}", self)
     }
 }
 
@@ -106,12 +144,22 @@ impl Router {
         uri: &'l str,
     ) -> Option<matchit::Match<'l, 'l, &'l Route>> {
         let path = uri.split('?').next().unwrap_or(uri);
-        if let Some(router) = self.routes.get(method) {
+        if let Some(router) = self.routes.clone().lock().unwrap().get(method) {
             if let Ok(route) = router.at(path) {
+                let route: matchit::Match<'l, 'l, &Route> = unsafe { transmute(route) };
                 return Some(route);
             }
         }
         None
+    }
+
+    fn add(&mut self, route: Route) -> PyResult<()> {
+        let mut ptr_mr = self.routes.lock().unwrap();
+        let method_router = ptr_mr.entry(route.method.clone()).or_default();
+        method_router
+            .insert(&route.path, route.clone())
+            .into_py_exception()?;
+        Ok(())
     }
 }
 

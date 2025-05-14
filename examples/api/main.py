@@ -138,17 +138,26 @@ def all(request: Request, session: Session) -> Response:
 
 
 pub_router = Router()
-pub_router.routes([hello_world, login, register, add])
-pub_router.middleware(logger)
 
-sec_router = Router()
-sec_router.routes([user_info, all])
-sec_router.middleware(jwt_middleware)
-sec_router.middleware(logger)
+
+@pub_router.get("/test")
+def test(request: Request):
+    return "hello world"
+
+
+print(pub_router)
+
+# pub_router.routes([hello_world, login, register, add])
+# pub_router.middleware(logger)
+
+# sec_router = Router()
+# sec_router.routes([user_info, all])
+# sec_router.middleware(jwt_middleware)
+# sec_router.middleware(logger)
 
 server = HttpServer(("127.0.0.1", 5555))
 server.app_data(AppData())
-server.attach(sec_router)
+# server.attach(sec_router)
 server.attach(pub_router)
 
 if __name__ == "__main__":
