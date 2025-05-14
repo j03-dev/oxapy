@@ -139,7 +139,7 @@ def all(request: Request, session: Session) -> Response:
 
 pub_router = Router()
 pub_router.routes([hello_world, login, register, add])
-pub_router.middleware(logger)
+# pub_router.middleware(logger)
 
 sec_router = Router()
 sec_router.routes([user_info, all])
