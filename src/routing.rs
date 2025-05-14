@@ -145,12 +145,13 @@ def static_file(request, path):
         None,
     )?;
 
+    let handler = globals.get_item("static_file")?.unwrap();
+
     let route = Route {
         path: format!("/{path}/{{*path}}"),
+        handler: Arc::new(handler.into()),
         ..Default::default()
     };
 
-    let handler = globals.get_item("static_file")?.unwrap();
-
-    route.__call__(handler.into())
+    Ok(route)
 }
