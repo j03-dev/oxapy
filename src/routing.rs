@@ -50,12 +50,13 @@ macro_rules! method_decorator {
     ($($method:ident),*) => {
         $(
             #[pyfunction]
-            #[pyo3(signature = (path, *))]
-            pub fn $method(path: String) -> Route {
-                Route::new(
+            #[pyo3(signature = (path, handler = None))]
+            pub fn $method(path: String, handler: Option<Py<PyAny>>, py: Python<'_>) -> Route {
+                Route {
+                    method: stringify!($method).to_string().to_uppercase(),
                     path,
-                    Some(stringify!($method).to_string().to_uppercase()),
-                )
+                    handler: Arc::new(handler.unwrap_or(py.None()))
+                }
             }
         )+
     };
