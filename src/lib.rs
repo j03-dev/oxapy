@@ -45,7 +45,7 @@ use pyo3::{exceptions::PyException, prelude::*};
 
 use crate::templating::Template;
 
-type MatchitRoute = &'static Match<'static, 'static, &'static Route>;
+type MatchitRoute<'l> = Match<'l, 'l, &'l Route>;
 
 trait IntoPyException<T> {
     fn into_py_exception(self) -> PyResult<T>;
@@ -60,7 +60,7 @@ impl<T, E: ToString> IntoPyException<T> for Result<T, E> {
 struct ProcessRequest {
     request: Arc<Request>,
     router: Arc<Router>,
-    route: MatchitRoute,
+    route: MatchitRoute<'static>,
     response_sender: Sender<Response>,
     cors: Option<Arc<Cors>>,
 }
@@ -99,8 +99,8 @@ impl HttpServer {
         self.app_data = Some(Arc::new(app_data))
     }
 
-    fn attach(&mut self, router: PyRef<'_, Router>) {
-        self.routers.push(Arc::new(router.clone()));
+    fn attach(&mut self, router: Router) {
+        self.routers.push(Arc::new(router));
     }
 
     fn session_store(&mut self, session_store: SessionStore) {
@@ -111,8 +111,8 @@ impl HttpServer {
         self.template = Some(Arc::new(template))
     }
 
-    fn cors(&mut self, cors: PyRef<'_, Cors>) {
-        self.cors = Some(Arc::new(cors.clone()));
+    fn cors(&mut self, cors: Cors) {
+        self.cors = Some(Arc::new(cors));
     }
 
     fn max_connections(&mut self, max_connections: usize) {

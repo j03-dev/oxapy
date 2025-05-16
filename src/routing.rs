@@ -6,7 +6,7 @@ use std::{
 
 use pyo3::{ffi::c_str, prelude::*, types::PyDict, Py, PyAny};
 
-use crate::{middleware::Middleware, IntoPyException};
+use crate::{middleware::Middleware, IntoPyException, MatchitRoute};
 
 #[derive(Clone, Debug)]
 #[pyclass]
@@ -72,7 +72,7 @@ method_decorator!(get, post, put, patch, delete, head, options);
 #[pyclass]
 struct Decorator {
     method: String,
-    routes: Arc<Mutex<HashMap<String, matchit::Router<Route>>>>,
+    router: Router,
     path: String,
 }
 
@@ -85,11 +85,8 @@ impl Decorator {
             handler: Arc::new(handler),
         };
 
-        let mut ptr_mr = self.routes.lock().unwrap();
-        let method_router = ptr_mr.entry(route.method.clone()).or_default();
-        method_router
-            .insert(&route.path, route.clone())
-            .into_py_exception()?;
+        self.router.clone().add(&route)?;
+
         Ok(route)
     }
 }
@@ -113,12 +110,12 @@ impl Router {
         self.middlewares.push(middleware);
     }
 
-    fn route(&mut self, route: PyRef<Route>) -> PyResult<()> {
-        self.add(route.clone())
+    fn route(&mut self, route: &Route) -> PyResult<()> {
+        self.add(route)
     }
 
-    fn routes(&mut self, routes: Vec<PyRef<Route>>) -> PyResult<()> {
-        for route in routes {
+    fn routes(&mut self, routes: Vec<Route>) -> PyResult<()> {
+        for ref route in routes {
             self.route(route)?;
         }
         Ok(())
@@ -127,7 +124,7 @@ impl Router {
     fn get(&self, path: String) -> PyResult<Decorator> {
         Ok(Decorator {
             method: "GET".to_string(),
-            routes: self.routes.clone(),
+            router: self.clone(),
             path,
         })
     }
@@ -138,22 +135,18 @@ impl Router {
 }
 
 impl Router {
-    pub fn find<'l>(
-        &'l self,
-        method: &str,
-        uri: &'l str,
-    ) -> Option<matchit::Match<'l, 'l, &'l Route>> {
+    pub fn find<'l>(&'l self, method: &str, uri: &'l str) -> Option<MatchitRoute<'l>> {
         let path = uri.split('?').next().unwrap_or(uri);
-        if let Some(router) = self.routes.clone().lock().unwrap().get(method) {
+        if let Some(router) = self.routes.lock().unwrap().get(method) {
             if let Ok(route) = router.at(path) {
-                let route: matchit::Match<'l, 'l, &Route> = unsafe { transmute(route) };
+                let route: MatchitRoute = unsafe { transmute(route) };
                 return Some(route);
             }
         }
         None
     }
 
-    fn add(&mut self, route: Route) -> PyResult<()> {
+    fn add(&mut self, route: &Route) -> PyResult<()> {
         let mut ptr_mr = self.routes.lock().unwrap();
         let method_router = ptr_mr.entry(route.method.clone()).or_default();
         method_router
