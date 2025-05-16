@@ -36,11 +36,35 @@ pub enum JwtError {
 
 impl std::convert::From<JwtError> for PyErr {
     fn from(err: JwtError) -> PyErr {
-        PyErr::new::<pyo3::exceptions::PyException, _>(format!("{}", err))
+        match err {
+            JwtError::Jwt(jwt_err) => match jwt_err.kind() {
+                jsonwebtoken::errors::ErrorKind::ExpiredSignature => {
+                    PyErr::new::<pyo3::exceptions::PyValueError, _>("Token has expired")
+                }
+                jsonwebtoken::errors::ErrorKind::InvalidSignature => {
+                    PyErr::new::<pyo3::exceptions::PyValueError, _>("Invalid token signature")
+                }
+                jsonwebtoken::errors::ErrorKind::InvalidToken => {
+                    PyErr::new::<pyo3::exceptions::PyValueError, _>("Invalid token format")
+                }
+                _ => PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                    "JWT error: {}",
+                    jwt_err
+                )),
+            },
+            JwtError::Time(time_err) => PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "System time error: {}",
+                time_err
+            )),
+            JwtError::InvalidPayload => {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Invalid JWT payload")
+            }
+        }
     }
 }
 
 #[pyclass(name = "JwtManager")]
+/// Python class for generating and verifying JWT tokens
 #[derive(Clone)]
 pub struct JwtManager {
     secret: String,
@@ -50,9 +74,29 @@ pub struct JwtManager {
 
 #[pymethods]
 impl JwtManager {
+    /// Create a new JWT manager
+    ///
+    /// Args:
+    ///     secret: Secret key used for signing tokens
+    ///     algorithm: JWT algorithm to use (default: "HS256")
+    ///     expiration_minutes: Token expiration time in minutes (default: 60)
+    ///
+    /// Returns:
+    ///     A new JwtManager instance
+    ///
+    /// Raises:
+    ///     ValueError: If the algorithm is not supported or secret is invalid
+
     #[new]
     #[pyo3(signature = (secret, algorithm="HS256", expiration_minutes=60))]
     pub fn new(secret: String, algorithm: &str, expiration_minutes: u64) -> PyResult<Self> {
+        // Validate secret key
+        if secret.is_empty() {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "Secret key cannot be empty",
+            ));
+        }
+
         let algorithm = match algorithm {
             "HS256" => Algorithm::HS256,
             "HS384" => Algorithm::HS384,
@@ -71,7 +115,16 @@ impl JwtManager {
             expiration: Duration::from_secs(expiration_minutes * 60),
         })
     }
-
+    /// Generate a JWT token with the given claims
+    ///
+    /// Args:
+    ///     claims: A dictionary of claims to include in the token
+    ///
+    /// Returns:
+    ///     JWT token string
+    ///
+    /// Raises:
+    ///     Exception: If claims cannot be serialized or the token cannot be generated
     pub fn generate_token(&self, _py: Python<'_>, claims: &Bound<'_, PyDict>) -> PyResult<String> {
         let claims_obj: PyObject = claims.to_owned().into();
         let claims_json = json::dumps(&claims_obj)?;
