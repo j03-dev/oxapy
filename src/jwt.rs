@@ -1,9 +1,11 @@
+use crate::json;
 use jsonwebtoken::{
     decode, encode, errors::Error as JWTError, Algorithm, DecodingKey, EncodingKey, Header,
     Validation,
 };
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
+use pyo3::PyObject;
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use thiserror::Error;
@@ -70,11 +72,9 @@ impl JwtManager {
         })
     }
 
-    pub fn generate_token(&self, py: Python<'_>, claims: &Bound<'_, PyDict>) -> PyResult<String> {
-        let json_module = PyModule::import(py, "json")?;
-        let claims_json: String = json_module
-            .call_method("dumps", (claims,), None)?
-            .extract()?;
+    pub fn generate_token(&self, _py: Python<'_>, claims: &Bound<'_, PyDict>) -> PyResult<String> {
+        let claims_obj: PyObject = claims.to_owned().into();
+        let claims_json = json::dumps(&claims_obj)?;
 
         let raw_payload: serde_json::Value =
             serde_json::from_str(&claims_json).map_err(|_| JwtError::InvalidPayload)?;
