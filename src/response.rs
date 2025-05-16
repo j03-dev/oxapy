@@ -5,7 +5,6 @@ use hyper::body::Bytes;
 use pyo3::{prelude::*, types::PyBytes};
 
 use crate::{
-    into_response::IntoResponse,
     session::{Session, SessionStore},
     status::Status,
     IntoPyException,
@@ -59,12 +58,6 @@ impl Response {
     pub fn status(&mut self, status: PyRef<Status>) -> Self {
         self.status = status.clone();
         self.clone()
-    }
-}
-
-impl IntoResponse for Response {
-    fn into_response(&self) -> PyResult<Response> {
-        Ok(self.clone())
     }
 }
 

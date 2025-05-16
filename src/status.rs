@@ -3,13 +3,14 @@ use std::collections::HashMap;
 use hyper::body::Bytes;
 use pyo3::prelude::*;
 
-use crate::{into_response::IntoResponse, response::Response};
+use crate::response::Response;
 
 macro_rules! status_codes {
     ($(($num:expr, $kconst:ident);)+) => {
         #[derive(Clone)]
         #[pyclass]
         #[allow(non_camel_case_types)]
+        #[allow(clippy::upper_case_acronyms)]
         pub enum Status {
             $(
              $kconst = $num,
@@ -18,13 +19,13 @@ macro_rules! status_codes {
     }
 }
 
-impl IntoResponse for Status {
-    fn into_response(&self) -> PyResult<Response> {
-        Ok(Response {
-            status: self.clone(),
+impl From<Status> for Response {
+    fn from(val: Status) -> Self {
+        Response {
+            status: val.clone(),
             headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
             body: Bytes::new(),
-        })
+        }
     }
 }
 

@@ -5,12 +5,8 @@ use pyo3::{
 use tokio::sync::mpsc::Receiver;
 
 use crate::{
-    into_response::{convert_to_response, IntoResponse},
-    middleware::MiddlewareChain,
-    request::Request,
-    response::Response,
-    routing::Router,
-    status::Status,
+    into_response::convert_to_response, middleware::MiddlewareChain, request::Request,
+    response::Response, routing::Router, serializer::ValidationException, status::Status,
     MatchitRoute, ProcessRequest,
 };
 
@@ -21,16 +17,20 @@ pub async fn handle_response(
     loop {
         tokio::select! {
             Some(process_request) = request_receiver.recv() => {
-                let mut response = match process_response(
+                let mut response: Response = match process_response(
                     &process_request.router,
                     process_request.route,
                     &process_request.request,
                 ) {
                     Ok(response) => response,
-                    Err(e) => Status::INTERNAL_SERVER_ERROR
-                        .into_response()
-                        .unwrap()
-                        .set_body(e.to_string()),
+                    Err(err) => {
+                        Python::with_gil(|py|{
+                            let status = if err.is_instance_of::<ValidationException>(py)
+                                { Status::BAD_REQUEST } else { Status::INTERNAL_SERVER_ERROR };
+                            let response: Response = status.into();
+                            response.set_body(err.to_string())
+                        })
+                    }
                 };
 
                 if let (Some(session), Some(store)) = (&process_request.request.session, &process_request.request.session_store) {

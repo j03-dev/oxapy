@@ -1,4 +1,4 @@
-use crate::{into_response::IntoResponse, response::Response, status::Status};
+use crate::{response::Response, status::Status};
 use pyo3::prelude::*;
 
 #[derive(Clone, Debug)]
@@ -40,11 +40,11 @@ impl Cors {
     }
 }
 
-impl IntoResponse for Cors {
-    fn into_response(&self) -> PyResult<Response> {
-        let mut response = Status::NO_CONTENT.into_response()?;
-        self.apply_headers(&mut response);
-        Ok(response)
+impl From<Cors> for Response {
+    fn from(val: Cors) -> Self {
+        let mut response = Status::NO_CONTENT.into();
+        val.apply_headers(&mut response);
+        response
     }
 }
 
