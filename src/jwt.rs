@@ -1,14 +1,12 @@
 use crate::json;
-use jsonwebtoken::{
-    decode, encode, errors::Error as JWTError, Algorithm, DecodingKey, EncodingKey, Header,
-    Validation,
-};
-use pyo3::prelude::*;
+use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
+use pyo3::exceptions::PyException;
 use pyo3::types::PyDict;
-use pyo3::PyObject;
+use pyo3::{create_exception, prelude::*};
+use pyo3::{IntoPyObjectExt, PyObject};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use thiserror::Error;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
@@ -21,47 +19,12 @@ struct Claims {
     jti: Option<String>,
 
     #[serde(flatten)]
-    extra: serde_json::Value,
+    extra: Value,
 }
 
-#[derive(Debug, Error)]
-pub enum JwtError {
-    #[error("JWT error: {0}")]
-    Jwt(#[from] JWTError),
-    #[error("System time error: {0}")]
-    Time(#[from] std::time::SystemTimeError),
-    #[error("Invalid JWT payload")]
-    InvalidPayload,
-}
-
-impl std::convert::From<JwtError> for PyErr {
-    fn from(err: JwtError) -> PyErr {
-        match err {
-            JwtError::Jwt(jwt_err) => match jwt_err.kind() {
-                jsonwebtoken::errors::ErrorKind::ExpiredSignature => {
-                    PyErr::new::<pyo3::exceptions::PyValueError, _>("Token has expired")
-                }
-                jsonwebtoken::errors::ErrorKind::InvalidSignature => {
-                    PyErr::new::<pyo3::exceptions::PyValueError, _>("Invalid token signature")
-                }
-                jsonwebtoken::errors::ErrorKind::InvalidToken => {
-                    PyErr::new::<pyo3::exceptions::PyValueError, _>("Invalid token format")
-                }
-                _ => PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                    "JWT error: {}",
-                    jwt_err
-                )),
-            },
-            JwtError::Time(time_err) => PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                "System time error: {}",
-                time_err
-            )),
-            JwtError::InvalidPayload => {
-                PyErr::new::<pyo3::exceptions::PyValueError, _>("Invalid JWT payload")
-            }
-        }
-    }
-}
+create_exception!(jwt, JwtError, PyException, "JWT error");
+create_exception!(jwt, TimeError, PyException, "System time error");
+create_exception!(jwt, InvalidPayload, PyException, "Invalid JWT payload");
 
 #[pyclass(name = "JwtManager")]
 /// Python class for generating and verifying JWT tokens
@@ -115,6 +78,7 @@ impl JwtManager {
             expiration: Duration::from_secs(expiration_minutes * 60),
         })
     }
+
     /// Generate a JWT token with the given claims
     ///
     /// Args:
@@ -129,8 +93,8 @@ impl JwtManager {
         let claims_obj: PyObject = claims.to_owned().into();
         let claims_json = json::dumps(&claims_obj)?;
 
-        let raw_payload: serde_json::Value =
-            serde_json::from_str(&claims_json).map_err(|_| JwtError::InvalidPayload)?;
+        let raw_payload: Value = serde_json::from_str(&claims_json)
+            .map_err(|err| InvalidPayload::new_err(err.to_string()))?;
 
         let mut standard = Claims {
             iss: None,
@@ -140,16 +104,16 @@ impl JwtManager {
             nbf: None,
             iat: None,
             jti: None,
-            extra: serde_json::Value::Null,
+            extra: Value::Null,
         };
 
         let mut extras = serde_json::Map::new();
 
-        if let serde_json::Value::Object(map) = raw_payload {
+        if let Value::Object(map) = raw_payload {
             for (k, v) in map {
                 match k.as_str() {
                     "iss" | "sub" | "aud" | "jti" => {
-                        if let serde_json::Value::String(s) = v {
+                        if let Value::String(s) = v {
                             match k.as_str() {
                                 "iss" => standard.iss = Some(s),
                                 "sub" => standard.sub = Some(s),
@@ -158,11 +122,13 @@ impl JwtManager {
                                 _ => {}
                             }
                         } else {
-                            return Err(JwtError::InvalidPayload.into());
+                            return Err(InvalidPayload::new_err(
+                                "['iss', 'sub', 'aud', 'jti'] should be a string",
+                            ));
                         }
                     }
                     "nbf" | "iat" => {
-                        if let serde_json::Value::Number(n) = v {
+                        if let Value::Number(n) = v {
                             if let Some(u) = n.as_u64() {
                                 match k.as_str() {
                                     "nbf" => standard.nbf = Some(u),
@@ -170,10 +136,12 @@ impl JwtManager {
                                     _ => {}
                                 }
                             } else {
-                                return Err(JwtError::InvalidPayload.into());
+                                return Err(InvalidPayload::new_err("only real number"));
                             }
                         } else {
-                            return Err(JwtError::InvalidPayload.into());
+                            return Err(InvalidPayload::new_err(
+                                "['iss', 'sub', 'aud', 'jti'] should be a string",
+                            ));
                         }
                     }
                     "exp" => continue,
@@ -186,23 +154,23 @@ impl JwtManager {
 
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .map_err(JwtError::Time)?;
+            .map_err(|err| TimeError::new_err(err.to_string()))?;
         standard.iat.get_or_insert(now.as_secs());
 
         let exp = now
             .checked_add(self.expiration)
-            .ok_or(JwtError::InvalidPayload)?
+            .ok_or(InvalidPayload::new_err("exipired"))?
             .as_secs();
 
         standard.exp = exp;
-        standard.extra = serde_json::Value::Object(extras);
+        standard.extra = Value::Object(extras);
 
         encode(
             &Header::new(self.algorithm),
             &standard,
             &EncodingKey::from_secret(self.secret.as_bytes()),
         )
-        .map_err(|e| JwtError::Jwt(e).into())
+        .map_err(|e| JwtError::new_err(e.to_string()))
     }
 
     pub fn verify_token<'a>(&self, py: Python<'a>, token: &str) -> PyResult<Bound<'a, PyDict>> {
@@ -214,7 +182,7 @@ impl JwtManager {
             &DecodingKey::from_secret(self.secret.as_bytes()),
             &validation,
         )
-        .map_err(JwtError::Jwt)?;
+        .map_err(|err| JwtError::new_err(err.to_string()))?;
 
         let dict = PyDict::new(py);
 
@@ -238,22 +206,22 @@ impl JwtManager {
         }
         dict.set_item("exp", token_data.claims.exp)?;
 
-        if let serde_json::Value::Object(extra) = token_data.claims.extra {
+        if let Value::Object(extra) = token_data.claims.extra {
             for (key, value) in extra {
                 let py_value = match value {
-                    serde_json::Value::Null => py.None(),
-                    serde_json::Value::Bool(b) => b.into_py(py),
-                    serde_json::Value::Number(n) => {
+                    Value::Null => py.None(),
+                    Value::Bool(b) => b.into_py_any(py)?,
+                    Value::Number(n) => {
                         if let Some(i) = n.as_i64() {
-                            i.into_py(py)
+                            i.into_py_any(py)?
                         } else if let Some(f) = n.as_f64() {
-                            f.into_py(py)
+                            f.into_py_any(py)?
                         } else {
-                            return Err(JwtError::InvalidPayload.into());
+                            return Err(InvalidPayload::new_err(""));
                         }
                     }
-                    serde_json::Value::String(s) => s.into_py(py),
-                    _ => return Err(JwtError::InvalidPayload.into()),
+                    Value::String(s) => s.into_py_any(py)?,
+                    _ => return Err(InvalidPayload::new_err("")),
                 };
 
                 dict.set_item(key, py_value)?;
@@ -277,5 +245,11 @@ impl JwtManager {
 pub fn jwt_submodule(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
     let jwt = PyModule::new(parent_module.py(), "jwt")?;
     jwt.add_class::<JwtManager>()?;
+    jwt.add("JwtError", parent_module.py().get_type::<JwtError>())?;
+    jwt.add("TimeError", parent_module.py().get_type::<TimeError>())?;
+    jwt.add(
+        "InvalidPyload",
+        parent_module.py().get_type::<InvalidPayload>(),
+    )?;
     parent_module.add_submodule(&jwt)
 }
