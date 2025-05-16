@@ -78,14 +78,14 @@ struct Decorator {
 
 #[pymethods]
 impl Decorator {
-    fn __call__(&self, handler: Py<PyAny>) -> PyResult<Route> {
+    fn __call__(&mut self, handler: Py<PyAny>) -> PyResult<Route> {
         let route = Route {
             method: self.method.clone(),
             path: self.path.clone(),
             handler: Arc::new(handler),
         };
 
-        self.router.clone().add(&route)?;
+        self.router.route(&route)?;
 
         Ok(route)
     }
@@ -98,41 +98,54 @@ pub struct Router {
     pub middlewares: Vec<Middleware>,
 }
 
-#[pymethods]
-impl Router {
-    #[new]
-    pub fn new() -> Self {
-        Router::default()
-    }
+macro_rules! impl_router {
+    ($($method:ident),*) => {
+        #[pymethods]
+        impl Router {
+            #[new]
+            pub fn new() -> Self {
+                Router::default()
+            }
 
-    fn middleware(&mut self, middleware: Py<PyAny>) {
-        let middleware = Middleware::new(middleware);
-        self.middlewares.push(middleware);
-    }
+            fn middleware(&mut self, middleware: Py<PyAny>) {
+                let middleware = Middleware::new(middleware);
+                self.middlewares.push(middleware);
+            }
 
-    fn route(&mut self, route: &Route) -> PyResult<()> {
-        self.add(route)
-    }
+            fn route(&mut self, route: &Route) -> PyResult<()> {
+                let mut ptr_mr = self.routes.lock().unwrap();
+                let method_router = ptr_mr.entry(route.method.clone()).or_default();
+                method_router
+                    .insert(&route.path, route.clone())
+                    .into_py_exception()?;
+                Ok(())
+            }
 
-    fn routes(&mut self, routes: Vec<Route>) -> PyResult<()> {
-        for ref route in routes {
-            self.route(route)?;
+            fn routes(&mut self, routes: Vec<Route>) -> PyResult<()> {
+                for ref route in routes {
+                    self.route(route)?;
+                }
+                Ok(())
+            }
+
+        $(
+            fn $method(&self, path: String) -> PyResult<Decorator> {
+                Ok(Decorator {
+                    method: stringify!($method).to_string(),
+                    router: self.clone(),
+                    path,
+                })
+            }
+        )+
+
+            fn __repr__(&self) -> String {
+                format!("{:#?}", self)
+            }
         }
-        Ok(())
-    }
-
-    fn get(&self, path: String) -> PyResult<Decorator> {
-        Ok(Decorator {
-            method: "GET".to_string(),
-            router: self.clone(),
-            path,
-        })
-    }
-
-    fn __repr__(&self) -> String {
-        format!("{:#?}", self)
-    }
+    };
 }
+
+impl_router!(get, post, put, patch, delete, head, options);
 
 impl Router {
     pub fn find<'l>(&'l self, method: &str, uri: &'l str) -> Option<MatchitRoute<'l>> {
@@ -144,15 +157,6 @@ impl Router {
             }
         }
         None
-    }
-
-    fn add(&mut self, route: &Route) -> PyResult<()> {
-        let mut ptr_mr = self.routes.lock().unwrap();
-        let method_router = ptr_mr.entry(route.method.clone()).or_default();
-        method_router
-            .insert(&route.path, route.clone())
-            .into_py_exception()?;
-        Ok(())
     }
 }
 
