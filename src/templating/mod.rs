@@ -59,11 +59,11 @@ fn render(
     })
 }
 
-pub fn templating_submodule(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
-    let templating = PyModule::new(parent_module.py(), "templating")?;
+pub fn templating_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    let templating = PyModule::new(m.py(), "templating")?;
     templating.add_function(wrap_pyfunction!(render, &templating)?)?;
     templating.add_class::<Template>()?;
     templating.add_class::<self::tera::Tera>()?;
     templating.add_class::<self::minijinja::Jinja>()?;
-    parent_module.add_submodule(&templating)
+    m.add_submodule(&templating)
 }

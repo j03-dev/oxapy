@@ -26,17 +26,17 @@ create_exception!(jwt, JwtError, PyException, "JWT error");
 create_exception!(jwt, TimeError, PyException, "System time error");
 create_exception!(jwt, InvalidPayload, PyException, "Invalid JWT payload");
 
-#[pyclass(name = "JwtManager")]
+#[pyclass]
 /// Python class for generating and verifying JWT tokens
 #[derive(Clone)]
-pub struct JwtManager {
+pub struct Jwt {
     secret: String,
     algorithm: Algorithm,
     expiration: Duration,
 }
 
 #[pymethods]
-impl JwtManager {
+impl Jwt {
     /// Create a new JWT manager
     ///
     /// Args:
@@ -242,14 +242,11 @@ impl JwtManager {
     }
 }
 
-pub fn jwt_submodule(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
-    let jwt = PyModule::new(parent_module.py(), "jwt")?;
-    jwt.add_class::<JwtManager>()?;
-    jwt.add("JwtError", parent_module.py().get_type::<JwtError>())?;
-    jwt.add("TimeError", parent_module.py().get_type::<TimeError>())?;
-    jwt.add(
-        "InvalidPyload",
-        parent_module.py().get_type::<InvalidPayload>(),
-    )?;
-    parent_module.add_submodule(&jwt)
+pub fn jwt_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    let jwt = PyModule::new(m.py(), "jwt")?;
+    jwt.add_class::<Jwt>()?;
+    jwt.add("JwtError", m.py().get_type::<JwtError>())?;
+    jwt.add("TimeError", m.py().get_type::<TimeError>())?;
+    jwt.add("InvalidPyload", m.py().get_type::<InvalidPayload>())?;
+    m.add_submodule(&jwt)
 }

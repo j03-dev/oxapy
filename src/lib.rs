@@ -2,6 +2,7 @@ mod cors;
 mod handling;
 mod into_response;
 mod json;
+mod jwt;
 mod middleware;
 mod multipart;
 mod request;
@@ -11,7 +12,6 @@ mod serializer;
 mod session;
 mod status;
 mod templating;
-mod jwt;
 
 use cors::Cors;
 use handling::request_handler::handle_request;
@@ -22,9 +22,9 @@ use routing::{delete, get, head, options, patch, post, put, static_file, Route, 
 use session::{Session, SessionStore};
 use status::Status;
 
+use jwt::jwt_submodule;
 use serializer::serializer_submodule;
 use templating::templating_submodule;
-use jwt::jwt_submodule;
 
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
@@ -239,7 +239,6 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     templating_submodule(m)?;
     serializer_submodule(m)?;
     jwt_submodule(m)?;
-
 
     Ok(())
 }
