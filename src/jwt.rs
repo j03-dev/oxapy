@@ -1,9 +1,8 @@
-use crate::json;
-use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
-use pyo3::exceptions::PyException;
+use crate::{json, IntoPyException};
+use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation};
+use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use pyo3::{create_exception, prelude::*};
-use pyo3::{IntoPyObjectExt, PyObject};
+use pyo3::PyObject;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -21,10 +20,6 @@ struct Claims {
     #[serde(flatten)]
     extra: Value,
 }
-
-create_exception!(jwt, JwtError, PyException, "JWT error");
-create_exception!(jwt, TimeError, PyException, "System time error");
-create_exception!(jwt, InvalidPayload, PyException, "Invalid JWT payload");
 
 #[pyclass]
 /// Python class for generating and verifying JWT tokens
@@ -89,164 +84,48 @@ impl Jwt {
     ///
     /// Raises:
     ///     Exception: If claims cannot be serialized or the token cannot be generated
-    pub fn generate_token(&self, _py: Python<'_>, claims: &Bound<'_, PyDict>) -> PyResult<String> {
-        let claims_obj: PyObject = claims.to_owned().into();
-        let claims_json = json::dumps(&claims_obj)?;
+    pub fn generate_token(&self, claims: Bound<'_, PyDict>) -> PyResult<String> {
+        let expiration = claims
+            .get_item("exp")?
+            .and_then(|exp| Some(Duration::from_secs(exp.extract::<u64>().unwrap() * 60)))
+            .unwrap_or(self.expiration);
 
-        let raw_payload: Value = serde_json::from_str(&claims_json)
-            .map_err(|err| InvalidPayload::new_err(err.to_string()))?;
-
-        let mut standard = Claims {
-            iss: None,
-            sub: None,
-            aud: None,
-            exp: 0,
-            nbf: None,
-            iat: None,
-            jti: None,
-            extra: Value::Null,
-        };
-
-        let mut extras = serde_json::Map::new();
-
-        if let Value::Object(map) = raw_payload {
-            for (k, v) in map {
-                match k.as_str() {
-                    "iss" | "sub" | "aud" | "jti" => {
-                        if let Value::String(s) = v {
-                            match k.as_str() {
-                                "iss" => standard.iss = Some(s),
-                                "sub" => standard.sub = Some(s),
-                                "aud" => standard.aud = Some(s),
-                                "jti" => standard.jti = Some(s),
-                                _ => {}
-                            }
-                        } else {
-                            return Err(InvalidPayload::new_err(
-                                "['iss', 'sub', 'aud', 'jti'] should be a string",
-                            ));
-                        }
-                    }
-                    "nbf" | "iat" => {
-                        if let Value::Number(n) = v {
-                            if let Some(u) = n.as_u64() {
-                                match k.as_str() {
-                                    "nbf" => standard.nbf = Some(u),
-                                    "iat" => standard.iat = Some(u),
-                                    _ => {}
-                                }
-                            } else {
-                                return Err(InvalidPayload::new_err("only real number"));
-                            }
-                        } else {
-                            return Err(InvalidPayload::new_err(
-                                "['iss', 'sub', 'aud', 'jti'] should be a string",
-                            ));
-                        }
-                    }
-                    "exp" => continue,
-                    _ => {
-                        extras.insert(k, v);
-                    }
-                }
-            }
-        }
-
-        let now = SystemTime::now()
+        let system_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .map_err(|err| TimeError::new_err(err.to_string()))?;
-        standard.iat.get_or_insert(now.as_secs());
+            .into_py_exception()?;
 
-        let exp = now
-            .checked_add(self.expiration)
-            .ok_or(InvalidPayload::new_err("exipired"))?
-            .as_secs();
+        let exp = system_time.checked_add(expiration).unwrap();
+        claims.set_item("exp", exp.as_secs())?;
 
-        standard.exp = exp;
-        standard.extra = Value::Object(extras);
+        let obj_claims: PyObject = claims.into();
+        let claims_json_string = json::dumps(&obj_claims)?;
+        let claims: Claims = serde_json::from_str(&claims_json_string).into_py_exception()?;
 
-        encode(
-            &Header::new(self.algorithm),
-            &standard,
+        let token = jsonwebtoken::encode(
+            &Header::default(),
+            &claims,
             &EncodingKey::from_secret(self.secret.as_bytes()),
         )
-        .map_err(|e| JwtError::new_err(e.to_string()))
+        .into_py_exception()?;
+
+        Ok(token)
     }
 
-    pub fn verify_token<'a>(&self, py: Python<'a>, token: &str) -> PyResult<Bound<'a, PyDict>> {
-        let mut validation = Validation::new(self.algorithm);
-        validation.required_spec_claims = ["exp"].iter().map(|&s| s.to_string()).collect();
-
-        let token_data = decode::<Claims>(
+    pub fn verify_token(&self, token: &str) -> PyResult<Py<PyDict>> {
+        let token_data = jsonwebtoken::decode::<Claims>(
             token,
             &DecodingKey::from_secret(self.secret.as_bytes()),
-            &validation,
+            &Validation::new(self.algorithm),
         )
-        .map_err(|err| JwtError::new_err(err.to_string()))?;
+        .into_py_exception()?;
 
-        let dict = PyDict::new(py);
-
-        if let Some(iss) = token_data.claims.iss {
-            dict.set_item("iss", iss)?;
-        }
-        if let Some(sub) = token_data.claims.sub {
-            dict.set_item("sub", sub)?;
-        }
-        if let Some(aud) = token_data.claims.aud {
-            dict.set_item("aud", aud)?;
-        }
-        if let Some(nbf) = token_data.claims.nbf {
-            dict.set_item("nbf", nbf)?;
-        }
-        if let Some(iat) = token_data.claims.iat {
-            dict.set_item("iat", iat)?;
-        }
-        if let Some(jti) = token_data.claims.jti {
-            dict.set_item("jti", jti)?;
-        }
-        dict.set_item("exp", token_data.claims.exp)?;
-
-        if let Value::Object(extra) = token_data.claims.extra {
-            for (key, value) in extra {
-                let py_value = match value {
-                    Value::Null => py.None(),
-                    Value::Bool(b) => b.into_py_any(py)?,
-                    Value::Number(n) => {
-                        if let Some(i) = n.as_i64() {
-                            i.into_py_any(py)?
-                        } else if let Some(f) = n.as_f64() {
-                            f.into_py_any(py)?
-                        } else {
-                            return Err(InvalidPayload::new_err(""));
-                        }
-                    }
-                    Value::String(s) => s.into_py_any(py)?,
-                    _ => return Err(InvalidPayload::new_err("")),
-                };
-
-                dict.set_item(key, py_value)?;
-            }
-        }
-
-        Ok(dict)
-    }
-
-    #[getter]
-    fn expiration(&self) -> u64 {
-        self.expiration.as_secs()
-    }
-
-    #[getter]
-    fn algorithm(&self) -> String {
-        format!("{:?}", self.algorithm)
+        let claims = serde_json::json!(token_data.claims).to_string();
+        json::loads(&claims)
     }
 }
 
 pub fn jwt_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let jwt = PyModule::new(m.py(), "jwt")?;
     jwt.add_class::<Jwt>()?;
-    jwt.add("JwtError", m.py().get_type::<JwtError>())?;
-    jwt.add("TimeError", m.py().get_type::<TimeError>())?;
-    jwt.add("InvalidPyload", m.py().get_type::<InvalidPayload>())?;
     m.add_submodule(&jwt)
 }
