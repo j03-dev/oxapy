@@ -90,11 +90,15 @@ impl Jwt {
             .and_then(|exp| Some(Duration::from_secs(exp.extract::<u64>().unwrap() * 60)))
             .unwrap_or(self.expiration);
 
-        let system_time = SystemTime::now()
+        let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .into_py_exception()?;
 
-        let exp = system_time.checked_add(expiration).unwrap();
+        if !claims.contains("iat")? {
+            claims.set_item("iat", now.as_secs())?;
+        }
+
+        let exp = now.checked_add(expiration).unwrap();
         claims.set_item("exp", exp.as_secs())?;
 
         let obj_claims: PyObject = claims.into();
