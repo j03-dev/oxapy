@@ -1,4 +1,4 @@
-use crate::{json, IntoPyException, WrapValue};
+use crate::{json, IntoPyException, Wrap};
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -100,11 +100,11 @@ impl Jwt {
         let exp = now.checked_add(expiration).unwrap();
         claims.set_item("exp", exp.as_secs())?;
 
-        let claims: WrapValue<Claims> = claims.into();
+        let Wrap::<Claims>(claims) = claims.into();
 
         let token = jsonwebtoken::encode(
             &Header::default(),
-            &claims.value,
+            &claims,
             &EncodingKey::from_secret(self.secret.as_bytes()),
         )
         .into_py_exception()?;

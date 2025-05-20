@@ -61,18 +61,16 @@ impl<T, E: ToString> IntoPyException<T> for Result<T, E> {
     }
 }
 
-struct WrapValue<T> {
-    value: T,
-}
+struct Wrap<T>(T);
 
-impl<T> From<Bound<'_, PyDict>> for WrapValue<T>
+impl<T> From<Bound<'_, PyDict>> for Wrap<T>
 where
     T: for<'de> Deserialize<'de>,
 {
     fn from(value: Bound<'_, PyDict>) -> Self {
         let json_string = json::dumps(&value.into()).unwrap();
         let value = serde_json::from_str(&json_string).unwrap();
-        WrapValue { value }
+        Wrap(value)
     }
 }
 

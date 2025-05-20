@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use minijinja::Environment;
 use pyo3::{prelude::*, types::PyDict};
 
-use crate::{IntoPyException, WrapValue};
+use crate::{IntoPyException, Wrap};
 
 #[derive(Debug, Clone)]
 #[pyclass]
@@ -51,8 +51,8 @@ impl Jinja {
             .into_py_exception()?;
         let mut ctx_values: HashMap<String, serde_json::Value> = HashMap::new();
         if let Some(context) = context {
-            let wrp_value: WrapValue<_> = context.into();
-            ctx_values = wrp_value.value;
+            let Wrap::<_>(value) = context.into();
+            ctx_values = value;
         }
         template.render(ctx_values).into_py_exception()
     }
