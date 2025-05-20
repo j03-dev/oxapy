@@ -83,7 +83,7 @@ impl Router {
         self.middlewares.push(middleware);
     }
 
-    fn route(&mut self, route: PyRef<Route>) -> PyResult<()> {
+    fn route(&mut self, route: Route) -> PyResult<()> {
         let method_router = self.routes.entry(route.method.clone()).or_default();
         method_router
             .insert(&route.path, route.clone())
@@ -91,7 +91,7 @@ impl Router {
         Ok(())
     }
 
-    fn routes(&mut self, routes: Vec<PyRef<Route>>) -> PyResult<()> {
+    fn routes(&mut self, routes: Vec<Route>) -> PyResult<()> {
         for route in routes {
             self.route(route)?;
         }

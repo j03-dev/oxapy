@@ -25,7 +25,7 @@ impl Response {
     #[new]
     #[pyo3(signature=(status, body, content_type="application/json".to_string()))]
     pub fn new(
-        status: PyRef<'_, Status>,
+        status: Status,
         body: PyObject,
         content_type: String,
         py: Python<'_>,
@@ -39,7 +39,7 @@ impl Response {
         };
 
         Ok(Self {
-            status: status.clone(),
+            status,
             body,
             headers: HashMap::from([("Content-Type".to_string(), content_type)]),
         })
@@ -55,8 +55,8 @@ impl Response {
         self.clone()
     }
 
-    pub fn status(&mut self, status: PyRef<Status>) -> Self {
-        self.status = status.clone();
+    pub fn status(&mut self, status: Status) -> Self {
+        self.status = status;
         self.clone()
     }
 }

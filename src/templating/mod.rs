@@ -22,11 +22,13 @@ pub enum Template {
 #[pymethods]
 impl Template {
     #[new]
-    #[pyo3(signature=(dir="./templates/**/*.html".to_string(), engine="jinja".to_string()))]
-    fn new(dir: String, engine: String) -> PyResult<Template> {
-        match engine.as_str() {
-            "jinja" => Ok(Template::Jinja(self::minijinja::Jinja::new(dir)?)),
-            "tera" => Ok(Template::Tera(self::tera::Tera::new(dir)?)),
+    #[pyo3(signature=(dir="./templates/**/*.html", engine="jinja"))]
+    fn new(dir: &str, engine: &str) -> PyResult<Template> {
+        match engine {
+            "jinja" => Ok(Template::Jinja(self::minijinja::Jinja::new(
+                dir.to_string(),
+            )?)),
+            "tera" => Ok(Template::Tera(self::tera::Tera::new(dir.to_string())?)),
             e => Err(PyException::new_err(format!(
                 "Invalid engine type '{e}'. Valid options are 'jinja' or 'tera'.",
             ))),
