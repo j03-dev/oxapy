@@ -57,10 +57,10 @@ impl Session {
 
         let data = self.data.read().into_py_exception()?;
 
-        let value = match data.get(key) {
-            Some(value) => value.clone_ref(py),
-            None => py.None(),
-        };
+        let value = data
+            .get(key)
+            .map(|value| value.clone_ref(py))
+            .unwrap_or(py.None());
 
         Ok(value)
     }

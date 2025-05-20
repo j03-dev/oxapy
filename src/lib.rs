@@ -16,9 +16,11 @@ mod templating;
 use cors::Cors;
 use handling::request_handler::handle_request;
 use handling::response_handler::handle_response;
+use pyo3::types::PyDict;
 use request::Request;
 use response::{Redirect, Response};
 use routing::{delete, get, head, options, patch, post, put, static_file, Route, Router};
+use serde::Deserialize;
 use session::{Session, SessionStore};
 use status::Status;
 
@@ -56,6 +58,21 @@ trait IntoPyException<T> {
 impl<T, E: ToString> IntoPyException<T> for Result<T, E> {
     fn into_py_exception(self) -> PyResult<T> {
         self.map_err(|err| PyException::new_err(err.to_string()))
+    }
+}
+
+struct WrapValue<T> {
+    value: T,
+}
+
+impl<T> From<Bound<'_, PyDict>> for WrapValue<T>
+where
+    T: for<'de> Deserialize<'de>,
+{
+    fn from(value: Bound<'_, PyDict>) -> Self {
+        let json_string = json::dumps(&value.into()).unwrap();
+        let value = serde_json::from_str(&json_string).unwrap();
+        WrapValue { value }
     }
 }
 

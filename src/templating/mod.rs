@@ -42,7 +42,6 @@ fn render(
     request: Request,
     name: String,
     context: Option<Bound<'_, PyDict>>,
-    py: Python<'_>,
 ) -> PyResult<Response> {
     let template = request
         .template
@@ -50,8 +49,8 @@ fn render(
         .ok_or_else(|| PyValueError::new_err("Not template"))?;
 
     let body = match template.as_ref() {
-        Template::Jinja(engine) => engine.render(name, context, py)?,
-        Template::Tera(engine) => engine.render(name, context, py)?,
+        Template::Jinja(engine) => engine.render(name, context)?,
+        Template::Tera(engine) => engine.render(name, context)?,
     };
 
     Ok(Response {

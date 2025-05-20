@@ -1,8 +1,7 @@
-use crate::{json, IntoPyException};
+use crate::{json, IntoPyException, WrapValue};
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use pyo3::PyObject;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -87,7 +86,7 @@ impl Jwt {
     pub fn generate_token(&self, claims: Bound<'_, PyDict>) -> PyResult<String> {
         let expiration = claims
             .get_item("exp")?
-            .and_then(|exp| Some(Duration::from_secs(exp.extract::<u64>().unwrap() * 60)))
+            .map(|exp| Duration::from_secs(exp.extract::<u64>().unwrap() * 60))
             .unwrap_or(self.expiration);
 
         let now = SystemTime::now()
@@ -101,13 +100,11 @@ impl Jwt {
         let exp = now.checked_add(expiration).unwrap();
         claims.set_item("exp", exp.as_secs())?;
 
-        let obj_claims: PyObject = claims.into();
-        let claims_json_string = json::dumps(&obj_claims)?;
-        let claims: Claims = serde_json::from_str(&claims_json_string).into_py_exception()?;
+        let claims: WrapValue<Claims> = claims.into();
 
         let token = jsonwebtoken::encode(
             &Header::default(),
-            &claims,
+            &claims.value,
             &EncodingKey::from_secret(self.secret.as_bytes()),
         )
         .into_py_exception()?;
