@@ -70,23 +70,19 @@ class UserInputSerializer(serializer.Serializer):
     class Meta:
         model = User
 
-    def validate(self, attr):
-        data = super().validate(attr)
-
-        data.update(
-            {
-                "id": str(uuid.uuid4()),
-                "password": hash_password(data["password"]),
-            }
-        )
-        return data
-
 
 @post("/register")
 @with_session
 def register(request: Request, session: Session):
     new_user = UserInputSerializer(request)
     new_user.is_valid()
+
+    new_user.validate_data.update(
+        {
+            "id": str(uuid.uuid4()),
+            "password": hash_password(new_user.validate_data["password"]),
+        }
+    )
 
     if not session.query(User).filter_by(email=new_user.validate_data["email"]).first():
         new_user.save(session)

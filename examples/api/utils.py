@@ -1,19 +1,19 @@
-from jwt import ExpiredSignatureError, InvalidTokenError, decode, encode
+# from jwt import ExpiredSignatureError, InvalidTokenError, decode, encode
+from oxapy import jwt
 import bcrypt
 
 SECRET = "8b78e057cf6bc3e646097e5c0277f5ccaa2d8ac3b6d4a4d8c73c7f6af02f0ccd"
 
+jwt = jwt.Jwt(SECRET)
+
 
 def create_jwt(user_id: str) -> str:
     payload = {"user_id": user_id}
-    return encode(payload, SECRET, algorithm="HS256")
+    return jwt.generate_token(payload)
 
 
 def decode_jwt(token: str):
-    try:
-        return decode(token, SECRET, algorithms=["HS256"])
-    except (ExpiredSignatureError, InvalidTokenError):
-        return None
+    return jwt.verify_token(token)
 
 
 def hash_password(password: str) -> str:
