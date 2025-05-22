@@ -93,5 +93,7 @@ Todo:
 - [x] serve static file
 - [x] templating
 - [x] query uri
-- [ ] security submodule (jwt,bcrypt..)
+- [ ] security submodule
+  - [x] jwt
+  - [ ] bcrypt
 - [ ] websocket

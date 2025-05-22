@@ -39,14 +39,11 @@ pub async fn parse_mutltipart(content_type: &str, body_stream: Bytes) -> PyResul
     let mut fields = HashMap::new();
     let mut files = HashMap::new();
 
-    let boundary = match content_type.split("boundary=").nth(1) {
-        Some(b) => b.trim().to_string(),
-        None => {
-            return Err(PyValueError::new_err(
-                "Boundary not found in Content-Type header",
-            ))
-        }
-    };
+    let boundary = content_type
+        .split("boundary=")
+        .nth(1)
+        .map(|b| b.trim().to_string())
+        .ok_or_else(|| PyValueError::new_err("Boundary not found in Content-Type header"))?;
 
     let stream = stream::once(async { Result::<Bytes, std::io::Error>::Ok(body_stream) });
     let mut multipart = Multipart::new(stream, boundary);

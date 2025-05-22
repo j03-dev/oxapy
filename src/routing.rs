@@ -32,7 +32,7 @@ impl Route {
     #[pyo3(signature=(path, method=None))]
     pub fn new(path: String, method: Option<String>) -> Self {
         Route {
-            method: method.unwrap_or_else(|| "GET".to_string()),
+            method: method.unwrap_or("GET".to_string()),
             path,
             ..Default::default()
         }
@@ -87,7 +87,19 @@ impl Decorator {
 
         self.router.route(&route)?;
 
-        Ok(route)
+    fn route(&mut self, route: Route) -> PyResult<()> {
+        let method_router = self.routes.entry(route.method.clone()).or_default();
+        method_router
+            .insert(&route.path, route.clone())
+            .into_py_exception()?;
+        Ok(())
+    }
+
+    fn routes(&mut self, routes: Vec<Route>) -> PyResult<()> {
+        for route in routes {
+            self.route(route)?;
+        }
+        Ok(())
     }
 }
 

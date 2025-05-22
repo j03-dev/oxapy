@@ -2,6 +2,8 @@ mod cors;
 mod handling;
 mod into_response;
 mod json;
+#[cfg(not(target_arch = "aarch64"))]
+mod jwt;
 mod middleware;
 mod multipart;
 mod request;
@@ -15,14 +17,13 @@ mod templating;
 use cors::Cors;
 use handling::request_handler::handle_request;
 use handling::response_handler::handle_response;
+use pyo3::types::PyDict;
 use request::Request;
 use response::{Redirect, Response};
 use routing::{delete, get, head, options, patch, post, put, static_file, Route, Router};
+use serde::Deserialize;
 use session::{Session, SessionStore};
 use status::Status;
-
-use serializer::serializer_submodule;
-use templating::templating_submodule;
 
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
@@ -45,7 +46,7 @@ use pyo3::{exceptions::PyException, prelude::*};
 
 use crate::templating::Template;
 
-type MatchitRoute<'l> = Match<'l, 'l, &'l Route>;
+type MatchitRoute<'r> = Match<'r, 'r, &'r Route>;
 
 trait IntoPyException<T> {
     fn into_py_exception(self) -> PyResult<T>;
@@ -54,6 +55,19 @@ trait IntoPyException<T> {
 impl<T, E: ToString> IntoPyException<T> for Result<T, E> {
     fn into_py_exception(self) -> PyResult<T> {
         self.map_err(|err| PyException::new_err(err.to_string()))
+    }
+}
+
+struct Wrap<T>(T);
+
+impl<T> From<Bound<'_, PyDict>> for Wrap<T>
+where
+    T: for<'de> Deserialize<'de>,
+{
+    fn from(value: Bound<'_, PyDict>) -> Self {
+        let json_string = json::dumps(&value.into()).unwrap();
+        let value = serde_json::from_str(&json_string).unwrap();
+        Wrap(value)
     }
 }
 
@@ -234,8 +248,11 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(options, m)?)?;
     m.add_function(wrap_pyfunction!(static_file, m)?)?;
 
-    templating_submodule(m)?;
-    serializer_submodule(m)?;
+    templating::templating_submodule(m)?;
+    serializer::serializer_submodule(m)?;
+
+    #[cfg(not(target_arch = "aarch64"))]
+    jwt::jwt_submodule(m)?;
 
     Ok(())
 }

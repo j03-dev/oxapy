@@ -22,11 +22,13 @@ pub enum Template {
 #[pymethods]
 impl Template {
     #[new]
-    #[pyo3(signature=(dir="./templates/**/*.html".to_string(), engine="jinja".to_string()))]
-    fn new(dir: String, engine: String) -> PyResult<Template> {
-        match engine.as_str() {
-            "jinja" => Ok(Template::Jinja(self::minijinja::Jinja::new(dir)?)),
-            "tera" => Ok(Template::Tera(self::tera::Tera::new(dir)?)),
+    #[pyo3(signature=(dir="./templates/**/*.html", engine="jinja"))]
+    fn new(dir: &str, engine: &str) -> PyResult<Template> {
+        match engine {
+            "jinja" => Ok(Template::Jinja(self::minijinja::Jinja::new(
+                dir.to_string(),
+            )?)),
+            "tera" => Ok(Template::Tera(self::tera::Tera::new(dir.to_string())?)),
             e => Err(PyException::new_err(format!(
                 "Invalid engine type '{e}'. Valid options are 'jinja' or 'tera'.",
             ))),
@@ -40,7 +42,6 @@ fn render(
     request: Request,
     name: String,
     context: Option<Bound<'_, PyDict>>,
-    py: Python<'_>,
 ) -> PyResult<Response> {
     let template = request
         .template
@@ -48,8 +49,8 @@ fn render(
         .ok_or_else(|| PyValueError::new_err("Not template"))?;
 
     let body = match template.as_ref() {
-        Template::Jinja(engine) => engine.render(name, context, py)?,
-        Template::Tera(engine) => engine.render(name, context, py)?,
+        Template::Jinja(engine) => engine.render(name, context)?,
+        Template::Tera(engine) => engine.render(name, context)?,
     };
 
     Ok(Response {
@@ -59,11 +60,11 @@ fn render(
     })
 }
 
-pub fn templating_submodule(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
-    let templating = PyModule::new(parent_module.py(), "templating")?;
+pub fn templating_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    let templating = PyModule::new(m.py(), "templating")?;
     templating.add_function(wrap_pyfunction!(render, &templating)?)?;
     templating.add_class::<Template>()?;
     templating.add_class::<self::tera::Tera>()?;
     templating.add_class::<self::minijinja::Jinja>()?;
-    parent_module.add_submodule(&templating)
+    m.add_submodule(&templating)
 }
