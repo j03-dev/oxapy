@@ -25,10 +25,6 @@ use serde::Deserialize;
 use session::{Session, SessionStore};
 use status::Status;
 
-use jwt::jwt_submodule;
-use serializer::serializer_submodule;
-use templating::templating_submodule;
-
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper_util::rt::TokioIo;
@@ -252,11 +248,11 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(options, m)?)?;
     m.add_function(wrap_pyfunction!(static_file, m)?)?;
 
-    templating_submodule(m)?;
-    serializer_submodule(m)?;
+    templating::templating_submodule(m)?;
+    serializer::serializer_submodule(m)?;
 
     #[cfg(not(target_arch = "aarch64"))]
-    jwt_submodule(m)?;
+    jwt::jwt_submodule(m)?;
 
     Ok(())
 }
