@@ -28,7 +28,7 @@ impl Route {
     #[pyo3(signature=(path, method=None))]
     pub fn new(path: String, method: Option<String>) -> Self {
         Route {
-            method: method.unwrap_or_else(|| "GET".to_string()),
+            method: method.unwrap_or("GET".to_string()),
             path,
             ..Default::default()
         }
