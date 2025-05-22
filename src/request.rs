@@ -7,8 +7,8 @@ use pyo3::{
 };
 
 use crate::{
-    multipart,
-    session::{self, Session},
+    multipart::File,
+    session::{Session, SessionStore},
     templating::Template,
 };
 
@@ -27,9 +27,9 @@ pub struct Request {
     pub template: Option<Arc<Template>>,
     pub ext: HashMap<String, Arc<PyObject>>,
     pub form_data: Option<HashMap<String, String>>,
-    pub files: Option<HashMap<String, multipart::File>>,
+    pub files: Option<HashMap<String, File>>,
     pub session: Option<Arc<Session>>,
-    pub session_store: Option<Arc<session::SessionStore>>,
+    pub session_store: Option<Arc<SessionStore>>,
 }
 
 #[pymethods]

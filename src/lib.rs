@@ -2,6 +2,7 @@ mod cors;
 mod handling;
 mod into_response;
 mod json;
+#[cfg(not(target_arch = "aarch64"))]
 mod jwt;
 mod middleware;
 mod multipart;
@@ -253,6 +254,8 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     templating_submodule(m)?;
     serializer_submodule(m)?;
+
+    #[cfg(not(target_arch = "aarch64"))]
     jwt_submodule(m)?;
 
     Ok(())
