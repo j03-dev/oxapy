@@ -1,9 +1,10 @@
 use crate::{json, IntoPyException, Wrap};
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation};
-use pyo3::prelude::*;
 use pyo3::types::PyDict;
+use pyo3::{exceptions::PyValueError, prelude::*};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::str::FromStr;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -47,24 +48,11 @@ impl Jwt {
     #[new]
     #[pyo3(signature = (secret, algorithm="HS256", expiration_minutes=60))]
     pub fn new(secret: String, algorithm: &str, expiration_minutes: u64) -> PyResult<Self> {
-        // Validate secret key
         if secret.is_empty() {
-            return Err(pyo3::exceptions::PyValueError::new_err(
-                "Secret key cannot be empty",
-            ));
+            return Err(PyValueError::new_err("Secret key cannot be empty"));
         }
 
-        let algorithm = match algorithm {
-            "HS256" => Algorithm::HS256,
-            "HS384" => Algorithm::HS384,
-            "HS512" => Algorithm::HS512,
-            "RS256" | "RS384" | "RS512" | "ES256" | "ES384" => {
-                return Err(pyo3::exceptions::PyValueError::new_err(
-                    "Asymmetric algorithms are not yet supported – use HS256/384/512",
-                ))
-            }
-            &_ => todo!(),
-        };
+        let algorithm = Algorithm::from_str(algorithm).into_py_exception()?;
 
         Ok(Self {
             secret,
