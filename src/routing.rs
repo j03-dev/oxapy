@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use pyo3::{ffi::c_str, prelude::*, types::PyDict, Py, PyAny};
 
-use crate::{middleware::Middleware, IntoPyException};
+use crate::{middleware::Middleware, IntoPyException, MatchitRoute};
 
 #[derive(Clone, Debug)]
 #[pyclass]
@@ -100,11 +100,7 @@ impl Router {
 }
 
 impl Router {
-    pub fn find<'l>(
-        &'l self,
-        method: &str,
-        uri: &'l str,
-    ) -> Option<matchit::Match<'l, 'l, &'l Route>> {
+    pub fn find<'l>(&'l self, method: &str, uri: &'l str) -> Option<MatchitRoute<'l>> {
         let path = uri.split('?').next().unwrap_or(uri);
         if let Some(router) = self.routes.get(method) {
             if let Ok(route) = router.at(path) {

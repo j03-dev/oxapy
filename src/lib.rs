@@ -50,7 +50,7 @@ use pyo3::{exceptions::PyException, prelude::*};
 
 use crate::templating::Template;
 
-type MatchitRoute = &'static Match<'static, 'static, &'static Route>;
+type MatchitRoute<'r> = Match<'r, 'r, &'r Route>;
 
 trait IntoPyException<T> {
     fn into_py_exception(self) -> PyResult<T>;
@@ -78,7 +78,7 @@ where
 struct ProcessRequest {
     request: Arc<Request>,
     router: Arc<Router>,
-    route: MatchitRoute,
+    route: MatchitRoute<'static>,
     response_sender: Sender<Response>,
     cors: Option<Arc<Cors>>,
 }
