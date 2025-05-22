@@ -87,19 +87,7 @@ impl Decorator {
 
         self.router.route(&route)?;
 
-    fn route(&mut self, route: Route) -> PyResult<()> {
-        let method_router = self.routes.entry(route.method.clone()).or_default();
-        method_router
-            .insert(&route.path, route.clone())
-            .into_py_exception()?;
-        Ok(())
-    }
-
-    fn routes(&mut self, routes: Vec<Route>) -> PyResult<()> {
-        for route in routes {
-            self.route(route)?;
-        }
-        Ok(())
+        Ok(route)
     }
 }
 
