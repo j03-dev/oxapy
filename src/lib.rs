@@ -90,6 +90,17 @@ struct ProcessRequest {
 }
 
 #[derive(Clone)]
+struct RequestContext {
+    request_sender: Sender<ProcessRequest>,
+    routers: Vec<Arc<Router>>,
+    app_data: Option<Arc<Py<PyAny>>>,
+    channel_capacity: usize,
+    cors: Option<Arc<Cors>>,
+    template: Option<Arc<Template>>,
+    session_store: Option<Arc<SessionStore>>,
+}
+
+#[derive(Clone)]
 #[pyclass]
 struct HttpServer {
     addr: SocketAddr,
@@ -177,26 +188,25 @@ impl HttpServer {
         let listener = TcpListener::bind(addr).await?;
         println!("Listening on {}", addr);
 
-        let routers = self.routers.clone();
         let running_clone = running.clone();
-        let request_sender = request_sender.clone();
         let max_connections = self.max_connections.clone();
-        let app_data = self.app_data.clone();
-        let cors = self.cors.clone();
-        let template = self.template.clone();
-        let session_store = self.session_store.clone();
+
+        let request_ctx = Arc::new(RequestContext {
+            routers: self.routers.clone(),
+            request_sender: request_sender.clone(),
+            app_data: self.app_data.clone(),
+            cors: self.cors.clone(),
+            template: self.template.clone(),
+            session_store: self.session_store.clone(),
+            channel_capacity,
+        });
 
         tokio::spawn(async move {
             while running_clone.load(Ordering::SeqCst) {
                 let permit = max_connections.clone().acquire_owned().await.unwrap();
                 let (stream, _) = listener.accept().await.unwrap();
                 let io = TokioIo::new(stream);
-                let request_sender = request_sender.clone();
-                let routers = routers.clone();
-                let app_data = app_data.clone();
-                let cors = cors.clone();
-                let template = template.clone();
-                let session_store = session_store.clone();
+                let request_ctx = request_ctx.clone();
 
                 tokio::spawn(async move {
                     let _permit = permit;
@@ -204,26 +214,8 @@ impl HttpServer {
                         .serve_connection(
                             io,
                             service_fn(move |req| {
-                                let request_sender = request_sender.clone();
-                                let routers = routers.clone();
-                                let app_data = app_data.clone();
-                                let cors = cors.clone();
-                                let template = template.clone();
-                                let session_store = session_store.clone();
-
-                                async move {
-                                    handle_request(
-                                        req,
-                                        request_sender,
-                                        routers,
-                                        app_data,
-                                        channel_capacity,
-                                        cors,
-                                        template,
-                                        session_store,
-                                    )
-                                    .await
-                                }
+                                let request_ctx = request_ctx.clone();
+                                async move { handle_request(req, request_ctx).await }
                             }),
                         )
                         .await

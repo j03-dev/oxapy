@@ -6,18 +6,16 @@ use hyper::{
     Request as HyperRequest, Response as HyperResponse,
 };
 use pyo3::{Py, PyAny};
-use tokio::sync::mpsc::{channel, Sender};
+use tokio::sync::mpsc::channel;
 
 use crate::{
-    cors::Cors,
     multipart::{parse_mutltipart, MultiPart},
     request::Request,
     response::Response,
-    routing::Router,
     session::SessionStore,
     status::Status,
     templating::Template,
-    IntoPyException, MatchitRoute, ProcessRequest,
+    IntoPyException, MatchitRoute, ProcessRequest, RequestContext,
 };
 
 fn convert_to_hyper_response(
@@ -30,17 +28,20 @@ fn convert_to_hyper_response(
     response_builder.body(Full::new(response.body))
 }
 
-#[allow(clippy::too_many_arguments)]
 pub async fn handle_request(
     req: HyperRequest<Incoming>,
-    request_sender: Sender<ProcessRequest>,
-    routers: Vec<Arc<Router>>,
-    app_data: Option<Arc<Py<PyAny>>>,
-    channel_capacity: usize,
-    cors: Option<Arc<Cors>>,
-    template: Option<Arc<Template>>,
-    session_store: Option<Arc<SessionStore>>,
+    request_ctx: Arc<RequestContext>,
 ) -> Result<HyperResponse<Full<Bytes>>, hyper::http::Error> {
+    let RequestContext {
+        request_sender,
+        routers,
+        app_data,
+        channel_capacity,
+        cors,
+        template,
+        session_store,
+    } = request_ctx.as_ref().clone();
+
     if req.method() == hyper::Method::OPTIONS && cors.is_some() {
         let response = cors.unwrap().as_ref().clone();
         return convert_to_hyper_response(response.into());
