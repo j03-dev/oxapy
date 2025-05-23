@@ -14,7 +14,7 @@ OxAPY is Python HTTP server library build in Rust - a fast, safe and feature-ric
 ## Basic Example
 
 ```python
-from oxapy import HttpServer, get, Router, Status, Response
+from oxapy import HttpServer, Router, Status, Response
 
 router = Router()
 
