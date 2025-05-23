@@ -1,8 +1,12 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    mem::transmute,
+    sync::{Arc, RwLock},
+};
 
 use pyo3::{ffi::c_str, prelude::*, types::PyDict, Py, PyAny};
 
-use crate::{middleware::Middleware, IntoPyException, MatchitRoute};
+use crate::{middleware::Middleware, IntoPyException, MatchRoute};
 
 #[derive(Clone, Debug)]
 #[pyclass]
@@ -42,7 +46,7 @@ impl Route {
     }
 
     fn __repr__(&self) -> String {
-        format!("{:#?}", self.clone())
+        format!("{:#?}", self)
     }
 }
 
@@ -64,46 +68,91 @@ macro_rules! method_decorator {
 
 method_decorator!(get, post, put, patch, delete, head, options);
 
-#[derive(Default, Clone, Debug)]
+#[derive(Clone)]
 #[pyclass]
-pub struct Router {
-    pub routes: HashMap<String, matchit::Router<Route>>,
-    pub middlewares: Vec<Middleware>,
+struct Decorator {
+    method: String,
+    router: Router,
+    path: String,
 }
 
 #[pymethods]
-impl Router {
-    #[new]
-    pub fn new() -> Self {
-        Router::default()
-    }
+impl Decorator {
+    fn __call__(&mut self, handler: Py<PyAny>) -> PyResult<Route> {
+        let route = Route {
+            method: self.method.clone(),
+            path: self.path.clone(),
+            handler: Arc::new(handler),
+        };
 
-    fn middleware(&mut self, middleware: Py<PyAny>) {
-        let middleware = Middleware::new(middleware);
-        self.middlewares.push(middleware);
-    }
+        self.router.route(&route)?;
 
-    fn route(&mut self, route: Route) -> PyResult<()> {
-        let method_router = self.routes.entry(route.method.clone()).or_default();
-        method_router
-            .insert(&route.path, route.clone())
-            .into_py_exception()?;
-        Ok(())
-    }
-
-    fn routes(&mut self, routes: Vec<Route>) -> PyResult<()> {
-        for route in routes {
-            self.route(route)?;
-        }
-        Ok(())
+        Ok(route)
     }
 }
 
+#[derive(Default, Clone, Debug)]
+#[pyclass]
+pub struct Router {
+    pub routes: Arc<RwLock<HashMap<String, matchit::Router<Route>>>>,
+    pub middlewares: Vec<Middleware>,
+}
+
+macro_rules! impl_router {
+    ($($method:ident),*) => {
+        #[pymethods]
+        impl Router {
+            #[new]
+            pub fn new() -> Self {
+                Router::default()
+            }
+
+            fn middleware(&mut self, middleware: Py<PyAny>) {
+                let middleware = Middleware::new(middleware);
+                self.middlewares.push(middleware);
+            }
+
+            fn route(&mut self, route: &Route) -> PyResult<()> {
+                let mut ptr_mr = self.routes.write().unwrap();
+                let method_router = ptr_mr.entry(route.method.clone()).or_default();
+                method_router
+                    .insert(&route.path, route.clone())
+                    .into_py_exception()?;
+                Ok(())
+            }
+
+            fn routes(&mut self, routes: Vec<Route>) -> PyResult<()> {
+                for ref route in routes {
+                    self.route(route)?;
+                }
+                Ok(())
+            }
+
+        $(
+            fn $method(&self, path: String) -> PyResult<Decorator> {
+                Ok(Decorator {
+                    method: stringify!($method).to_string().to_uppercase(),
+                    router: self.clone(),
+                    path,
+                })
+            }
+        )+
+
+            fn __repr__(&self) -> String {
+                format!("{:#?}", self)
+            }
+        }
+    };
+}
+
+impl_router!(get, post, put, patch, delete, head, options);
+
 impl Router {
-    pub fn find<'l>(&'l self, method: &str, uri: &'l str) -> Option<MatchitRoute<'l>> {
+    pub fn find<'l>(&'l self, method: &str, uri: &'l str) -> Option<MatchRoute<'l>> {
         let path = uri.split('?').next().unwrap_or(uri);
-        if let Some(router) = self.routes.get(method) {
+        if let Some(router) = self.routes.read().unwrap().get(method) {
             if let Ok(route) = router.at(path) {
+                let route: MatchRoute = unsafe { transmute(route) };
                 return Some(route);
             }
         }

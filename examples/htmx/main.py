@@ -1,9 +1,12 @@
 from oxapy import templating
-from oxapy import static_file, get, post, HttpServer, Status, Router, Redirect
+from oxapy import static_file, HttpServer, Status, Router, Redirect
 from oxapy import serializer, Request, SessionStore, Session
 
+router = Router()
+router.route(static_file("./static", "static"))
 
-@get("/")
+
+@router.get("/")
 def index_page(request: Request):
     session: Session = request.session()
     if session.get("is_auth"):
@@ -11,12 +14,12 @@ def index_page(request: Request):
     return Redirect("/login")
 
 
-@get("/login")
+@router.get("/login")
 def login_page(request: Request):
     return templating.render(request, "login.html.j2")
 
 
-@post("/upload-file")
+@router.post("/upload-file")
 def upload_file(request: Request):
     if file := request.files().get("file"):
         file.save(f"media/{file.name}")
@@ -28,15 +31,17 @@ class CredSerializer(serializer.Serializer):
     password = serializer.CharField()
 
 
-@post("/login")
+@router.post("/login")
 def login_form(request: Request):
     cred = CredSerializer(request)
-
     try:
-        cred.validate()
-    except Exception as e:
-        return str(e), Status.OK
-
+        cred.is_valid()
+    except serializer.ValidationException as e:
+        return templating.render(
+            request,
+            "components/error_mesage.html.j2",
+            {"error_message": str(e)},
+        )
     username = cred.validate_data["username"]
     password = cred.validate_data["password"]
 
@@ -47,11 +52,6 @@ def login_form(request: Request):
     return templating.render(
         request, "components/error_mesage.html.j2", {"error_message": "Login failed"}
     )
-
-
-router = Router()
-router.routes([index_page, login_page, login_form, upload_file])
-router.route(static_file("./static", "static"))
 
 
 server = HttpServer(("127.0.0.1", 8080))

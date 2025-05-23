@@ -14,19 +14,18 @@ OxAPY is Python HTTP server library build in Rust - a fast, safe and feature-ric
 ## Basic Example
 
 ```python
-from oxapy import HttpServer, get, Router, Status, Response
+from oxapy import HttpServer, Router, Status, Response
 
+router = Router()
 
-@get("/")
+@router.get("/")
 def welcome(request):
     return Response(Status.OK, "Welcome to OxAPY!")
 
-@get("/hello/{name}")
+@router.get("/hello/{name}")
 def hello(request, name):
     return Response(Status.OK, {"message": f"Hello, {name}!"})
 
-router = Router()
-router.routes([welcome, hello])
 
 app = HttpServer(("127.0.0.1", 5555))
 app.attach(router)
@@ -43,13 +42,12 @@ def auth_middleware(request, next, **kwargs):
         return Status.UNAUTHORIZED
     return next(request, **kwargs)
 
-@get("/protected")
-def protected(request):
-    return "This is protected!"
-
 router = Router()
 router.middleware(auth_middleware)
-router.route(protected)
+
+@router.get("/protected")
+def protected(request):
+    return "This is protected!"
 ```
 
 ## Static Files
@@ -70,15 +68,14 @@ class AppState:
 app = HttpServer(("127.0.0.1", 5555))
 app.app_data(AppState())
 
-@get("/count")
+router = Router()
+
+@router.get("/count")
 def handler(request):
     app_data = request.app_data
     app_data.counter += 1
     return {"count": app_data.counter}
 
-
-router = Router()
-router.route(handler)
 ```
 
 Todo:
