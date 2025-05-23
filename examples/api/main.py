@@ -69,7 +69,7 @@ class UserInputSerializer(serializer.Serializer):
         model = User
 
 
-jwt = jwt.Jwt()
+jwt = jwt.Jwt(SECRET)
 
 
 def hash_password(password: str) -> str:
@@ -91,7 +91,7 @@ def jwt_middleware(request, next, **kwargs):
 
 
 def logger(request, next, **kwargs):
-    print(f"[{datetime.datetime.utcnow()}] {request.method} {request.uri}")
+    print(f"[{datetime.datetime.now(datetime.UTC)}] {request.method} {request.uri}")
     return next(request, **kwargs)
 
 

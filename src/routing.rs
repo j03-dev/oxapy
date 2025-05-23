@@ -131,7 +131,7 @@ macro_rules! impl_router {
         $(
             fn $method(&self, path: String) -> PyResult<Decorator> {
                 Ok(Decorator {
-                    method: stringify!($method).to_string(),
+                    method: stringify!($method).to_string().to_uppercase(),
                     router: self.clone(),
                     path,
                 })
