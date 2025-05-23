@@ -6,7 +6,7 @@ use std::{
 
 use pyo3::{ffi::c_str, prelude::*, types::PyDict, Py, PyAny};
 
-use crate::{middleware::Middleware, IntoPyException, MatchitRoute};
+use crate::{middleware::Middleware, IntoPyException, MatchRoute};
 
 #[derive(Clone, Debug)]
 #[pyclass]
@@ -148,11 +148,11 @@ macro_rules! impl_router {
 impl_router!(get, post, put, patch, delete, head, options);
 
 impl Router {
-    pub fn find<'l>(&'l self, method: &str, uri: &'l str) -> Option<MatchitRoute<'l>> {
+    pub fn find<'l>(&'l self, method: &str, uri: &'l str) -> Option<MatchRoute<'l>> {
         let path = uri.split('?').next().unwrap_or(uri);
         if let Some(router) = self.routes.read().unwrap().get(method) {
             if let Ok(route) = router.at(path) {
-                let route: MatchitRoute = unsafe { transmute(route) };
+                let route: MatchRoute = unsafe { transmute(route) };
                 return Some(route);
             }
         }

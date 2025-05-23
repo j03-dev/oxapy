@@ -7,7 +7,7 @@ use tokio::sync::mpsc::Receiver;
 use crate::{
     into_response::convert_to_response, middleware::MiddlewareChain, request::Request,
     response::Response, routing::Router, serializer::ValidationException, status::Status,
-    MatchitRoute, ProcessRequest,
+    MatchRoute, ProcessRequest,
 };
 
 pub async fn handle_response(
@@ -50,7 +50,7 @@ pub async fn handle_response(
 
 fn process_response(
     router: &Router,
-    matchit_route: MatchitRoute,
+    matchit_route: MatchRoute,
     request: &Request,
 ) -> PyResult<Response> {
     Python::with_gil(|py| {

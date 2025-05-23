@@ -15,7 +15,7 @@ use crate::{
     session::SessionStore,
     status::Status,
     templating::Template,
-    IntoPyException, MatchitRoute, ProcessRequest, RequestContext,
+    IntoPyException, MatchRoute, ProcessRequest, RequestContext,
 };
 
 fn convert_to_hyper_response(
@@ -55,7 +55,7 @@ pub async fn handle_request(
         if let Some(route) = router.find(&request.method, &request.uri) {
             let (response_sender, mut respond_receive) = channel(channel_capacity);
 
-            let route: MatchitRoute = unsafe { transmute(route) };
+            let route: MatchRoute = unsafe { transmute(route) };
 
             let process_request = ProcessRequest {
                 request: request.clone(),
