@@ -1,4 +1,4 @@
-use crate::{json, IntoPyException, Wrap};
+use crate::{IntoPyException, Wrap};
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use pyo3::types::PyDict;
 use pyo3::{exceptions::PyValueError, prelude::*};
@@ -108,8 +108,7 @@ impl Jwt {
         )
         .into_py_exception()?;
 
-        let claims = serde_json::json!(token_data.claims).to_string();
-        json::loads(&claims)
+        Ok(Wrap(token_data.claims).into())
     }
 }
 

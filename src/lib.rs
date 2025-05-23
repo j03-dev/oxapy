@@ -21,7 +21,7 @@ use pyo3::types::PyDict;
 use request::Request;
 use response::{Redirect, Response};
 use routing::{delete, get, head, options, patch, post, put, static_file, Route, Router};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use session::{Session, SessionStore};
 use status::Status;
 
@@ -68,6 +68,16 @@ where
         let json_string = json::dumps(&value.into()).unwrap();
         let value = serde_json::from_str(&json_string).unwrap();
         Wrap(value)
+    }
+}
+
+impl<T> From<Wrap<T>> for Py<PyDict>
+where
+    T: Serialize,
+{
+    fn from(value: Wrap<T>) -> Self {
+        let json_string = serde_json::json!(value.0).to_string();
+        json::loads(&json_string).unwrap()
     }
 }
 
