@@ -44,8 +44,6 @@ def login_form(request: Request):
         )
     username = cred.validate_data["username"]
     password = cred.validate_data["password"]
-    username = cred.validate_data["username"]
-    password = cred.validate_data["password"]
 
     if username == "admin" and password == "password":
         session = request.session()
