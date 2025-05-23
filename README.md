@@ -38,7 +38,7 @@ if __name__ == "__main__":
 
 ```python
 def auth_middleware(request, next, **kwargs):
-    if "Authorization" not in request.headers:
+    if "authorization" not in request.headers:
         return Status.UNAUTHORIZED
     return next(request, **kwargs)
 
