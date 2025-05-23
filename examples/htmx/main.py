@@ -34,7 +34,16 @@ class CredSerializer(serializer.Serializer):
 @router.post("/login")
 def login_form(request: Request):
     cred = CredSerializer(request)
-    cred.is_valid()
+    try:
+        cred.is_valid()
+    except serializer.ValidationException as e:
+        return templating.render(
+            request,
+            "components/error_mesage.html.j2",
+            {"error_message": str(e)},
+        )
+    username = cred.validate_data["username"]
+    password = cred.validate_data["password"]
     username = cred.validate_data["username"]
     password = cred.validate_data["password"]
 
