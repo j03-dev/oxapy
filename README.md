@@ -45,10 +45,9 @@ def auth_middleware(request, next, **kwargs):
 router = Router()
 router.middleware(auth_middleware)
 
-@roteur.get("/protected")
+@router.get("/protected")
 def protected(request):
     return "This is protected!"
-
 ```
 
 ## Static Files
