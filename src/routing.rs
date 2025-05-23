@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     mem::transmute,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 
 use pyo3::{ffi::c_str, prelude::*, types::PyDict, Py, PyAny};
@@ -94,7 +94,7 @@ impl Decorator {
 #[derive(Default, Clone, Debug)]
 #[pyclass]
 pub struct Router {
-    pub routes: Arc<Mutex<HashMap<String, matchit::Router<Route>>>>,
+    pub routes: Arc<RwLock<HashMap<String, matchit::Router<Route>>>>,
     pub middlewares: Vec<Middleware>,
 }
 
@@ -113,7 +113,7 @@ macro_rules! impl_router {
             }
 
             fn route(&mut self, route: &Route) -> PyResult<()> {
-                let mut ptr_mr = self.routes.lock().unwrap();
+                let mut ptr_mr = self.routes.write().unwrap();
                 let method_router = ptr_mr.entry(route.method.clone()).or_default();
                 method_router
                     .insert(&route.path, route.clone())
@@ -150,7 +150,7 @@ impl_router!(get, post, put, patch, delete, head, options);
 impl Router {
     pub fn find<'l>(&'l self, method: &str, uri: &'l str) -> Option<MatchitRoute<'l>> {
         let path = uri.split('?').next().unwrap_or(uri);
-        if let Some(router) = self.routes.lock().unwrap().get(method) {
+        if let Some(router) = self.routes.read().unwrap().get(method) {
             if let Ok(route) = router.at(path) {
                 let route: MatchitRoute = unsafe { transmute(route) };
                 return Some(route);
