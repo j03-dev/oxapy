@@ -46,7 +46,7 @@ impl Route {
     }
 
     fn __repr__(&self) -> String {
-        format!("{:#?}", self.clone())
+        format!("{:#?}", self)
     }
 }
 
