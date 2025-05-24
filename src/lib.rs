@@ -175,11 +175,19 @@ impl HttpServer {
         self.channel_capacity = channel_capacity;
     }
 
-    fn run(&self) -> PyResult<()> {
-        let runtime = tokio::runtime::Builder::new_multi_thread()
+    #[pyo3(signature=(workers=None))]
+    fn run(&self, workers: Option<usize>) -> PyResult<()> {
+        let mut runtime = tokio::runtime::Builder::new_multi_thread();
+
+        if let Some(workers) = workers {
+            runtime.worker_threads(workers);
+        }
+
+        runtime
             .enable_all()
-            .build()?;
-        runtime.block_on(async move { self.run_server().await })?;
+            .build()?
+            .block_on(async move { self.run_server().await })?;
+
         Ok(())
     }
 }
