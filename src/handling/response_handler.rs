@@ -1,13 +1,13 @@
 use pyo3::{
-    types::{PyAnyMethods, PyDict},
-    PyResult, Python,
+    types::{IntoPyDict, PyAnyMethods, PyDict},
+    Bound, PyResult, Python,
 };
 use tokio::sync::mpsc::Receiver;
 
 use crate::{
     into_response::convert_to_response, middleware::MiddlewareChain, request::Request,
     response::Response, routing::Router, serializer::ValidationException, status::Status,
-    MatchRoute, ProcessRequest,
+    MatchRouteInfo, ProcessRequest,
 };
 
 pub async fn handle_response(
@@ -19,7 +19,7 @@ pub async fn handle_response(
             Some(process_request) = request_receiver.recv() => {
                 let mut response: Response = match process_response(
                     &process_request.router,
-                    process_request.route,
+                    process_request.route_info,
                     &process_request.request,
                 ) {
                     Ok(response) => response,
@@ -50,17 +50,14 @@ pub async fn handle_response(
 
 fn process_response(
     router: &Router,
-    matchit_route: MatchRoute,
+    route_info: MatchRouteInfo,
     request: &Request,
 ) -> PyResult<Response> {
     Python::with_gil(|py| {
-        let kwargs = &PyDict::new(py);
-        let params = &matchit_route.params;
-        let route = matchit_route.value;
+        let params = route_info.params;
+        let route = route_info.route;
 
-        for (key, value) in params.iter() {
-            kwargs.set_item(key, value)?;
-        }
+        let kwargs: Bound<PyDict> = params.into_py_dict(py)?;
 
         kwargs.set_item("request", request.clone())?;
 
@@ -68,7 +65,7 @@ fn process_response(
             let chain = MiddlewareChain::new(router.middlewares.clone());
             chain.execute(py, &route.handler.clone(), kwargs.clone())?
         } else {
-            route.handler.call(py, (), Some(kwargs))?
+            route.handler.call(py, (), Some(&kwargs))?
         };
 
         convert_to_response(result, py)

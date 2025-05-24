@@ -34,6 +34,7 @@ use tokio::net::TcpListener;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::Semaphore;
 
+use std::collections::HashMap;
 use std::{
     net::SocketAddr,
     sync::{
@@ -45,8 +46,6 @@ use std::{
 use pyo3::{exceptions::PyException, prelude::*};
 
 use crate::templating::Template;
-
-type MatchRoute<'r> = Match<'r, 'r, &'r Route>;
 
 trait IntoPyException<T> {
     fn into_py_exception(self) -> PyResult<T>;
@@ -81,10 +80,28 @@ where
     }
 }
 
+#[derive(Debug, Clone)]
+struct MatchRouteInfo {
+    route: Route,
+    params: HashMap<String, String>,
+}
+
+impl<'r> From<Match<'r, 'r, &'r Route>> for MatchRouteInfo {
+    fn from(value: Match<'r, 'r, &'r Route>) -> Self {
+        let route = value.value.clone();
+        let params = value
+            .params
+            .iter()
+            .filter_map(|(k, v)| Some((k.to_string(), v.to_string())))
+            .collect();
+        Self { route, params }
+    }
+}
+
 struct ProcessRequest {
     request: Arc<Request>,
     router: Arc<Router>,
-    route: MatchRoute<'static>,
+    route_info: MatchRouteInfo,
     response_sender: Sender<Response>,
     cors: Option<Arc<Cors>>,
 }
