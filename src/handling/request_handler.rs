@@ -57,7 +57,7 @@ pub async fn handle_request(
             let (response_sender, mut respond_receive) = channel(channel_capacity);
 
             let process_request = ProcessRequest {
-                request: request.clone(),
+                request,
                 router: router.clone(),
                 route_info,
                 response_sender,
@@ -148,7 +148,7 @@ async fn convert_hyper_request(
             let MultiPart { fields, files } = parse_mutltipart(content_type, body_bytes)
                 .await
                 .into_py_exception()?;
-            request.form_data = Some(fields);
+            request.form = Some(fields);
             request.files = Some(files);
         }
     }

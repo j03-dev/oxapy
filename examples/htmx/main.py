@@ -21,7 +21,7 @@ def login_page(request: Request):
 
 @router.post("/upload-file")
 def upload_file(request: Request):
-    if file := request.files().get("file"):
+    if file := request.files.get("file"):
         file.save(f"media/{file.name}")
     return Status.OK
 

@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use pyo3::{
-    exceptions::{PyAttributeError, PyValueError},
+    exceptions::{PyAttributeError, PyException, PyValueError},
     prelude::*,
     types::PyDict,
 };
@@ -15,19 +15,21 @@ use crate::{
 #[derive(Clone, Debug, Default)]
 #[pyclass]
 pub struct Request {
-    #[pyo3(get, set)]
+    #[pyo3(get)]
     pub method: String,
-    #[pyo3(get, set)]
+    #[pyo3(get)]
     pub uri: String,
-    #[pyo3(get, set)]
+    #[pyo3(get)]
     pub headers: HashMap<String, String>,
-    #[pyo3(get, set)]
+    #[pyo3(get)]
     pub body: Option<String>,
+    #[pyo3(get)]
+    pub form: Option<HashMap<String, String>>,
+    #[pyo3(get)]
+    pub files: Option<HashMap<String, File>>,
     pub app_data: Option<Arc<Py<PyAny>>>,
     pub template: Option<Arc<Template>>,
     pub ext: HashMap<String, Arc<PyObject>>,
-    pub form_data: Option<HashMap<String, String>>,
-    pub files: Option<HashMap<String, File>>,
     pub session: Option<Arc<Session>>,
     pub session_store: Option<Arc<SessionStore>>,
 }
@@ -66,26 +68,6 @@ impl Request {
         Ok(None)
     }
 
-    pub fn form(&self, py: Python<'_>) -> PyResult<Py<PyDict>> {
-        let dict = PyDict::new(py);
-        if let Some(ref form_data) = self.form_data {
-            for (key, value) in form_data {
-                dict.set_item(key, value)?;
-            }
-        }
-        Ok(dict.into())
-    }
-
-    pub fn files(&self, py: Python<'_>) -> PyResult<Py<PyDict>> {
-        let dict = PyDict::new(py);
-        if let Some(ref files) = self.files {
-            for (key, file) in files {
-                dict.set_item(key, file.clone())?;
-            }
-        }
-        Ok(dict.into())
-    }
-
     pub fn session(&self) -> PyResult<Session> {
         let message = "Session not available. Make sure you've configured SessionStore.";
         let session = self
@@ -106,7 +88,9 @@ impl Request {
 
     fn __setattr__(&mut self, name: &str, value: PyObject) -> PyResult<()> {
         match name {
-            "method" | "uri" | "headers" | "body" | "template" => Ok(()),
+            "method" | "uri" | "headers" | "body" | "template" => Err(PyException::new_err(
+                format!("Attribute '{}' is read-only and cannot be set", name),
+            )),
             _ => {
                 self.ext.insert(name.to_string(), Arc::new(value));
                 Ok(())
