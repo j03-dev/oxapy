@@ -9,13 +9,11 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
-    iss: Option<String>,
-    sub: Option<String>,
-    aud: Option<String>,
     exp: u64,
+    sub: Option<String>,
+    iss: Option<String>,
+    aud: Option<String>,
     nbf: Option<u64>,
-    iat: Option<u64>,
-    jti: Option<String>,
 
     #[serde(flatten)]
     extra: Value,
@@ -27,7 +25,6 @@ struct Claims {
 pub struct Jwt {
     secret: String,
     algorithm: Algorithm,
-    expiration: Duration,
 }
 
 #[pymethods]
@@ -37,7 +34,6 @@ impl Jwt {
     /// Args:
     ///     secret: Secret key used for signing tokens
     ///     algorithm: JWT algorithm to use (default: "HS256")
-    ///     expiration_minutes: Token expiration time in minutes (default: 60)
     ///
     /// Returns:
     ///     A new JwtManager instance
@@ -46,19 +42,15 @@ impl Jwt {
     ///     ValueError: If the algorithm is not supported or secret is invalid
 
     #[new]
-    #[pyo3(signature = (secret, algorithm="HS256", expiration_minutes=60))]
-    pub fn new(secret: String, algorithm: &str, expiration_minutes: u64) -> PyResult<Self> {
+    #[pyo3(signature = (secret, algorithm="HS256"))]
+    pub fn new(secret: String, algorithm: &str) -> PyResult<Self> {
         if secret.is_empty() {
             return Err(PyValueError::new_err("Secret key cannot be empty"));
         }
 
         let algorithm = Algorithm::from_str(algorithm).into_py_exception()?;
 
-        Ok(Self {
-            secret,
-            algorithm,
-            expiration: Duration::from_secs(expiration_minutes * 60),
-        })
+        Ok(Self { secret, algorithm })
     }
 
     /// Generate a JWT token with the given claims
@@ -74,18 +66,14 @@ impl Jwt {
     pub fn generate_token(&self, claims: Bound<'_, PyDict>) -> PyResult<String> {
         let expiration = claims
             .get_item("exp")?
-            .map(|exp| Duration::from_secs(exp.extract::<u64>().unwrap() * 60))
-            .unwrap_or(self.expiration);
+            .map(|exp| exp.extract::<u64>().unwrap())
+            .unwrap_or(60);
 
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .into_py_exception()?;
 
-        if !claims.contains("iat")? {
-            claims.set_item("iat", now.as_secs())?;
-        }
-
-        let exp = now.checked_add(expiration).unwrap();
+        let exp = now.checked_add(Duration::from_secs(expiration)).unwrap();
         claims.set_item("exp", exp.as_secs())?;
 
         let Wrap::<Claims>(claims) = claims.into();
