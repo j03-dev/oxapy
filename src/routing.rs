@@ -169,7 +169,7 @@ impl Router {
                     .map(Number::from)
                     .map(Value::Number),
                 Some("str") | None => Some(Value::String(value.to_string())),
-                _ => None,
+                Some(other) => panic!("Unsupported parameter type: {}", other),
             };
 
             let v = parsed_value?;
