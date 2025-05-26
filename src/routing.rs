@@ -3,6 +3,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+use matchit::Params;
 use pyo3::{ffi::c_str, prelude::*, types::PyDict, Py, PyAny};
 use serde_json::{Number, Value};
 
@@ -147,35 +148,38 @@ macro_rules! impl_router {
 
 impl_router!(get, post, put, patch, delete, head, options);
 
+fn parse_route_params(route_params: Params) -> Option<HashMap<String, Value>> {
+    let mut params = HashMap::new();
+
+    for (key, value) in route_params.iter() {
+        let (name, ty) = key
+            .split_once(':')
+            .map(|(k, t)| (k, Some(t)))
+            .unwrap_or((key, None));
+
+        let parsed_value = match ty {
+            Some("int") => value
+                .parse::<i64>()
+                .ok()
+                .map(Number::from)
+                .map(Value::Number),
+            Some("str") | None => Some(Value::String(value.to_string())),
+            Some(other) => panic!("Unsupported parameter type: {}", other),
+        };
+
+        let v = parsed_value?;
+        params.insert(name.to_string(), v);
+    }
+    Some(params)
+}
+
 impl Router {
     pub(crate) fn find<'l>(&'l self, method: &str, uri: &'l str) -> Option<MatchRouteInfo> {
         let path = uri.split('?').next().unwrap_or(uri);
         let routes_guard = self.routes.read().ok()?;
         let router = routes_guard.get(method)?;
         let route = router.at(path).ok()?;
-
-        let mut params = HashMap::new();
-
-        for (key, value) in route.params.iter() {
-            let (name, ty) = key
-                .split_once(':')
-                .map(|(k, t)| (k, Some(t)))
-                .unwrap_or((key, None));
-
-            let parsed_value = match ty {
-                Some("int") => value
-                    .parse::<i64>()
-                    .ok()
-                    .map(Number::from)
-                    .map(Value::Number),
-                Some("str") | None => Some(Value::String(value.to_string())),
-                Some(other) => panic!("Unsupported parameter type: {}", other),
-            };
-
-            let v = parsed_value?;
-            params.insert(name.to_string(), v);
-        }
-
+        let params = parse_route_params(route.params)?;
         Some(MatchRouteInfo {
             route: route.value.clone(),
             params,
