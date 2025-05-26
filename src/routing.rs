@@ -168,11 +168,6 @@ impl Router {
                     .ok()
                     .map(Number::from)
                     .map(Value::Number),
-                Some("float") => value
-                    .parse::<f64>()
-                    .ok()
-                    .and_then(Number::from_f64)
-                    .map(Value::Number),
                 Some("str") | None => Some(Value::String(value.to_string())),
                 _ => None,
             };
