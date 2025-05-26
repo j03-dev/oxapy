@@ -1,19 +1,11 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, Engine
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, Session
 from sqlalchemy import String
 
 from functools import wraps
 from typing import TypeVar, Callable, Any
 
-from oxapy import (
-    HttpServer,
-    Response,
-    Router,
-    Status,
-    Request,
-    jwt,
-    serializer,
-)
+from oxapy import HttpServer, Response, Router, Status, Request, jwt, serializer
 
 import uuid
 import datetime
@@ -24,24 +16,30 @@ SECRET = "8b78e057cf6bc3e646097e5c0277f5ccaa2d8ac3b6d4a4d8c73c7f6af02f0ccd"
 F = TypeVar("F", bound=Callable[..., Any])
 
 
-def with_session(func: F) -> F:
-    @wraps(func)
-    def wrapper(request: Request, *args, **kwargs):
-        with Session(request.app_data.engine) as session:
-            return func(request, session, *args, **kwargs)
+class Base(DeclarativeBase):
+    pass
 
-    return wrapper
+
+engine: Engine = create_engine("sqlite:///database.db")
+
+Base.metadata.create_all(engine)
 
 
 class AppData:
     def __init__(self):
-        self.engine = create_engine("sqlite:///database.db")
+        self.engine = engine
         self.n = 0
-        Base.metadata.create_all(self.engine)
 
 
-class Base(DeclarativeBase):
-    pass
+def with_session(func: F) -> F:
+    @wraps(func)
+    def wrapper(request: Request, *args, **kwargs):
+        app_data: AppData = request.app_data
+        # pyrefly: ignore
+        with Session(app_data.engine) as session:
+            return func(request, session, *args, **kwargs)
+
+    return wrapper  # type: ignore
 
 
 class User(Base):
@@ -80,7 +78,7 @@ def check_password(hashed_password: str, password: str) -> bool:
     return bcrypt.checkpw(password.encode(), hashed_password.encode())
 
 
-def jwt_middleware(request, next, **kwargs):
+def jwt_middleware(request: Request, next, **kwargs):
     token = request.headers.get("authorization", "").replace("Bearer ", "")
 
     if token:
@@ -96,14 +94,14 @@ def logger(request, next, **kwargs):
 
 
 pub_router = Router()
-pub_router.middleware(logger)
+# pub_router.middleware(logger)
 
 sec_router = Router()
 sec_router.middleware(jwt_middleware)
 sec_router.middleware(logger)
 
 
-@pub_router.get("/hello/{name}")
+@pub_router.get("/hello/{name:str}")
 def hello_world(request: Request, name: str):
     return f"Hello {name}"
 
@@ -111,6 +109,7 @@ def hello_world(request: Request, name: str):
 @pub_router.post("/register")
 @with_session
 def register(request: Request, session: Session):
+    # type: ignore
     new_user = UserInputSerializer(request)
     new_user.is_valid()
 
@@ -121,6 +120,7 @@ def register(request: Request, session: Session):
         }
     )
 
+    # type: ignore
     if not session.query(User).filter_by(email=new_user.validate_data["email"]).first():
         new_user.save(session)
         return Status.OK
@@ -130,11 +130,13 @@ def register(request: Request, session: Session):
 @pub_router.post("/login")
 @with_session
 def login(request: Request, session: Session):
+    # type: ignore
     user_input = UserInputSerializer(request)
     user_input.is_valid()
     email = user_input.validate_data["email"]
     password = user_input.validate_data["password"]
 
+    # type: ignore
     user = session.query(User).filter_by(email=email).first()
     if user and check_password(user.password, password):
         token = jwt.generate_token({"user_id": user.id})
@@ -152,16 +154,18 @@ def add(request: Request):
 @sec_router.get("/me")
 @with_session
 def user_info(request: Request, session: Session) -> Response:
+    # type: ignore
     if user := session.query(User).filter_by(id=request.user_id).first():
-        serializer = UserSerializer(instance=user)
+        serializer = UserSerializer(instance=user)  # type: ignore
         return serializer.data
 
 
 @sec_router.get("/all")
 @with_session
 def all(request: Request, session: Session) -> Response:
+    # pyrefly: ignore
     if user := session.query(User).all():
-        serializer = UserSerializer(instance=user, many=True)
+        serializer = UserSerializer(instance=user, many=True)  # type: ignore
         return serializer.data
 
 

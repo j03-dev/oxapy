@@ -1,13 +1,13 @@
 use pyo3::{
-    types::{IntoPyDict, PyAnyMethods, PyDict},
-    Bound, PyResult, Python,
+    types::{PyAnyMethods, PyDict},
+    Py, PyResult, Python,
 };
 use tokio::sync::mpsc::Receiver;
 
 use crate::{
     into_response::convert_to_response, middleware::MiddlewareChain, request::Request,
     response::Response, routing::Router, serializer::ValidationException, status::Status,
-    MatchRouteInfo, ProcessRequest,
+    MatchRouteInfo, ProcessRequest, Wrap,
 };
 
 pub async fn handle_response(
@@ -57,7 +57,8 @@ fn process_response(
         let params = route_info.params;
         let route = route_info.route;
 
-        let kwargs: Bound<PyDict> = params.into_py_dict(py)?;
+        let params_dict: Py<PyDict> = Wrap(params).into();
+        let kwargs = params_dict.into_bound(py);
 
         kwargs.set_item("request", request.clone())?;
 
