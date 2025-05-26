@@ -4,6 +4,7 @@ use std::{
 };
 
 use pyo3::{ffi::c_str, prelude::*, types::PyDict, Py, PyAny};
+use serde_json::{Number, Value};
 
 use crate::{middleware::Middleware, IntoPyException, MatchRouteInfo};
 
@@ -149,12 +150,41 @@ impl_router!(get, post, put, patch, delete, head, options);
 impl Router {
     pub(crate) fn find<'l>(&'l self, method: &str, uri: &'l str) -> Option<MatchRouteInfo> {
         let path = uri.split('?').next().unwrap_or(uri);
-        if let Some(router) = self.routes.read().unwrap().get(method) {
-            if let Ok(route) = router.at(path) {
-                return Some(route.into());
-            }
+        let routes_guard = self.routes.read().ok()?;
+        let router = routes_guard.get(method)?;
+        let route = router.at(path).ok()?;
+
+        let mut params = HashMap::new();
+
+        for (key, value) in route.params.iter() {
+            let (name, ty) = key
+                .split_once(':')
+                .map(|(k, t)| (k, Some(t)))
+                .unwrap_or((key, None));
+
+            let parsed_value = match ty {
+                Some("int") => value
+                    .parse::<i64>()
+                    .ok()
+                    .map(Number::from)
+                    .map(Value::Number),
+                Some("float") => value
+                    .parse::<f64>()
+                    .ok()
+                    .and_then(Number::from_f64)
+                    .map(Value::Number),
+                Some("str") | None => Some(Value::String(value.to_string())),
+                _ => None,
+            };
+
+            let v = parsed_value?;
+            params.insert(name.to_string(), v);
         }
-        None
+
+        Some(MatchRouteInfo {
+            route: route.value.clone(),
+            params,
+        })
     }
 }
 

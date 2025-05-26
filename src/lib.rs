@@ -17,6 +17,7 @@ mod templating;
 use cors::Cors;
 use handling::request_handler::handle_request;
 use handling::response_handler::handle_response;
+use multipart::File;
 use pyo3::types::PyDict;
 use request::Request;
 use response::{Redirect, Response};
@@ -29,7 +30,6 @@ use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper_util::rt::TokioIo;
 
-use matchit::Match;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::Semaphore;
@@ -80,23 +80,27 @@ where
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct MatchRouteInfo {
     route: Route,
-    params: HashMap<String, String>,
+    params: HashMap<String, serde_json::Value>,
 }
 
-impl<'r> From<Match<'r, 'r, &'r Route>> for MatchRouteInfo {
-    fn from(value: Match<'r, 'r, &'r Route>) -> Self {
-        let route = value.value.clone();
-        let params = value
-            .params
-            .iter()
-            .filter_map(|(k, v)| Some((k.to_string(), v.to_string())))
-            .collect();
-        Self { route, params }
-    }
-}
+// impl<'r> From<Match<'r, 'r, &'r Route>> for MatchRouteInfo {
+//     fn from(value: Match<'r, 'r, &'r Route>) -> Self {
+//         let params = value.params;
+
+//         Python::with_gil(|py| {
+//             let route = value.value.clone();
+//             let params = value
+//                 .params
+//                 .iter()
+//                 .filter_map(|(k, v)| Some((k.to_string(), v.into_pyobject(py).unwrap())))
+//                 .collect();
+//             Self { route, params }
+//         })
+//     }
+// }
 
 struct ProcessRequest {
     request: Arc<Request>,
@@ -266,6 +270,7 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Session>()?;
     m.add_class::<SessionStore>()?;
     m.add_class::<Redirect>()?;
+    m.add_class::<File>()?;
     m.add_function(wrap_pyfunction!(get, m)?)?;
     m.add_function(wrap_pyfunction!(post, m)?)?;
     m.add_function(wrap_pyfunction!(delete, m)?)?;
