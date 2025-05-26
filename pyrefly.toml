@@ -1,0 +1,4 @@
+use_untyped_imports = false
+
+[errors]
+import-error = false
