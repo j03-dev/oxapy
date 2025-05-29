@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use std::sync::Arc;
+use std::{collections::HashMap, mem::transmute};
 
 use http_body_util::{BodyExt, Full};
 use hyper::{
@@ -16,7 +16,7 @@ use crate::{
     session::SessionStore,
     status::Status,
     templating::Template,
-    IntoPyException, ProcessRequest, RequestContext,
+    IntoPyException, MatchRoute, ProcessRequest, RequestContext,
 };
 
 fn convert_to_hyper_response(
@@ -55,6 +55,8 @@ pub async fn handle_request(
     for router in &routers {
         if let Some(route_info) = router.find(&request.method, &request.uri) {
             let (response_sender, mut respond_receive) = channel(channel_capacity);
+
+            let route_info: MatchRoute = unsafe { transmute(route_info) };
 
             let process_request = ProcessRequest {
                 request,
