@@ -25,6 +25,7 @@ use routing::{delete, get, head, options, patch, post, put, static_file, Route, 
 use serde::{Deserialize, Serialize};
 use session::{Session, SessionStore};
 use status::Status;
+use templating::Template;
 
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
@@ -45,8 +46,6 @@ use std::{
 use pyo3::{exceptions::PyException, prelude::*};
 
 type MatchRoute<'l> = matchit::Match<'l, 'l, &'l Route>;
-
-use crate::templating::Template;
 
 trait IntoPyException<T> {
     fn into_py_exception(self) -> PyResult<T>;
