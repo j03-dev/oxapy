@@ -81,22 +81,6 @@ where
     }
 }
 
-// impl<'r> From<Match<'r, 'r, &'r Route>> for MatchRouteInfo {
-//     fn from(value: Match<'r, 'r, &'r Route>) -> Self {
-//         let params = value.params;
-
-//         Python::with_gil(|py| {
-//             let route = value.value.clone();
-//             let params = value
-//                 .params
-//                 .iter()
-//                 .filter_map(|(k, v)| Some((k.to_string(), v.into_pyobject(py).unwrap())))
-//                 .collect();
-//             Self { route, params }
-//         })
-//     }
-// }
-
 struct ProcessRequest {
     request: Arc<Request>,
     router: Arc<Router>,
