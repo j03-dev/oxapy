@@ -100,7 +100,7 @@ where
 struct ProcessRequest {
     request: Arc<Request>,
     router: Arc<Router>,
-    route_info: MatchRoute<'static>,
+    match_route: MatchRoute<'static>,
     response_sender: Sender<Response>,
     cors: Option<Arc<Cors>>,
 }

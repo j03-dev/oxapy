@@ -53,15 +53,15 @@ pub async fn handle_request(
         .unwrap();
 
     for router in &routers {
-        if let Some(route_info) = router.find(&request.method, &request.uri) {
+        if let Some(match_route) = router.find(&request.method, &request.uri) {
             let (response_sender, mut respond_receive) = channel(channel_capacity);
 
-            let route_info: MatchRoute = unsafe { transmute(route_info) };
+            let match_route: MatchRoute = unsafe { transmute(match_route) };
 
             let process_request = ProcessRequest {
                 request,
                 router: router.clone(),
-                route_info,
+                match_route,
                 response_sender,
                 cors: cors.clone(),
             };

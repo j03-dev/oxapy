@@ -1,4 +1,5 @@
 use pyo3::{
+    exceptions::PyValueError,
     types::{PyAnyMethods, PyDict, PyInt, PyString},
     PyObject, PyResult, Python,
 };
@@ -7,7 +8,7 @@ use tokio::sync::mpsc::Receiver;
 use crate::{
     into_response::convert_to_response, middleware::MiddlewareChain, request::Request,
     response::Response, routing::Router, serializer::ValidationException, status::Status,
-    IntoPyException, MatchRoute, ProcessRequest,
+    MatchRoute, ProcessRequest,
 };
 
 pub async fn handle_response(
@@ -20,7 +21,7 @@ pub async fn handle_response(
                 let mut response = Python::with_gil(|py| {
                     process_response(
                         &process_request.router,
-                        process_request.route_info,
+                        process_request.match_route,
                         &process_request.request,
                         py,
                     ).unwrap_or_else(|err| {
@@ -48,12 +49,12 @@ pub async fn handle_response(
 
 fn process_response(
     router: &Router,
-    route_info: MatchRoute,
+    match_route: MatchRoute,
     request: &Request,
     py: Python<'_>,
 ) -> PyResult<Response> {
-    let params = route_info.params;
-    let route = route_info.value;
+    let params = match_route.params;
+    let route = match_route.value;
 
     let kwargs = PyDict::new(py);
 
@@ -61,11 +62,19 @@ fn process_response(
         if let Some((name, ty)) = key.split_once(":") {
             let parsed_value: PyObject = match ty {
                 "int" => {
-                    let n = value.parse::<i64>().into_py_exception()?;
+                    let n = value.parse::<i64>().map_err(|_| {
+                        PyValueError::new_err(format!(
+                            "Failed to parse parameter '{key}' with value '{value}' as type 'int'."
+                        ))
+                    })?;
                     PyInt::new(py, n).into()
                 }
                 "str" => PyString::new(py, value).into(),
-                other => panic!("{other} is not supported"),
+                other => {
+                    return Err(PyValueError::new_err(format!(
+                        "Unsupported type annotation '{other}' in parameter key '{key}'."
+                    )));
+                }
             };
             kwargs.set_item(name, parsed_value)?;
         } else {
