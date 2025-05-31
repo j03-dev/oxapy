@@ -222,7 +222,9 @@ impl HttpServer {
                             io,
                             service_fn(move |req| {
                                 let request_ctx = request_ctx.clone();
-                                async move { handle_request(req, request_ctx).await }
+                                async move {
+                                    handle_request(req, request_ctx).await // ping
+                                }
                             }),
                         )
                         .await
@@ -231,7 +233,7 @@ impl HttpServer {
             }
         });
 
-        handle_response(&mut shutdown_rx, &mut request_receiver).await;
+        handle_response(&mut shutdown_rx, &mut request_receiver).await; // pong
 
         Ok(())
     }

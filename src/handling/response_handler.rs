@@ -17,6 +17,7 @@ pub async fn handle_response(
 ) {
     loop {
         tokio::select! {
+            // handle `process_request` send by request handler
             Some(process_request) = request_receiver.recv() => {
                 let mut response = Python::with_gil(|py| {
                     process_response(
@@ -32,7 +33,9 @@ pub async fn handle_response(
                     })
                 });
 
-                if let (Some(session), Some(store)) = (&process_request.request.session, &process_request.request.session_store) {
+                if let (Some(session), Some(store)) =
+                (&process_request.request.session, &process_request.request.session_store)
+                {
                     response.set_session_cookie(session, store);
                 }
 
@@ -40,6 +43,7 @@ pub async fn handle_response(
                     response = cors.apply_to_response(response).unwrap()
                 }
 
+                 // send back the response to the request handler
                 _ = process_request.response_sender.send(response).await;
             }
             _ = shutdown_rx.recv() => {break}

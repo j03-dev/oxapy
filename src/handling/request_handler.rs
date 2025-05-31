@@ -160,7 +160,9 @@ pub async fn handle_request(
                 cors: cors.clone(),
             };
 
+            // send the `process_request` to response handler
             if request_sender.send(process_request).await.is_ok() {
+                // handle response `back` from `response handler`
                 if let Some(response) = respond_receive.recv().await {
                     return convert_oxapy_response_to_hyper_response(response);
                 }
