@@ -6,7 +6,7 @@ use hyper::{
     body::{Bytes, Incoming},
     Request as HyperRequest, Response as HyperResponse,
 };
-use pyo3::{Py, PyAny};
+use pyo3::{Py, PyAny, PyResult};
 use tokio::sync::mpsc::channel;
 
 use crate::{
@@ -19,7 +19,7 @@ use crate::{
     IntoPyException, MatchRoute, ProcessRequest, RequestContext,
 };
 
-fn convert_to_hyper_response(
+fn convert_oxapy_response_to_hyper_response(
     response: Response,
 ) -> Result<HyperResponse<Full<Bytes>>, hyper::http::Error> {
     let mut response_builder = HyperResponse::builder().status(response.status as u16);
@@ -27,63 +27,6 @@ fn convert_to_hyper_response(
         response_builder = response_builder.header(key, value);
     }
     response_builder.body(Full::new(response.body))
-}
-
-pub async fn handle_request(
-    req: HyperRequest<Incoming>,
-    request_ctx: Arc<RequestContext>,
-) -> Result<HyperResponse<Full<Bytes>>, hyper::http::Error> {
-    let RequestContext {
-        request_sender,
-        routers,
-        app_data,
-        channel_capacity,
-        cors,
-        template,
-        session_store,
-    } = request_ctx.as_ref().clone();
-
-    if req.method() == hyper::Method::OPTIONS && cors.is_some() {
-        let response = cors.unwrap().as_ref().clone();
-        return convert_to_hyper_response(response.into());
-    }
-
-    let request = convert_hyper_request(req, app_data, template, session_store)
-        .await
-        .unwrap();
-
-    for router in &routers {
-        if let Some(match_route) = router.find(&request.method, &request.uri) {
-            let (response_sender, mut respond_receive) = channel(channel_capacity);
-
-            let match_route: MatchRoute = unsafe { transmute(match_route) };
-
-            let process_request = ProcessRequest {
-                request,
-                router: router.clone(),
-                match_route,
-                response_sender,
-                cors: cors.clone(),
-            };
-
-            if request_sender.send(process_request).await.is_ok() {
-                if let Some(response) = respond_receive.recv().await {
-                    return convert_to_hyper_response(response);
-                }
-            }
-            break;
-        }
-    }
-
-    let response = if let Some(cors_config) = cors {
-        cors_config
-            .apply_to_response(Status::NOT_FOUND.into())
-            .unwrap()
-    } else {
-        Status::NOT_FOUND.into()
-    };
-
-    convert_to_hyper_response(response)
 }
 
 fn extract_session_id_from_cookie(
@@ -110,7 +53,41 @@ fn extract_session_id_from_cookie(
     })
 }
 
-async fn convert_hyper_request(
+fn setup_session_request(
+    session_store: Option<Arc<SessionStore>>,
+    mut request: Request,
+) -> Result<Request, Box<dyn std::error::Error + Send + Sync>> {
+    let headers = &request.headers;
+    if let Some(ref store) = session_store {
+        let session_id = extract_session_id_from_cookie(headers.get("cookie"), &store.cookie_name);
+
+        let session = store.get_session(session_id).map_err(|e| {
+            Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Failed to get session: {}", e),
+            ))
+        })?;
+        request.session = Some(Arc::new(session));
+        request.session_store = Some(store.clone());
+    }
+    Ok(request)
+}
+
+async fn setup_mutltpart_request(mut request: Request, body_bytes: Bytes) -> PyResult<Request> {
+    let headers = &request.headers;
+    if let Some(content_type) = headers.get("content-type") {
+        if content_type.starts_with("multipart/form-data") {
+            let MultiPart { fields, files } = parse_mutltipart(content_type, body_bytes)
+                .await
+                .into_py_exception()?;
+            request.form = Some(fields);
+            request.files = Some(files);
+        }
+    }
+    Ok(request)
+}
+
+async fn convert_hyper_request_to_oxapy_request(
     req: HyperRequest<Incoming>,
     app_data: Option<Arc<Py<PyAny>>>,
     template: Option<Arc<Template>>,
@@ -129,31 +106,12 @@ async fn convert_hyper_request(
 
     let mut request = Request::new(method, uri, headers.clone());
 
-    if let Some(ref store) = session_store {
-        let session_id = extract_session_id_from_cookie(headers.get("cookie"), &store.cookie_name);
-
-        let session = store.get_session(session_id).map_err(|e| {
-            Box::new(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Failed to get session: {}", e),
-            ))
-        })?;
-        request.session = Some(Arc::new(session));
-        request.session_store = Some(store.clone());
-    }
+    request = setup_session_request(session_store, request)?;
 
     let body_bytes = req.collect().await?.to_bytes();
     let body = String::from_utf8_lossy(&body_bytes).to_string();
 
-    if let Some(content_type) = headers.get("content-type") {
-        if content_type.starts_with("multipart/form-data") {
-            let MultiPart { fields, files } = parse_mutltipart(content_type, body_bytes)
-                .await
-                .into_py_exception()?;
-            request.form = Some(fields);
-            request.files = Some(files);
-        }
-    }
+    request = setup_mutltpart_request(request, body_bytes).await?;
 
     if !body.is_empty() {
         request.body = Some(body);
@@ -163,4 +121,61 @@ async fn convert_hyper_request(
     request.template = template;
 
     Ok(Arc::new(request))
+}
+
+pub async fn handle_request(
+    req: HyperRequest<Incoming>,
+    request_ctx: Arc<RequestContext>,
+) -> Result<HyperResponse<Full<Bytes>>, hyper::http::Error> {
+    let RequestContext {
+        request_sender,
+        routers,
+        app_data,
+        channel_capacity,
+        cors,
+        template,
+        session_store,
+    } = request_ctx.as_ref().clone();
+
+    if req.method() == hyper::Method::OPTIONS && cors.is_some() {
+        let response = cors.unwrap().as_ref().clone();
+        return convert_oxapy_response_to_hyper_response(response.into());
+    }
+
+    let request = convert_hyper_request_to_oxapy_request(req, app_data, template, session_store)
+        .await
+        .unwrap();
+
+    for router in &routers {
+        if let Some(match_route) = router.find(&request.method, &request.uri) {
+            let (response_sender, mut respond_receive) = channel(channel_capacity);
+
+            let match_route: MatchRoute = unsafe { transmute(match_route) };
+
+            let process_request = ProcessRequest {
+                request,
+                router: router.clone(),
+                match_route,
+                response_sender,
+                cors: cors.clone(),
+            };
+
+            if request_sender.send(process_request).await.is_ok() {
+                if let Some(response) = respond_receive.recv().await {
+                    return convert_oxapy_response_to_hyper_response(response);
+                }
+            }
+            break;
+        }
+    }
+
+    let response = if let Some(cors_config) = cors {
+        cors_config
+            .apply_to_response(Status::NOT_FOUND.into())
+            .unwrap()
+    } else {
+        Status::NOT_FOUND.into()
+    };
+
+    convert_oxapy_response_to_hyper_response(response)
 }

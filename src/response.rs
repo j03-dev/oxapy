@@ -5,6 +5,7 @@ use hyper::body::Bytes;
 use pyo3::{prelude::*, types::PyBytes};
 
 use crate::{
+    json,
     session::{Session, SessionStore},
     status::Status,
     IntoPyException,
@@ -23,17 +24,17 @@ pub struct Response {
 #[pymethods]
 impl Response {
     #[new]
-    #[pyo3(signature=(status, body, content_type="application/json".to_string()))]
+    #[pyo3(signature=(status, body, content_type="application/json"))]
     pub fn new(
         status: Status,
         body: PyObject,
-        content_type: String,
+        content_type: &str,
         py: Python<'_>,
     ) -> PyResult<Self> {
         let body = if let Ok(bytes) = body.extract::<Py<PyBytes>>(py) {
             bytes.as_bytes(py).to_vec().into()
         } else if content_type == "application/json" {
-            crate::json::dumps(&body)?.into()
+            json::dumps(&body)?.into()
         } else {
             body.to_string().into()
         };
@@ -41,7 +42,7 @@ impl Response {
         Ok(Self {
             status,
             body,
-            headers: HashMap::from([("Content-Type".to_string(), content_type)]),
+            headers: HashMap::from([("Content-Type".to_string(), content_type.to_string())]),
         })
     }
 
