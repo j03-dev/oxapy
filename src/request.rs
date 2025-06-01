@@ -10,6 +10,7 @@ use hyper::Uri;
 use url::form_urlencoded;
 
 use crate::{
+    json,
     multipart::File,
     session::{Session, SessionStore},
     templating::Template,
@@ -50,12 +51,8 @@ impl Request {
         }
     }
 
-    pub fn json(&self, py: Python<'_>) -> PyResult<Py<PyDict>> {
-        if let Some(ref body) = self.body {
-            crate::json::loads(body)
-        } else {
-            Ok(PyDict::new(py).into())
-        }
+    pub fn json(&self) -> Option<Py<PyDict>> {
+        self.body.as_ref().and_then(|data| json::loads(data).ok())
     }
 
     #[getter]
