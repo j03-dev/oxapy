@@ -26,6 +26,7 @@ multer = "3.1.0"
 futures-util = "0.3.31"
 serde = "1.0.219"
 rand = "0.9.1"
+url = "2.5.4"
 
 [target.'cfg(not(target_arch = "aarch64"))'.dependencies]
 jsonwebtoken = "9.3.1"

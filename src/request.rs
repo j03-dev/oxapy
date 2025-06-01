@@ -1,15 +1,19 @@
 use std::{collections::HashMap, sync::Arc};
 
 use pyo3::{
-    exceptions::{PyAttributeError, PyException, PyValueError},
+    exceptions::{PyAttributeError, PyException},
     prelude::*,
     types::PyDict,
 };
+
+use hyper::Uri;
+use url::form_urlencoded;
 
 use crate::{
     multipart::File,
     session::{Session, SessionStore},
     templating::Template,
+    IntoPyException,
 };
 
 #[derive(Clone, Debug, Default)]
@@ -59,11 +63,13 @@ impl Request {
         self.app_data.as_ref().map(|d| d.clone_ref(py))
     }
 
-    fn query(&self, py: Python<'_>) -> PyResult<Option<HashMap<String, String>>> {
-        let query_string = self.uri.split('?').nth(1);
-        if let Some(query) = query_string {
-            let query_params = Self::parse_query_string(query, py)?;
-            return Ok(Some(query_params));
+    fn query(&self) -> PyResult<Option<HashMap<String, String>>> {
+        let uri: Uri = self.uri.parse().into_py_exception()?;
+        if let Some(query_string) = uri.query() {
+            let parsed_query = form_urlencoded::parse(query_string.as_bytes())
+                .filter_map(|(key, value)| Some((key.to_string(), value.to_string())))
+                .collect();
+            return Ok(Some(parsed_query));
         }
         Ok(None)
     }
@@ -100,26 +106,5 @@ impl Request {
 
     pub fn __repr__(&self) -> String {
         format!("{:#?}", self)
-    }
-}
-
-impl Request {
-    fn parse_query_string(query_string: &str, py: Python<'_>) -> PyResult<HashMap<String, String>> {
-        let urllib = PyModule::import(py, "urllib")?;
-        let unqoute = urllib.getattr("parse")?.getattr("unquote")?;
-        let mut result = HashMap::new();
-
-        for pair in query_string.split("&") {
-            let mut parts = pair.split("=");
-            let key = parts
-                .next()
-                .ok_or_else(|| PyValueError::new_err("Invalide query string format"))?
-                .to_string();
-            let value = parts.next().unwrap_or_default();
-            let value_parsed: String = unqoute.call1((value,))?.extract()?;
-            result.insert(key, value_parsed);
-        }
-
-        Ok(result)
     }
 }
