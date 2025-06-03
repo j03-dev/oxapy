@@ -38,11 +38,11 @@ router = Router()
 
 @router.get("/")
 def welcome(request):
-    return Response(Status.OK, "Welcome to OxAPY!")
+    return Response("Welcome to OxAPY!", content_type="text/plain")
 
 @router.get("/hello/{name}")
 def hello(request, name):
-    return Response(Status.OK, {"message": f"Hello, {name}!"})
+    return Response({"message": f"Hello, {name}!"})
 
 
 app = HttpServer(("127.0.0.1", 5555))
