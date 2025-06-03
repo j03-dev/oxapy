@@ -15,4 +15,3 @@ description = "OxAPY is http server for python build in rust"
 dependencies = ["orjson>=3.10.18"]
 [tool.maturin]
 features = ["pyo3/extension-module"]
-include = ["oxapy/py.typed", "oxapy/*.pyi"]
