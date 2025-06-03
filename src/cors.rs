@@ -50,27 +50,27 @@ impl From<Cors> for Response {
 
 impl Cors {
     pub fn apply_headers(&self, response: &mut Response) {
-        response.header(
+        response.insert_header(
             "Access-Control-Allow-Origin".to_string(),
             self.origins.join(", "),
         );
-        response.header(
+        response.insert_header(
             "Access-Control-Allow-Methods".to_string(),
             self.methods.join(", "),
         );
-        response.header(
+        response.insert_header(
             "Access-Control-Allow-Headers".to_string(),
             self.headers.join(", "),
         );
 
         if self.allow_credentials {
-            response.header(
+            response.insert_header(
                 "Access-Control-Allow-Credentials".to_string(),
                 "true".to_string(),
             );
         }
 
-        response.header(
+        response.insert_header(
             "Access-Control-Max-Age".to_string(),
             self.max_age.to_string(),
         );

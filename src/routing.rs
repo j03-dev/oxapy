@@ -179,9 +179,9 @@ def static_file(request, path):
     try:
         with open(file_path, "rb") as f: content = f.read()
         content_type, _ = mimetypes.guess_type(file_path)
-        return Response(Status.OK, content, content_type or "application/octet-stream")
+        return Response(content, content_type = content_type or "application/octet-stream")
     except FileNotFoundError:
-        return Response(Status.NOT_FOUND, "File not found")
+        return Response("File not found", Status.NOT_FOUND)
 "#
         ),
         Some(globals),

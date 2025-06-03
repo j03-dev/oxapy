@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{status::Status, Response};
+use crate::{json, status::Status, Response};
 use pyo3::{prelude::*, types::PyAny, Py};
 
 impl From<String> for Response {
@@ -18,7 +18,7 @@ impl From<PyObject> for Response {
         Response {
             status: Status::OK,
             headers: HashMap::from([("Content-Type".to_string(), "application/json".to_string())]),
-            body: crate::json::dumps(&val).unwrap().into(),
+            body: json::dumps(&val).unwrap().into(),
         }
     }
 }
@@ -38,7 +38,7 @@ impl From<(PyObject, Status)> for Response {
         Response {
             status: val.1.clone(),
             headers: HashMap::from([("Content-Type".to_string(), "application/json".to_string())]),
-            body: crate::json::dumps(&val.0).unwrap().into(),
+            body: json::dumps(&val.0).unwrap().into(),
         }
     }
 }
@@ -57,6 +57,7 @@ macro_rules! to_response {
     }};
 }
 
+#[pyfunction]
 pub fn convert_to_response(result: Py<PyAny>, py: Python<'_>) -> PyResult<Response> {
     to_response!(
         result,

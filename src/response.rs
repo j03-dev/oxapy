@@ -24,10 +24,10 @@ pub struct Response {
 #[pymethods]
 impl Response {
     #[new]
-    #[pyo3(signature=(status, body, content_type="application/json"))]
+    #[pyo3(signature=(body, status = Status::OK , content_type="application/json"))]
     pub fn new(
-        status: Status,
         body: PyObject,
+        status: Status,
         content_type: &str,
         py: Python<'_>,
     ) -> PyResult<Self> {
@@ -51,13 +51,8 @@ impl Response {
         Ok(str::from_utf8(&self.body).into_py_exception()?.to_string())
     }
 
-    pub fn header(&mut self, key: String, value: String) -> Self {
+    pub fn insert_header(&mut self, key: String, value: String) -> Self {
         self.headers.insert(key, value);
-        self.clone()
-    }
-
-    pub fn status(&mut self, status: Status) -> Self {
-        self.status = status;
         self.clone()
     }
 }

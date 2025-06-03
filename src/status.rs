@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
 use hyper::body::Bytes;
-use pyo3::prelude::*;
+use pyo3::{basic::CompareOp, prelude::*, IntoPyObjectExt};
 
 use crate::response::Response;
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 #[pyclass]
 #[allow(non_camel_case_types)]
 pub enum Status {
@@ -78,6 +78,28 @@ pub enum Status {
 
     NOT_EXTENDED = 510,
     NETWORK_AUTHENTICATION_REQUIRED = 511,
+}
+
+#[pymethods]
+impl Status {
+    fn __richcmp__(
+        &self,
+        other: PyRef<Status>,
+        op: CompareOp,
+        py: Python<'_>,
+    ) -> PyResult<PyObject> {
+        let lhs = *self as u16;
+        let rhs = *other as u16;
+        let result = match op {
+            CompareOp::Eq => lhs == rhs,
+            CompareOp::Ne => lhs != rhs,
+            CompareOp::Lt => lhs < rhs,
+            CompareOp::Le => lhs <= rhs,
+            CompareOp::Gt => lhs > rhs,
+            CompareOp::Ge => lhs >= rhs,
+        };
+        result.into_py_any(py)
+    }
 }
 
 impl From<Status> for Response {

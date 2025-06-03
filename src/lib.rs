@@ -17,6 +17,7 @@ mod templating;
 use cors::Cors;
 use handling::request_handler::handle_request;
 use handling::response_handler::handle_response;
+use into_response::convert_to_response;
 use multipart::File;
 use pyo3::types::PyDict;
 use request::Request;
@@ -251,6 +252,7 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<SessionStore>()?;
     m.add_class::<Redirect>()?;
     m.add_class::<File>()?;
+    m.add_function(wrap_pyfunction!(convert_to_response, m)?)?;
     m.add_function(wrap_pyfunction!(get, m)?)?;
     m.add_function(wrap_pyfunction!(post, m)?)?;
     m.add_function(wrap_pyfunction!(delete, m)?)?;
