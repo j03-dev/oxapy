@@ -252,7 +252,6 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<SessionStore>()?;
     m.add_class::<Redirect>()?;
     m.add_class::<File>()?;
-    m.add_function(wrap_pyfunction!(convert_to_response, m)?)?;
     m.add_function(wrap_pyfunction!(get, m)?)?;
     m.add_function(wrap_pyfunction!(post, m)?)?;
     m.add_function(wrap_pyfunction!(delete, m)?)?;
@@ -261,6 +260,7 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(head, m)?)?;
     m.add_function(wrap_pyfunction!(options, m)?)?;
     m.add_function(wrap_pyfunction!(static_file, m)?)?;
+    m.add_function(wrap_pyfunction!(convert_to_response, m)?)?;
 
     templating::templating_submodule(m)?;
     serializer::serializer_submodule(m)?;
