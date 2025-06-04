@@ -19,11 +19,9 @@ use handling::request_handler::handle_request;
 use handling::response_handler::handle_response;
 use into_response::convert_to_response;
 use multipart::File;
-use pyo3::types::PyDict;
 use request::Request;
 use response::{Redirect, Response};
-use routing::{delete, get, head, options, patch, post, put, static_file, Route, Router};
-use serde::{Deserialize, Serialize};
+use routing::{delete, get, head, options, patch, post, put, static_file, MatchRoute, Router};
 use session::{Session, SessionStore};
 use status::Status;
 use templating::Template;
@@ -46,8 +44,6 @@ use std::{
 
 use pyo3::{exceptions::PyException, prelude::*};
 
-type MatchRoute<'l> = matchit::Match<'l, 'l, &'l Route>;
-
 trait IntoPyException<T> {
     fn into_py_exception(self) -> PyResult<T>;
 }
@@ -55,29 +51,6 @@ trait IntoPyException<T> {
 impl<T, E: ToString> IntoPyException<T> for Result<T, E> {
     fn into_py_exception(self) -> PyResult<T> {
         self.map_err(|err| PyException::new_err(err.to_string()))
-    }
-}
-
-struct Wrap<T>(T);
-
-impl<T> From<Bound<'_, PyDict>> for Wrap<T>
-where
-    T: for<'de> Deserialize<'de>,
-{
-    fn from(value: Bound<'_, PyDict>) -> Self {
-        let json_string = json::dumps(&value.into()).unwrap();
-        let value = serde_json::from_str(&json_string).unwrap();
-        Wrap(value)
-    }
-}
-
-impl<T> From<Wrap<T>> for Py<PyDict>
-where
-    T: Serialize,
-{
-    fn from(value: Wrap<T>) -> Self {
-        let json_string = serde_json::json!(value.0).to_string();
-        json::loads(&json_string).unwrap()
     }
 }
 

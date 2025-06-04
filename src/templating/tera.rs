@@ -2,7 +2,8 @@ use std::{collections::HashMap, sync::Arc};
 
 use pyo3::{prelude::*, types::PyDict};
 
-use crate::{IntoPyException, Wrap};
+use crate::json::Wrap;
+use crate::IntoPyException;
 
 #[derive(Debug, Clone)]
 #[pyclass]

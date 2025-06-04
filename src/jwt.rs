@@ -1,4 +1,5 @@
-use crate::{IntoPyException, Wrap};
+use crate::json::Wrap;
+use crate::IntoPyException;
 use jsonwebtoken::errors::ErrorKind;
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use pyo3::create_exception;

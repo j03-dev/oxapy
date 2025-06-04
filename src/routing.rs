@@ -6,7 +6,9 @@ use std::{
 
 use pyo3::{ffi::c_str, prelude::*, types::PyDict, Py, PyAny};
 
-use crate::{middleware::Middleware, IntoPyException, MatchRoute};
+use crate::{middleware::Middleware, IntoPyException};
+
+pub type MatchRoute<'l> = matchit::Match<'l, 'l, &'l Route>;
 
 #[derive(Clone, Debug)]
 #[pyclass]
