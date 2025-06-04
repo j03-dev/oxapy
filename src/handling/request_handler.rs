@@ -9,12 +9,12 @@ use hyper::{
 use pyo3::{Py, PyAny, PyResult};
 use tokio::sync::mpsc::channel;
 
+use crate::status::Status;
 use crate::{
     multipart::{parse_mutltipart, MultiPart},
     request::Request,
     response::Response,
     session::SessionStore,
-    status::Status,
     templating::Template,
     IntoPyException, MatchRoute, ProcessRequest, RequestContext,
 };
@@ -153,9 +153,9 @@ pub async fn handle_request(
             let match_route: MatchRoute = unsafe { transmute(match_route) };
 
             let process_request = ProcessRequest {
-                request,
-                router: router.clone(),
-                match_route,
+                request: request.clone(),
+                router: Some(router.clone()),
+                match_route: Some(match_route),
                 response_sender,
                 cors: cors.clone(),
             };
@@ -171,13 +171,22 @@ pub async fn handle_request(
         }
     }
 
-    let response = if let Some(cors_config) = cors {
-        cors_config
-            .apply_to_response(Status::NOT_FOUND.into())
-            .unwrap()
-    } else {
-        Status::NOT_FOUND.into()
+    let (response_sender, mut respond_receive) = channel(channel_capacity);
+
+    let process_request = ProcessRequest {
+        request,
+        router: None,
+        match_route: None,
+        response_sender,
+        cors,
     };
 
-    convert_oxapy_response_to_hyper_response(response)
+    if request_sender.send(process_request).await.is_ok() {
+        if let Some(response) = respond_receive.recv().await {
+            return convert_oxapy_response_to_hyper_response(response);
+        }
+    }
+
+    // If no route matched or handler didn't provide a response,
+    convert_oxapy_response_to_hyper_response(Status::NOT_FOUND.into())
 }

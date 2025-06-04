@@ -56,8 +56,8 @@ impl<T, E: ToString> IntoPyException<T> for Result<T, E> {
 
 struct ProcessRequest {
     request: Arc<Request>,
-    router: Arc<Router>,
-    match_route: MatchRoute<'static>,
+    router: Option<Arc<Router>>,
+    match_route: Option<MatchRoute<'static>>,
     response_sender: Sender<Response>,
     cors: Option<Arc<Cors>>,
 }

@@ -7,7 +7,7 @@ use crate::response::Response;
 
 #[derive(Clone, Copy)]
 #[pyclass]
-#[allow(non_camel_case_types)]
+#[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 pub enum Status {
     CONTINUE = 100,
     SWITCHING_PROTOCOLS = 101,
@@ -105,7 +105,7 @@ impl Status {
 impl From<Status> for Response {
     fn from(val: Status) -> Self {
         Response {
-            status: val.clone(),
+            status: val,
             headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
             body: Bytes::new(),
         }

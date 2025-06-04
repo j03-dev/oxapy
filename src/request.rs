@@ -64,7 +64,7 @@ impl Request {
         let uri: Uri = self.uri.parse().into_py_exception()?;
         if let Some(query_string) = uri.query() {
             let parsed_query = form_urlencoded::parse(query_string.as_bytes())
-                .filter_map(|(key, value)| Some((key.to_string(), value.to_string())))
+                .map(|(key, value)| (key.to_string(), value.to_string()))
                 .collect();
             return Ok(Some(parsed_query));
         }

@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
 use pyo3::{
     exceptions::PyValueError,
     types::{PyAnyMethods, PyDict, PyInt, PyString},
-    PyObject, PyResult, Python,
+    Bound, PyObject, PyResult, Python,
 };
 use tokio::sync::mpsc::Receiver;
 
@@ -21,7 +23,7 @@ pub async fn handle_response(
             Some(process_request) = request_receiver.recv() => {
                 let mut response = Python::with_gil(|py| {
                     process_response(
-                        &process_request.router,
+                        process_request.router,
                         process_request.match_route,
                         &process_request.request,
                         py,
@@ -51,19 +53,14 @@ pub async fn handle_response(
     }
 }
 
-fn process_response(
-    router: &Router,
-    match_route: MatchRoute,
-    request: &Request,
-    py: Python<'_>,
-) -> PyResult<Response> {
-    let params = match_route.params;
-    let route = match_route.value;
-
+fn prepare_route_params<'py>(
+    params: matchit::Params,
+    py: Python<'py>,
+) -> PyResult<Bound<'py, PyDict>> {
     let kwargs = PyDict::new(py);
 
     for (key, value) in params.iter() {
-        if let Some((name, ty)) = key.split_once(":") {
+        if let Some((name, ty)) = key.split_once(':') {
             let parsed_value: PyObject = match ty {
                 "int" => {
                     let n = value.parse::<i64>().map_err(|_| {
@@ -86,14 +83,31 @@ fn process_response(
         }
     }
 
-    kwargs.set_item("request", request.clone())?;
+    Ok(kwargs)
+}
 
-    let result = if !router.middlewares.is_empty() {
-        let chain = MiddlewareChain::new(router.middlewares.clone());
-        chain.execute(py, &route.handler.clone(), kwargs.clone())?
+fn process_response(
+    router: Option<Arc<Router>>,
+    match_route: Option<MatchRoute>,
+    request: &Request,
+    py: Python<'_>,
+) -> PyResult<Response> {
+    if let (Some(route), Some(router)) = (match_route, router) {
+        let params = route.params;
+        let route = route.value;
+
+        let kwargs = prepare_route_params(params, py)?;
+
+        kwargs.set_item("request", request.clone())?;
+
+        let result = if !router.middlewares.is_empty() {
+            let chain = MiddlewareChain::new(router.middlewares.clone());
+            chain.execute(py, &route.handler.clone(), kwargs.clone())?
+        } else {
+            route.handler.call(py, (), Some(&kwargs))?
+        };
+        convert_to_response(result, py)
     } else {
-        route.handler.call(py, (), Some(&kwargs))?
-    };
-
-    convert_to_response(result, py)
+        Ok(Status::NOT_FOUND.into())
+    }
 }
