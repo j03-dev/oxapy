@@ -22,8 +22,7 @@ pub async fn handle_response(
         tokio::select! {
             // handle `process_request` send by request handler
             Some(process_request) = request_receiver.recv() => {
-                let mut response = {
-                    process_response(
+                let mut response = process_response(
                         process_request.router,
                         process_request.match_route,
                         &process_request.request,
@@ -33,10 +32,7 @@ pub async fn handle_response(
                             { Status::BAD_REQUEST } else { Status::INTERNAL_SERVER_ERROR };
                         let response: Response = status.into();
                         response.set_body(err.to_string())
-                    })
-                };
-
-
+                });
 
                 if let (Some(session), Some(store)) =
                 (&process_request.request.session, &process_request.request.session_store)
@@ -48,12 +44,12 @@ pub async fn handle_response(
                     response = cors.apply_to_response(response).unwrap()
                 }
 
-                let request: Request = process_request.request.as_ref().clone();
                 if let Some(catchers) = process_request.catchers {
-                    if let Some(catcher) = catchers.get(&response.status)  {
+                    if let Some(handler) = catchers.get(&response.status)  {
                        // TODO: handler the errors
-                       let resp = catcher.call(py, (request, response), None).unwrap();
-                       response =  convert_to_response(resp, py).unwrap();
+                       let request: Request = process_request.request.as_ref().clone();
+                       let result = handler.call(py, (request, response), None).unwrap();
+                       response = convert_to_response(result, py).unwrap();
                     }
                 }
 
