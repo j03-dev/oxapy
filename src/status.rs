@@ -5,7 +5,7 @@ use pyo3::{basic::CompareOp, prelude::*, IntoPyObjectExt};
 
 use crate::response::Response;
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 #[pyclass]
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 pub enum Status {

@@ -34,6 +34,7 @@ use tokio::net::TcpListener;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::Semaphore;
 
+use std::collections::HashMap;
 use std::{
     net::SocketAddr,
     sync::{
@@ -60,6 +61,7 @@ struct ProcessRequest {
     match_route: Option<MatchRoute<'static>>,
     response_sender: Sender<Response>,
     cors: Option<Arc<Cors>>,
+    catchers: Option<HashMap<Status, Arc<Py<PyAny>>>>,
 }
 
 #[derive(Clone)]
@@ -71,6 +73,33 @@ struct RequestContext {
     cors: Option<Arc<Cors>>,
     template: Option<Arc<Template>>,
     session_store: Option<Arc<SessionStore>>,
+    catchers: Option<HashMap<Status, Arc<Py<PyAny>>>>,
+}
+
+#[pyclass]
+struct Catcher {
+    status: Status,
+    handler: Py<PyAny>,
+}
+
+#[pyclass]
+struct CatcherBuilder {
+    status: Status,
+}
+
+#[pymethods]
+impl CatcherBuilder {
+    fn __call__(&self, handler: Py<PyAny>) -> Catcher {
+        Catcher {
+            status: self.status,
+            handler,
+        }
+    }
+}
+
+#[pyfunction]
+fn catcher(status: Status) -> CatcherBuilder {
+    CatcherBuilder { status }
 }
 
 #[derive(Clone)]
@@ -78,6 +107,7 @@ struct RequestContext {
 struct HttpServer {
     addr: SocketAddr,
     routers: Vec<Arc<Router>>,
+    catchers: Option<HashMap<Status, Arc<Py<PyAny>>>>,
     app_data: Option<Arc<Py<PyAny>>>,
     max_connections: Arc<Semaphore>,
     channel_capacity: usize,
@@ -100,6 +130,7 @@ impl HttpServer {
             cors: None,
             template: None,
             session_store: None,
+            catchers: None,
         })
     }
 
@@ -131,8 +162,23 @@ impl HttpServer {
         self.channel_capacity = channel_capacity;
     }
 
+    fn catchers(&mut self, catchers: Vec<PyRef<Catcher>>, py: Python<'_>) {
+        if self.catchers.is_none() {
+            self.catchers = Some(HashMap::new());
+        }
+
+        if self.catchers.is_some() {
+            for catcher in catchers {
+                self.catchers
+                    .as_mut()
+                    .unwrap()
+                    .insert(catcher.status, Arc::new(catcher.handler.clone_ref(py)));
+            }
+        }
+    }
+
     #[pyo3(signature=(workers=None))]
-    fn run(&self, workers: Option<usize>) -> PyResult<()> {
+    fn run(&self, workers: Option<usize>, py: Python<'_>) -> PyResult<()> {
         let mut runtime = tokio::runtime::Builder::new_multi_thread();
 
         if let Some(workers) = workers {
@@ -142,14 +188,14 @@ impl HttpServer {
         runtime
             .enable_all()
             .build()?
-            .block_on(async move { self.run_server().await })?;
+            .block_on(async move { self.run_server(py).await })?;
 
         Ok(())
     }
 }
 
 impl HttpServer {
-    async fn run_server(&self) -> PyResult<()> {
+    async fn run_server(&self, py: Python<'_>) -> PyResult<()> {
         let running = Arc::new(AtomicBool::new(true));
         let r = running.clone();
         let addr = self.addr;
@@ -180,6 +226,7 @@ impl HttpServer {
             template: self.template.clone(),
             session_store: self.session_store.clone(),
             channel_capacity,
+            catchers: self.catchers.clone(),
         });
 
         tokio::spawn(async move {
@@ -207,7 +254,7 @@ impl HttpServer {
             }
         });
 
-        handle_response(&mut shutdown_rx, &mut request_receiver).await; // pong
+        handle_response(&mut shutdown_rx, &mut request_receiver, py).await; // pong
 
         Ok(())
     }
@@ -233,6 +280,7 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(head, m)?)?;
     m.add_function(wrap_pyfunction!(options, m)?)?;
     m.add_function(wrap_pyfunction!(static_file, m)?)?;
+    m.add_function(wrap_pyfunction!(catcher, m)?)?;
     m.add_function(wrap_pyfunction!(convert_to_response, m)?)?;
 
     templating::templating_submodule(m)?;

@@ -16,12 +16,13 @@ use crate::{
 pub async fn handle_response(
     shutdown_rx: &mut Receiver<()>,
     request_receiver: &mut Receiver<ProcessRequest>,
+    py: Python<'_>,
 ) {
     loop {
         tokio::select! {
             // handle `process_request` send by request handler
             Some(process_request) = request_receiver.recv() => {
-                let mut response = Python::with_gil(|py| {
+                let mut response = {
                     process_response(
                         process_request.router,
                         process_request.match_route,
@@ -33,7 +34,9 @@ pub async fn handle_response(
                         let response: Response = status.into();
                         response.set_body(err.to_string())
                     })
-                });
+                };
+
+
 
                 if let (Some(session), Some(store)) =
                 (&process_request.request.session, &process_request.request.session_store)
@@ -41,8 +44,17 @@ pub async fn handle_response(
                     response.set_session_cookie(session, store);
                 }
 
-               if let Some(cors) = process_request.cors {
+                if let Some(cors) = process_request.cors {
                     response = cors.apply_to_response(response).unwrap()
+                }
+
+                let request: Request = process_request.request.as_ref().clone();
+                if let Some(catchers) = process_request.catchers {
+                    if let Some(catcher) = catchers.get(&response.status)  {
+                       // TODO: handler the errors
+                       let resp = catcher.call(py, (request, response), None).unwrap();
+                       response =  convert_to_response(resp, py).unwrap();
+                    }
                 }
 
                  // send back the response to the request handler

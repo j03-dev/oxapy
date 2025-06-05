@@ -135,6 +135,7 @@ pub async fn handle_request(
         cors,
         template,
         session_store,
+        catchers,
     } = request_ctx.as_ref().clone();
 
     if req.method() == hyper::Method::OPTIONS && cors.is_some() {
@@ -158,6 +159,7 @@ pub async fn handle_request(
                 match_route: Some(match_route),
                 response_sender,
                 cors: cors.clone(),
+                catchers: catchers.clone(),
             };
 
             // send the `process_request` to response handler
@@ -179,6 +181,7 @@ pub async fn handle_request(
         match_route: None,
         response_sender,
         cors,
+        catchers,
     };
 
     if request_sender.send(process_request).await.is_ok() {
