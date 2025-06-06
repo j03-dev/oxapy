@@ -53,7 +53,7 @@ impl Jinja {
             .into_py_exception()?;
         let mut ctx_values: HashMap<String, serde_json::Value> = HashMap::default();
         if let Some(context) = context {
-            let Wrap::<_>(value) = context.into();
+            let Wrap::<_>(value) = context.try_into()?;
             ctx_values = value;
         }
         template.render(ctx_values).into_py_exception()

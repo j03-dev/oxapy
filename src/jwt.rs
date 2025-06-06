@@ -92,7 +92,7 @@ impl Jwt {
             .ok_or_else(|| JwtError::new_err("Failed to compute expiration"))?;
         claims.set_item("exp", exp.as_secs())?;
 
-        let Wrap::<Claims>(claims) = claims.into();
+        let Wrap::<Claims>(claims) = claims.try_into()?;
 
         let token = jsonwebtoken::encode(
             &Header::default(),
@@ -118,7 +118,7 @@ impl Jwt {
             ErrorKind::InvalidAlgorithm => JwtInvalidAlgorithm::new_err("Algorithm mismatch"),
             _ => JwtDecodingError::new_err(format!("JWT decoding error: {e}")),
         })?;
-        Ok(Wrap(token_data.claims).into())
+        Ok(Wrap(token_data.claims).try_into()?)
     }
 }
 

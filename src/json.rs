@@ -28,9 +28,7 @@ where
     type Error = PyErr;
 
     fn try_from(value: Bound<'_, PyDict>) -> Result<Self, Self::Error> {
-        // errors from dumps() get propagated as PyErr
         let json_string = dumps(&value.into())?;
-        // map serde errors into Python ValueError
         let value = serde_json::from_str(&json_string)
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
         Ok(Wrap(value))
@@ -45,7 +43,6 @@ where
 
     fn try_from(value: Wrap<T>) -> Result<Self, Self::Error> {
         let json_string = serde_json::json!(value.0).to_string();
-        // loads() already returns Result<Py<PyDict>, PyErr>
         loads(&json_string)
     }
 }

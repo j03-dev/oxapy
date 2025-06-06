@@ -29,7 +29,7 @@ impl Tera {
     ) -> PyResult<String> {
         let mut tera_context = tera::Context::new();
         if let Some(context) = context {
-            let map: Wrap<HashMap<String, serde_json::Value>> = context.into();
+            let map: Wrap<HashMap<String, serde_json::Value>> = context.try_into()?;
             for (key, value) in map.0 {
                 tera_context.insert(key, &value);
             }
