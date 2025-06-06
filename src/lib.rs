@@ -163,18 +163,13 @@ impl HttpServer {
     }
 
     fn catchers(&mut self, catchers: Vec<PyRef<Catcher>>, py: Python<'_>) {
-        if self.catchers.is_none() {
-            self.catchers = Some(HashMap::new());
+        let mut map = HashMap::new();
+
+        for catcher in catchers {
+            map.insert(catcher.status, Arc::new(catcher.handler.clone_ref(py)));
         }
 
-        if self.catchers.is_some() {
-            for catcher in catchers {
-                self.catchers
-                    .as_mut()
-                    .unwrap()
-                    .insert(catcher.status, Arc::new(catcher.handler.clone_ref(py)));
-            }
-        }
+        self.catchers = Some(map)
     }
 
     #[pyo3(signature=(workers=None))]

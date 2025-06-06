@@ -34,6 +34,15 @@ pub async fn handle_response(
                         response.set_body(err.to_string())
                 });
 
+                if let Some(catchers) = process_request.catchers {
+                    if let Some(handler) = catchers.get(&response.status)  {
+                        // TODO: handler the errors
+                        let request: Request = process_request.request.as_ref().clone();
+                        let result = handler.call(py, (request, response), None).unwrap();
+                        response = convert_to_response(result, py).unwrap();
+                    }
+                }
+
                 if let (Some(session), Some(store)) =
                 (&process_request.request.session, &process_request.request.session_store)
                 {
@@ -42,15 +51,6 @@ pub async fn handle_response(
 
                 if let Some(cors) = process_request.cors {
                     response = cors.apply_to_response(response).unwrap()
-                }
-
-                if let Some(catchers) = process_request.catchers {
-                    if let Some(handler) = catchers.get(&response.status)  {
-                       // TODO: handler the errors
-                       let request: Request = process_request.request.as_ref().clone();
-                       let result = handler.call(py, (request, response), None).unwrap();
-                       response = convert_to_response(result, py).unwrap();
-                    }
                 }
 
                  // send back the response to the request handler
@@ -68,26 +68,27 @@ fn prepare_route_params<'py>(
     let kwargs = PyDict::new(py);
 
     for (key, value) in params.iter() {
-        if let Some((name, ty)) = key.split_once(':') {
-            let parsed_value: PyObject = match ty {
-                "int" => {
-                    let n = value.parse::<i64>().map_err(|_| {
-                        PyValueError::new_err(format!(
-                            "Failed to parse parameter '{key}' with value '{value}' as type 'int'."
-                        ))
-                    })?;
-                    PyInt::new(py, n).into()
-                }
-                "str" => PyString::new(py, value).into(),
-                other => {
-                    return Err(PyValueError::new_err(format!(
-                        "Unsupported type annotation '{other}' in parameter key '{key}'."
-                    )));
-                }
-            };
-            kwargs.set_item(name, parsed_value)?;
-        } else {
-            kwargs.set_item(key, value)?;
+        match key.split_once(":") {
+            Some((name, ty)) => {
+                let parsed_value: PyObject = match ty {
+                    "int" => {
+                        let n = value.parse::<i64>().map_err(|_| {
+                            PyValueError::new_err(format!(
+                                "Failed to parse parameter '{key}' with value '{value}' as type 'int'."
+                            ))
+                        })?;
+                        PyInt::new(py, n).into()
+                    }
+                    "str" => PyString::new(py, value).into(),
+                    other => {
+                        return Err(PyValueError::new_err(format!(
+                            "Unsupported type annotation '{other}' in parameter key '{key}'."
+                        )));
+                    }
+                };
+                kwargs.set_item(name, parsed_value)?;
+            }
+            None => kwargs.set_item(key, value)?,
         }
     }
 
