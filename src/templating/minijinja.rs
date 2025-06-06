@@ -1,9 +1,11 @@
-use std::{collections::HashMap, sync::Arc};
+use ahash::HashMap;
 
 use minijinja::Environment;
 use pyo3::{prelude::*, types::PyDict};
+use std::sync::Arc;
 
-use crate::{IntoPyException, Wrap};
+use crate::json::Wrap;
+use crate::IntoPyException;
 
 #[derive(Debug, Clone)]
 #[pyclass]
@@ -49,9 +51,9 @@ impl Jinja {
             .engine
             .get_template(&template_name)
             .into_py_exception()?;
-        let mut ctx_values: HashMap<String, serde_json::Value> = HashMap::new();
+        let mut ctx_values: HashMap<String, serde_json::Value> = HashMap::default();
         if let Some(context) = context {
-            let Wrap::<_>(value) = context.into();
+            let Wrap::<_>(value) = context.try_into()?;
             ctx_values = value;
         }
         template.render(ctx_values).into_py_exception()

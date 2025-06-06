@@ -26,7 +26,7 @@ impl From<PyObject> for Response {
 impl From<(String, Status)> for Response {
     fn from(val: (String, Status)) -> Self {
         Response {
-            status: val.1.clone(),
+            status: val.1,
             headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
             body: val.0.clone().into(),
         }
@@ -36,7 +36,7 @@ impl From<(String, Status)> for Response {
 impl From<(PyObject, Status)> for Response {
     fn from(val: (PyObject, Status)) -> Self {
         Response {
-            status: val.1.clone(),
+            status: val.1,
             headers: HashMap::from([("Content-Type".to_string(), "application/json".to_string())]),
             body: json::dumps(&val.0).unwrap().into(),
         }

@@ -1,6 +1,7 @@
+use std::mem::transmute;
 use std::sync::Arc;
-use std::{collections::HashMap, mem::transmute};
 
+use ahash::HashMap;
 use http_body_util::{BodyExt, Full};
 use hyper::{
     body::{Bytes, Incoming},
@@ -9,12 +10,12 @@ use hyper::{
 use pyo3::{Py, PyAny, PyResult};
 use tokio::sync::mpsc::channel;
 
+use crate::status::Status;
 use crate::{
     multipart::{parse_mutltipart, MultiPart},
     request::Request,
     response::Response,
     session::SessionStore,
-    status::Status,
     templating::Template,
     IntoPyException, MatchRoute, ProcessRequest, RequestContext,
 };
@@ -96,7 +97,7 @@ async fn convert_hyper_request_to_oxapy_request(
     let method = req.method().to_string();
     let uri = req.uri().to_string();
 
-    let mut headers = HashMap::new();
+    let mut headers = HashMap::default();
     for (key, value) in req.headers() {
         headers.insert(
             key.to_string(),
@@ -104,7 +105,7 @@ async fn convert_hyper_request_to_oxapy_request(
         );
     }
 
-    let mut request = Request::new(method, uri, headers.clone());
+    let mut request = Request::new(method, uri, headers);
 
     request = setup_session_request(session_store, request)?;
 
@@ -135,6 +136,7 @@ pub async fn handle_request(
         cors,
         template,
         session_store,
+        catchers,
     } = request_ctx.as_ref().clone();
 
     if req.method() == hyper::Method::OPTIONS && cors.is_some() {
@@ -153,11 +155,12 @@ pub async fn handle_request(
             let match_route: MatchRoute = unsafe { transmute(match_route) };
 
             let process_request = ProcessRequest {
-                request,
-                router: router.clone(),
-                match_route,
+                request: request.clone(),
+                router: Some(router.clone()),
+                match_route: Some(match_route),
                 response_sender,
                 cors: cors.clone(),
+                catchers: catchers.clone(),
             };
 
             // send the `process_request` to response handler
@@ -171,13 +174,23 @@ pub async fn handle_request(
         }
     }
 
-    let response = if let Some(cors_config) = cors {
-        cors_config
-            .apply_to_response(Status::NOT_FOUND.into())
-            .unwrap()
-    } else {
-        Status::NOT_FOUND.into()
+    let (response_sender, mut respond_receive) = channel(channel_capacity);
+
+    let process_request = ProcessRequest {
+        request,
+        router: None,
+        match_route: None,
+        response_sender,
+        cors,
+        catchers,
     };
 
-    convert_oxapy_response_to_hyper_response(response)
+    if request_sender.send(process_request).await.is_ok() {
+        if let Some(response) = respond_receive.recv().await {
+            return convert_oxapy_response_to_hyper_response(response);
+        }
+    }
+
+    // If no route matched or handler didn't provide a response,
+    convert_oxapy_response_to_hyper_response(Status::NOT_FOUND.into())
 }

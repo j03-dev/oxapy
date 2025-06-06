@@ -1,12 +1,14 @@
 use std::{
-    collections::HashMap,
     mem::transmute,
     sync::{Arc, RwLock},
 };
 
+use ahash::HashMap;
 use pyo3::{ffi::c_str, prelude::*, types::PyDict, Py, PyAny};
 
-use crate::{middleware::Middleware, IntoPyException, MatchRoute};
+use crate::{middleware::Middleware, IntoPyException};
+
+pub type MatchRoute<'l> = matchit::Match<'l, 'l, &'l Route>;
 
 #[derive(Clone, Debug)]
 #[pyclass]
@@ -70,14 +72,14 @@ method_decorator!(get, post, put, patch, delete, head, options);
 
 #[derive(Clone)]
 #[pyclass]
-struct Decorator {
+struct RouteBuilder {
     method: String,
     router: Router,
     path: String,
 }
 
 #[pymethods]
-impl Decorator {
+impl RouteBuilder {
     fn __call__(&mut self, handler: Py<PyAny>) -> PyResult<Route> {
         let route = Route {
             method: self.method.clone(),
@@ -129,8 +131,8 @@ macro_rules! impl_router {
             }
 
         $(
-            fn $method(&self, path: String) -> PyResult<Decorator> {
-                Ok(Decorator {
+            fn $method(&self, path: String) -> PyResult<RouteBuilder> {
+                Ok(RouteBuilder {
                     method: stringify!($method).to_string().to_uppercase(),
                     router: self.clone(),
                     path,

@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use pyo3::{
     exceptions::{PyException, PyValueError},
     prelude::*,
@@ -56,7 +54,7 @@ fn render(
     Ok(Response {
         status: Status::OK,
         body: body.into(),
-        headers: HashMap::from([("Content-Type".to_string(), "text/html".to_string())]),
+        headers: [("Content-Type".to_string(), "text/html".to_string())].into(),
     })
 }
 

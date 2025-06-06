@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use ahash::HashMap;
 use futures_util::stream;
 use hyper::body::Bytes;
 use multer::Multipart;
@@ -36,8 +35,8 @@ pub struct MultiPart {
 }
 
 pub async fn parse_mutltipart(content_type: &str, body_stream: Bytes) -> PyResult<MultiPart> {
-    let mut fields = HashMap::new();
-    let mut files = HashMap::new();
+    let mut fields = HashMap::default();
+    let mut files = HashMap::default();
 
     let boundary = content_type
         .split("boundary=")

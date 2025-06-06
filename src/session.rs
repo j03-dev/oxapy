@@ -1,9 +1,9 @@
 use std::{
-    collections::HashMap,
     sync::{Arc, Mutex, RwLock},
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use ahash::HashMap;
 use pyo3::{prelude::*, types::PyTuple, IntoPyObjectExt};
 use rand::{distr::Alphanumeric, Rng};
 
@@ -42,7 +42,7 @@ impl Session {
 
         Ok(Self {
             id: id.unwrap_or_else(generate_session_id),
-            data: Arc::new(RwLock::new(HashMap::new())),
+            data: Arc::new(RwLock::new(HashMap::default())),
             create_at: now,
             last_accessed: Arc::new(Mutex::new(now)),
             modified: Arc::new(Mutex::new(false)),
@@ -204,7 +204,7 @@ impl SessionStore {
         expiry_seconds: Option<u64>,
     ) -> Self {
         Self {
-            sessions: Arc::new(RwLock::new(HashMap::new())),
+            sessions: Arc::new(RwLock::new(HashMap::default())),
             cookie_name,
             cookie_max_age,
             cookie_path,

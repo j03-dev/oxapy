@@ -17,7 +17,7 @@
 
 <p>
    <strong> Show your support</strong>  <em> by giving a star 🌟 if this project helped you! </em>
- </p>
+</p>
 </div>
 
 ## Features

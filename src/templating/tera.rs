@@ -1,8 +1,10 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
+use ahash::HashMap;
 use pyo3::{prelude::*, types::PyDict};
 
-use crate::{IntoPyException, Wrap};
+use crate::json::Wrap;
+use crate::IntoPyException;
 
 #[derive(Debug, Clone)]
 #[pyclass]
@@ -27,7 +29,7 @@ impl Tera {
     ) -> PyResult<String> {
         let mut tera_context = tera::Context::new();
         if let Some(context) = context {
-            let map: Wrap<HashMap<String, serde_json::Value>> = context.into();
+            let map: Wrap<HashMap<String, serde_json::Value>> = context.try_into()?;
             for (key, value) in map.0 {
                 tera_context.insert(key, &value);
             }

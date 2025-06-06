@@ -1,4 +1,6 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
+
+use ahash::HashMap;
 
 use pyo3::{
     exceptions::{PyAttributeError, PyException},
@@ -60,11 +62,11 @@ impl Request {
         self.app_data.as_ref().map(|d| d.clone_ref(py))
     }
 
-    fn query(&self) -> PyResult<Option<HashMap<String, String>>> {
+    fn query(&self) -> PyResult<Option<std::collections::HashMap<String, String>>> {
         let uri: Uri = self.uri.parse().into_py_exception()?;
         if let Some(query_string) = uri.query() {
             let parsed_query = form_urlencoded::parse(query_string.as_bytes())
-                .filter_map(|(key, value)| Some((key.to_string(), value.to_string())))
+                .map(|(key, value)| (key.to_string(), value.to_string()))
                 .collect();
             return Ok(Some(parsed_query));
         }
