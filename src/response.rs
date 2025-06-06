@@ -42,7 +42,7 @@ impl Response {
         Ok(Self {
             status,
             body,
-            headers: HashMap::from([("Content-Type".to_string(), content_type.to_string())]),
+            headers: [("Content-Type".to_string(), content_type.to_string())].into(),
         })
     }
 
@@ -51,8 +51,8 @@ impl Response {
         Ok(str::from_utf8(&self.body).into_py_exception()?.to_string())
     }
 
-    pub fn insert_header(&mut self, key: String, value: String) -> Self {
-        self.headers.insert(key, value);
+    pub fn insert_header(&mut self, key: &str, value: String) -> Self {
+        self.headers.insert(key.to_string(), value);
         self.clone()
     }
 }
