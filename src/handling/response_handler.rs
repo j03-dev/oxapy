@@ -71,14 +71,7 @@ fn prepare_route_params<'py>(
         match key.split_once(":") {
             Some((name, ty)) => {
                 let parsed_value: PyObject = match ty {
-                    "int" => {
-                        let n = value.parse::<i64>().map_err(|_| {
-                            PyValueError::new_err(format!(
-                                "Failed to parse parameter '{key}' with value '{value}' as type 'int'."
-                            ))
-                        })?;
-                        PyInt::new(py, n).into()
-                    }
+                    "int" => PyInt::new(py, value.parse::<i64>()?).into(),
                     "str" => PyString::new(py, value).into(),
                     other => {
                         return Err(PyValueError::new_err(format!(
