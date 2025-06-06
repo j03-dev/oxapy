@@ -21,23 +21,31 @@ pub fn loads(data: &str) -> PyResult<Py<PyDict>> {
 
 pub struct Wrap<T>(pub T);
 
-impl<T> From<Bound<'_, PyDict>> for Wrap<T>
+impl<T> TryFrom<Bound<'_, PyDict>> for Wrap<T>
 where
     T: for<'de> Deserialize<'de>,
 {
-    fn from(value: Bound<'_, PyDict>) -> Self {
-        let json_string = dumps(&value.into()).unwrap();
-        let value = serde_json::from_str(&json_string).unwrap();
-        Wrap(value)
+    type Error = PyErr;
+
+    fn try_from(value: Bound<'_, PyDict>) -> Result<Self, Self::Error> {
+        // errors from dumps() get propagated as PyErr
+        let json_string = dumps(&value.into())?;
+        // map serde errors into Python ValueError
+        let value = serde_json::from_str(&json_string)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+        Ok(Wrap(value))
     }
 }
 
-impl<T> From<Wrap<T>> for Py<PyDict>
+impl<T> TryFrom<Wrap<T>> for Py<PyDict>
 where
     T: Serialize,
 {
-    fn from(value: Wrap<T>) -> Self {
+    type Error = PyErr;
+
+    fn try_from(value: Wrap<T>) -> Result<Self, Self::Error> {
         let json_string = serde_json::json!(value.0).to_string();
-        loads(&json_string).unwrap()
+        // loads() already returns Result<Py<PyDict>, PyErr>
+        loads(&json_string)
     }
 }
