@@ -1,3 +1,4 @@
+mod catcher;
 mod cors;
 mod handling;
 mod into_response;
@@ -14,6 +15,7 @@ mod session;
 mod status;
 mod templating;
 
+use catcher::Catcher;
 use cors::Cors;
 use handling::request_handler::handle_request;
 use handling::response_handler::handle_response;
@@ -61,7 +63,7 @@ struct ProcessRequest {
     match_route: Option<MatchRoute<'static>>,
     response_sender: Sender<Response>,
     cors: Option<Arc<Cors>>,
-    catchers: Option<HashMap<Status, Arc<Py<PyAny>>>>,
+    catchers: Option<Arc<HashMap<Status, Py<PyAny>>>>,
 }
 
 #[derive(Clone)]
@@ -73,33 +75,7 @@ struct RequestContext {
     cors: Option<Arc<Cors>>,
     template: Option<Arc<Template>>,
     session_store: Option<Arc<SessionStore>>,
-    catchers: Option<HashMap<Status, Arc<Py<PyAny>>>>,
-}
-
-#[pyclass]
-struct Catcher {
-    status: Status,
-    handler: Py<PyAny>,
-}
-
-#[pyclass]
-struct CatcherBuilder {
-    status: Status,
-}
-
-#[pymethods]
-impl CatcherBuilder {
-    fn __call__(&self, handler: Py<PyAny>) -> Catcher {
-        Catcher {
-            status: self.status,
-            handler,
-        }
-    }
-}
-
-#[pyfunction]
-fn catcher(status: Status) -> CatcherBuilder {
-    CatcherBuilder { status }
+    catchers: Option<Arc<HashMap<Status, Py<PyAny>>>>,
 }
 
 #[derive(Clone)]
@@ -107,13 +83,13 @@ fn catcher(status: Status) -> CatcherBuilder {
 struct HttpServer {
     addr: SocketAddr,
     routers: Vec<Arc<Router>>,
-    catchers: Option<HashMap<Status, Arc<Py<PyAny>>>>,
     app_data: Option<Arc<Py<PyAny>>>,
     max_connections: Arc<Semaphore>,
     channel_capacity: usize,
     cors: Option<Arc<Cors>>,
     template: Option<Arc<Template>>,
     session_store: Option<Arc<SessionStore>>,
+    catchers: Option<Arc<HashMap<Status, Py<PyAny>>>>,
 }
 
 #[pymethods]
@@ -166,10 +142,10 @@ impl HttpServer {
         let mut map = HashMap::new();
 
         for catcher in catchers {
-            map.insert(catcher.status, Arc::new(catcher.handler.clone_ref(py)));
+            map.insert(catcher.status, catcher.handler.clone_ref(py));
         }
 
-        self.catchers = Some(map)
+        self.catchers = Some(Arc::new(map))
     }
 
     #[pyo3(signature=(workers=None))]
@@ -275,7 +251,7 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(head, m)?)?;
     m.add_function(wrap_pyfunction!(options, m)?)?;
     m.add_function(wrap_pyfunction!(static_file, m)?)?;
-    m.add_function(wrap_pyfunction!(catcher, m)?)?;
+    m.add_function(wrap_pyfunction!(catcher::catcher, m)?)?;
     m.add_function(wrap_pyfunction!(convert_to_response, m)?)?;
 
     templating::templating_submodule(m)?;
