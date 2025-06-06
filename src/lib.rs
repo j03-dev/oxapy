@@ -15,35 +15,30 @@ mod session;
 mod status;
 mod templating;
 
-use catcher::Catcher;
-use cors::Cors;
-use handling::request_handler::handle_request;
-use handling::response_handler::handle_response;
-use into_response::convert_to_response;
-use multipart::File;
-use request::Request;
-use response::{Redirect, Response};
-use routing::{delete, get, head, options, patch, post, put, static_file, MatchRoute, Router};
-use session::{Session, SessionStore};
-use status::Status;
-use templating::Template;
+use std::net::SocketAddr;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
+use crate::catcher::Catcher;
+use crate::cors::Cors;
+use crate::handling::request_handler::handle_request;
+use crate::handling::response_handler::handle_response;
+use crate::into_response::convert_to_response;
+use crate::multipart::File;
+use crate::request::Request;
+use crate::response::{Redirect, Response};
+use crate::routing::*;
+use crate::session::{Session, SessionStore};
+use crate::status::Status;
+use crate::templating::Template;
+
+use ahash::HashMap;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper_util::rt::TokioIo;
-
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::Semaphore;
-
-use std::collections::HashMap;
-use std::{
-    net::SocketAddr,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-};
 
 use pyo3::{exceptions::PyException, prelude::*};
 
@@ -139,7 +134,7 @@ impl HttpServer {
     }
 
     fn catchers(&mut self, catchers: Vec<PyRef<Catcher>>, py: Python<'_>) {
-        let mut map = HashMap::new();
+        let mut map = HashMap::default();
 
         for catcher in catchers {
             map.insert(catcher.status, catcher.handler.clone_ref(py));

@@ -1,9 +1,9 @@
 use std::{
-    collections::HashMap,
     mem::transmute,
     sync::{Arc, RwLock},
 };
 
+use ahash::HashMap;
 use pyo3::{ffi::c_str, prelude::*, types::PyDict, Py, PyAny};
 
 use crate::{middleware::Middleware, IntoPyException};

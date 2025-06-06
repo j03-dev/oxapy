@@ -1,6 +1,7 @@
+use std::mem::transmute;
 use std::sync::Arc;
-use std::{collections::HashMap, mem::transmute};
 
+use ahash::HashMap;
 use http_body_util::{BodyExt, Full};
 use hyper::{
     body::{Bytes, Incoming},
@@ -96,7 +97,7 @@ async fn convert_hyper_request_to_oxapy_request(
     let method = req.method().to_string();
     let uri = req.uri().to_string();
 
-    let mut headers = HashMap::new();
+    let mut headers = HashMap::default();
     for (key, value) in req.headers() {
         headers.insert(
             key.to_string(),
@@ -104,7 +105,7 @@ async fn convert_hyper_request_to_oxapy_request(
         );
     }
 
-    let mut request = Request::new(method, uri, headers.clone());
+    let mut request = Request::new(method, uri, headers);
 
     request = setup_session_request(session_store, request)?;
 
