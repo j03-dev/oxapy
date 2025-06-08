@@ -39,18 +39,22 @@ pub struct Jwt {
 
 #[pymethods]
 impl Jwt {
-    /// Create a new JWT manager
+    /// Create a new JWT
     ///
     /// Args:
-    ///     secret: Secret key used for signing tokens
-    ///     algorithm: JWT algorithm to use (default: "HS256")
+    ///     secret (str): Secret key used for signing tokens
+    ///     algorithm (str): JWT algorithm to use (default: "HS256")
     ///
     /// Returns:
-    ///     A new JwtManager instance
+    ///     Jwt: A new Jwt instance
     ///
     /// Raises:
-    ///     ValueError: If the algorithm is not supported or secret is invalid
-
+    ///     Exception: If the algorithm is not supported or secret is invalid
+    ///
+    /// Example:
+    /// ```python
+    /// jwt = Jwt(secret="mysecret", algorithm="HS256")
+    /// ```
     #[new]
     #[pyo3(signature = (secret, algorithm="HS256"))]
     pub fn new(secret: String, algorithm: &str) -> PyResult<Self> {
@@ -73,6 +77,18 @@ impl Jwt {
     ///
     /// Raises:
     ///     Exception: If claims cannot be serialized or the token cannot be generated
+    ///
+    /// Example:
+    /// ```python
+    /// claims = {
+    ///     "exp": 3600,  # seconds from now
+    ///     "sub": "user123",  # subject (optional)
+    ///     "iss": "myapp",    # issuer (optional)
+    ///     "aud": "webapp",   # audience (optional)
+    ///     "nbf": 1234567890  # not before timestamp (optional)
+    /// }
+    /// token = jwt.generate_token(claims)
+    /// ```
     pub fn generate_token(&self, claims: Bound<'_, PyDict>) -> PyResult<String> {
         let expiration = claims
             .get_item("exp")?
@@ -104,6 +120,21 @@ impl Jwt {
         Ok(token)
     }
 
+    /// Verify the integrity of the JWT token
+    ///
+    /// Args:
+    ///     token: A JWT token String
+    ///
+    /// Returns:
+    ///     Return Dictionary: the claims that you use to generate the token
+    ///
+    /// Raises:
+    ///     JwtError: if token was expired or not valid token
+    ///
+    /// Example:
+    /// ```python
+    /// jwt.verify_token("mytoken")
+    /// ```
     pub fn verify_token(&self, token: &str) -> PyResult<Py<PyDict>> {
         let token_data = jsonwebtoken::decode::<Claims>(
             token,

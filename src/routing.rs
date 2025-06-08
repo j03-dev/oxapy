@@ -10,6 +10,25 @@ use crate::{middleware::Middleware, IntoPyException};
 
 pub type MatchRoute<'l> = matchit::Match<'l, 'l, &'l Route>;
 
+/// A route definition that maps a URL path to a handler function.
+///
+/// Args:
+///     path (str): The URL path pattern.
+///     method (str, optional): The HTTP method (defaults to "GET").
+///
+/// Returns:
+///     Route: A route object that can be registered with a router.
+///
+/// Example:
+///     ```python
+///     from oxapy import Route
+///
+///     def handler(request):
+///         return "Hello, World!"
+///
+///     route = Route("/hello", "GET")
+///     route = route(handler)  # Attach the handler
+///     ```
 #[derive(Clone, Debug)]
 #[pyclass]
 pub struct Route {
@@ -93,6 +112,24 @@ impl RouteBuilder {
     }
 }
 
+/// A router for handling HTTP routes.
+///
+/// The Router is responsible for registering routes and handling HTTP requests.
+/// It supports path parameters, middleware, and different HTTP methods.
+///
+/// Returns:
+///     Router: A new router instance.
+///
+/// Example:
+///     ```python
+///     from oxapy import Router, get
+///
+///     router = Router()
+///
+///     @router.get("/hello/{name}")
+///     def hello(request, name):
+///         return f"Hello, {name}!"
+///     ```
 #[derive(Default, Clone, Debug)]
 #[pyclass]
 pub struct Router {
@@ -104,16 +141,66 @@ macro_rules! impl_router {
     ($($method:ident),*) => {
         #[pymethods]
         impl Router {
+            /// Create a new Router instance.
+            ///
+            /// Returns:
+            ///     Router: A new router with no routes or middleware.
+            ///
+            /// Example:
+            ///     ```python
+            ///     router = Router()
+            ///     ```
             #[new]
             pub fn new() -> Self {
                 Router::default()
             }
 
+            /// Add middleware to the router.
+            ///
+            /// Middleware functions are executed in the order they are added,
+            /// before the route handler.
+            ///
+            /// Args:
+            ///     middleware (callable): A function that will process requests before route handlers.
+            ///
+            /// Returns:
+            ///     None
+            ///
+            /// Example:
+            ///     ```python
+            ///     def auth_middleware(request, next, **kwargs):
+            ///         if "authorization" not in request.headers:
+            ///             return Status.UNAUTHORIZED
+            ///         return next(request, **kwargs)
+            ///
+            ///     router.middleware(auth_middleware)
+            ///     ```
             fn middleware(&mut self, middleware: Py<PyAny>) {
                 let middleware = Middleware::new(middleware);
                 self.middlewares.push(middleware);
             }
 
+            /// Register a route with the router.
+            ///
+            /// Args:
+            ///     route (Route): The route to register.
+            ///
+            /// Returns:
+            ///     None
+            ///
+            /// Raises:
+            ///     Exception: If the route cannot be added.
+            ///
+            /// Example:
+            ///     ```python
+            ///     from oxapy import get
+            ///
+            ///     def hello_handler(request):
+            ///         return "Hello World!"
+            ///
+            ///     route = get("/hello", hello_handler)
+            ///     router.route(route)
+            ///     ```
             fn route(&mut self, route: &Route) -> PyResult<()> {
                 let mut ptr_mr = self.routes.write().unwrap();
                 let method_router = ptr_mr.entry(route.method.clone()).or_default();
@@ -123,6 +210,33 @@ macro_rules! impl_router {
                 Ok(())
             }
 
+            /// Register multiple routes with the router.
+            ///
+            /// Args:
+            ///     routes (list): A list of Route objects to register.
+            ///
+            /// Returns:
+            ///     None
+            ///
+            /// Raises:
+            ///     Exception: If any route cannot be added.
+            ///
+            /// Example:
+            ///     ```python
+            ///     from oxapy import get, post
+            ///
+            ///     def hello_handler(request):
+            ///         return "Hello World!"
+            ///
+            ///     def submit_handler(request):
+            ///         return "Form submitted!"
+            ///
+            ///     routes = [
+            ///         get("/hello", hello_handler),
+            ///         post("/submit", submit_handler)
+            ///     ]
+            ///     router.routes(routes)
+            ///     ```
             fn routes(&mut self, routes: Vec<Route>) -> PyResult<()> {
                 for ref route in routes {
                     self.route(route)?;
@@ -160,6 +274,23 @@ impl Router {
     }
 }
 
+/// Create a route for serving static files.
+///
+/// Args:
+///     directory (str): The directory containing static files.
+///     path (str): The URL path at which to serve the files.
+///
+/// Returns:
+///     Route: A route configured to serve static files.
+///
+/// Example:
+///     ```python
+///     from oxapy import Router, static_file
+///
+///     router = Router()
+///     router.route(static_file("./static", "static"))
+///     # This will serve files from ./static directory at /static URL path
+///     ```
 #[pyfunction]
 pub fn static_file(directory: String, path: String, py: Python<'_>) -> PyResult<Route> {
     let pathlib = py.import("pathlib")?;
