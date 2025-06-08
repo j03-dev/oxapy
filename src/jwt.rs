@@ -118,7 +118,7 @@ impl Jwt {
             ErrorKind::InvalidAlgorithm => JwtInvalidAlgorithm::new_err("Algorithm mismatch"),
             _ => JwtDecodingError::new_err(format!("JWT decoding error: {e}")),
         })?;
-        Ok(Wrap(token_data.claims).try_into()?)
+        Wrap(token_data.claims).try_into()
     }
 }
 
