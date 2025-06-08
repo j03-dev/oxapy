@@ -92,7 +92,7 @@ impl HttpServer {
     /// Create instance of HttpServer
     ///
     /// Args:
-    ///     addr: Tuple (addr: String, port: int)
+    ///     addr: Tuple (ip: String, port: int)
     ///
     /// Returns: Instance of httpserver
     //
@@ -116,6 +116,7 @@ impl HttpServer {
         })
     }
 
+    // TODO: add document for this
     fn app_data(&mut self, app_data: Py<PyAny>) {
         self.app_data = Some(Arc::new(app_data))
     }
@@ -142,11 +143,12 @@ impl HttpServer {
     /// Args:
     ///     session_store: instance of SessionStore
     ///
-    /// Returns: None
+    /// Returns:
+    ///      None
     //
     /// Example:
     /// ```python
-    /// server.attach(SessionStore())
+    /// server.session_store(SessionStore())
     /// ```
     fn session_store(&mut self, session_store: SessionStore) {
         self.session_store = Some(Arc::new(session_store));
@@ -157,7 +159,8 @@ impl HttpServer {
     /// Args:
     ///     template: instance of Template
     ///
-    /// Returns: None
+    /// Returns:
+    ///     None
     //
     /// Example:
     /// ```python
@@ -169,18 +172,48 @@ impl HttpServer {
         self.template = Some(Arc::new(template))
     }
 
+    /// Setup Cors
+    ///
+    /// Args:
+    ///     cors: instace of Cors, you can modify the cors headers
+    ///
+    /// Returns:
+    ///     None
+    ///
+    /// Example:
+    /// ```python
+    /// server.cors(Cors())
+    /// ```
     fn cors(&mut self, cors: Cors) {
         self.cors = Some(Arc::new(cors));
     }
 
+    // TODO: add document for this
     fn max_connections(&mut self, max_connections: usize) {
         self.max_connections = Arc::new(Semaphore::new(max_connections));
     }
 
+    // TODO: add document for this
     fn channel_capacity(&mut self, channel_capacity: usize) {
         self.channel_capacity = channel_capacity;
     }
 
+    /// Add Catcher handler for Specific status
+    ///
+    /// Args:
+    ///     catchers -> list [Catcher]: catcher is the handler
+    ///
+    /// Returns:
+    ///     None
+    ///
+    /// Example:
+    /// ```python
+    /// @catcher(Status.NOT_FOUND)
+    /// def not_found(request, response):
+    ///     return Response("<h1> Page Not Found </h1>)
+    ///
+    /// server.catchers([not_found])
+    /// ```
     fn catchers(&mut self, catchers: Vec<PyRef<Catcher>>, py: Python<'_>) {
         let mut map = HashMap::default();
 
@@ -191,6 +224,25 @@ impl HttpServer {
         self.catchers = Some(Arc::new(map))
     }
 
+    /// Run the httpServer
+    ///
+    /// Args:
+    ///     workers -> Optional int: it's optional, tokio runtime will decide by himself the number of worker
+    ///     but you can specify it too, it's will panic if the val is not larger than 0
+    ///
+    /// Returns:
+    ///     None
+    ///
+    /// Example:
+    /// ```python
+    /// server.run()
+    ///
+    /// # but you can also
+    /// import multiprocessing
+    ///
+    /// workers = multiprocessing.cpu_count()
+    /// serve.run(workers)
+    /// ```
     #[pyo3(signature=(workers=None))]
     fn run(&self, workers: Option<usize>, py: Python<'_>) -> PyResult<()> {
         let mut runtime = tokio::runtime::Builder::new_multi_thread();

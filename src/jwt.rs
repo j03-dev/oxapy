@@ -81,12 +81,13 @@ impl Jwt {
     /// Example:
     /// ```python
     /// claims = {
-    ///     exp: u64, # second
-    ///     sub: Option<String>,
-    ///     iss: Option<String>,
-    ///     aud: Option<String>,
-    ///     nbf: Option<u64>,
+    ///     "exp": 3600,  # seconds from now
+    ///     "sub": "user123",  # subject (optional)
+    ///     "iss": "myapp",    # issuer (optional)
+    ///     "aud": "webapp",   # audience (optional)
+    ///     "nbf": 1234567890  # not before timestamp (optional)
     /// }
+    /// token = jwt.generate_token(claims)
     /// ```
     pub fn generate_token(&self, claims: Bound<'_, PyDict>) -> PyResult<String> {
         let expiration = claims
