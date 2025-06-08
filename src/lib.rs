@@ -89,6 +89,17 @@ struct HttpServer {
 
 #[pymethods]
 impl HttpServer {
+    /// Create instance of HttpServer
+    ///
+    /// Args:
+    ///     addr: Tuple (addr: String, port: int)
+    ///
+    /// Returns: Instance of httpserver
+    //
+    /// Example:
+    /// ```python
+    /// server = HttpServer(("127.0.0.1", 5555))
+    /// ```
     #[new]
     fn new(addr: (String, u16)) -> PyResult<Self> {
         let (ip, port) = addr;
@@ -109,14 +120,51 @@ impl HttpServer {
         self.app_data = Some(Arc::new(app_data))
     }
 
+    /// Attach router to the Sever
+    ///
+    /// Args:
+    ///     router: The router instance
+    ///
+    /// Returns: None
+    //
+    /// Example:
+    /// ```python
+    /// router = Router()
+    /// server.attach(router)
+    /// ```
     fn attach(&mut self, router: Router) {
         self.routers.push(Arc::new(router));
     }
 
+    /// Setup Session Store
+    /// then you can get access to the session from request if this is setup
+    ///
+    /// Args:
+    ///     session_store: instance of SessionStore
+    ///
+    /// Returns: None
+    //
+    /// Example:
+    /// ```python
+    /// server.attach(SessionStore())
+    /// ```
     fn session_store(&mut self, session_store: SessionStore) {
         self.session_store = Some(Arc::new(session_store));
     }
 
+    /// Enable Serve template file
+    ///
+    /// Args:
+    ///     template: instance of Template
+    ///
+    /// Returns: None
+    //
+    /// Example:
+    /// ```python
+    /// from oxapy import templating
+    ///
+    /// server.template(templating.Template())
+    /// ```
     fn template(&mut self, template: Template) {
         self.template = Some(Arc::new(template))
     }

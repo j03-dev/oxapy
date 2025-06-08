@@ -53,15 +53,56 @@ impl Request {
         }
     }
 
-    pub fn json(&self) -> Option<Py<PyDict>> {
-        self.body.as_ref().and_then(|data| json::loads(data).ok())
+    /// Load the body as dictionary if body is json format
+    ///
+    /// Args: None
+    ///
+    /// Returns:
+    ///     Return Dictionary: return body as dictionary from body
+    //
+    /// Raises:
+    ///     Exception: if body is not present in the request
+    ///
+    /// Example:
+    /// ```python
+    /// data = request.json()
+    /// value = data["key"]
+    /// ```
+    pub fn json(&self) -> PyResult<Py<PyDict>> {
+        let data = self
+            .body
+            .as_ref()
+            .ok_or_else(|| PyException::new_err("The body is not present"))?;
+        json::loads(data)
     }
 
+    /// Get app data from requeset
+    ///
+    /// Args: None
+    ///
+    /// Returns:
+    ///     Return: Instance of `app_data` None if there is not app data in your app
     #[getter]
     fn app_data(&self, py: Python<'_>) -> Option<Py<PyAny>> {
         self.app_data.as_ref().map(|d| d.clone_ref(py))
     }
 
+    /// Get query from request uri
+    ///
+    /// Args: None
+    ///
+    /// Returns:
+    ///     Return Dictionary: query from uri request and None if there is not query present
+    ///
+    /// Raises:
+    ///     Exception: if the uri is not in right format
+    ///
+    /// Example:
+    /// ```python
+    /// # locahost:8000/api?key=value
+    /// query = request.query()
+    /// value = query["key"]
+    /// ```
     fn query(&self) -> PyResult<Option<std::collections::HashMap<String, String>>> {
         let uri: Uri = self.uri.parse().into_py_exception()?;
         if let Some(query_string) = uri.query() {
@@ -73,6 +114,21 @@ impl Request {
         Ok(None)
     }
 
+    /// Get Session from requset
+    ///
+    /// Args: None
+    ///
+    /// Returns:
+    ///     Return: Session instance
+    ///
+    /// Raises:
+    ///     AttributeError: if session store is not configured on the app
+    ///
+    /// Example:
+    /// ```python
+    /// session = request.session()
+    /// session["is_auth"] = true
+    /// ```
     pub fn session(&self) -> PyResult<Session> {
         let message = "Session not available. Make sure you've configured SessionStore.";
         let session = self
