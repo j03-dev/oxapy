@@ -161,6 +161,9 @@ impl HttpServer {
 
     /// Set application-wide data that will be available to all request handlers.
     ///
+    /// This is the perfect place to store shared resources like database connection pools,
+    /// counters, or any other data that needs to be accessible across your application.
+    ///
     /// Args:
     ///     app_data (any): Any Python object to be stored as application data.
     ///
@@ -172,9 +175,18 @@ impl HttpServer {
     ///     class AppState:
     ///         def __init__(self):
     ///             self.counter = 0
+    ///             # You can store database connection pools here
+    ///             self.db_pool = create_database_pool()
     ///
     ///     app = HttpServer(("127.0.0.1", 5555))
     ///     app.app_data(AppState())
+    ///
+    ///     # Example of a handler that increments the counter
+    ///     @router.get("/counter")
+    ///     def increment_counter(request):
+    ///         state = request.app_data
+    ///         state.counter += 1
+    ///         return {"count": state.counter}
     ///     ```
     fn app_data(&mut self, app_data: Py<PyAny>) {
         self.app_data = Some(Arc::new(app_data))
