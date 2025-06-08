@@ -73,6 +73,48 @@ struct RequestContext {
     catchers: Option<Arc<HashMap<Status, Py<PyAny>>>>,
 }
 
+/// HTTP Server for handling web requests.
+///
+/// The HttpServer is the main entry point for creating web applications with OxAPY.
+/// It manages routers, middleware, templates, sessions, and other components.
+///
+/// Args:
+///     addr (tuple): A tuple containing the IP address and port to bind to.
+///
+/// Returns:
+///     HttpServer: A new server instance.
+///
+/// Example:
+///     ```python
+///     from oxapy import HttpServer, Router
+///
+///     # Create a server on localhost port 8000
+///     app = HttpServer(("127.0.0.1", 8000))
+///
+///     # Create a router
+///     router = Router()
+///
+///     # Define route handlers
+///     @router.get("/")
+///     def home(request):
+///         return "Hello, World!"
+///
+///     @router.get("/users/{user_id}")
+///     def get_user(request, user_id: int):
+///         return {"user_id": user_id, "name": f"User {user_id}"}
+///
+///     @router.post("/api/data")
+///     def create_data(request):
+///         # Access JSON data from the request
+///         data = request.json()
+///         return {"status": "success", "received": data}
+///
+///     # Attach the router to the server
+///     app.attach(router)
+///
+///     # Run the server
+///     app.run()
+///     ```
 #[derive(Clone)]
 #[pyclass]
 struct HttpServer {
@@ -89,17 +131,18 @@ struct HttpServer {
 
 #[pymethods]
 impl HttpServer {
-    /// Create instance of HttpServer
+    /// Create a new instance of HttpServer.
     ///
     /// Args:
-    ///     addr: Tuple (ip: String, port: int)
+    ///     addr (tuple): A tuple containing (ip_address: str, port: int)
     ///
-    /// Returns: Instance of httpserver
-    //
+    /// Returns:
+    ///     HttpServer: A new server instance ready to be configured.
+    ///
     /// Example:
-    /// ```python
-    /// server = HttpServer(("127.0.0.1", 5555))
-    /// ```
+    ///     ```python
+    ///     server = HttpServer(("127.0.0.1", 5555))
+    ///     ```
     #[new]
     fn new(addr: (String, u16)) -> PyResult<Self> {
         let (ip, port) = addr;
@@ -116,104 +159,166 @@ impl HttpServer {
         })
     }
 
-    // TODO: add document for this
+    /// Set application-wide data that will be available to all request handlers.
+    ///
+    /// Args:
+    ///     app_data (any): Any Python object to be stored as application data.
+    ///
+    /// Returns:
+    ///     None
+    ///
+    /// Example:
+    ///     ```python
+    ///     class AppState:
+    ///         def __init__(self):
+    ///             self.counter = 0
+    ///
+    ///     app = HttpServer(("127.0.0.1", 5555))
+    ///     app.app_data(AppState())
+    ///     ```
     fn app_data(&mut self, app_data: Py<PyAny>) {
         self.app_data = Some(Arc::new(app_data))
     }
 
-    /// Attach router to the Sever
+    /// Attach a router to the server.
     ///
     /// Args:
-    ///     router: The router instance
+    ///     router (Router): The router instance to attach.
     ///
-    /// Returns: None
-    //
+    /// Returns:
+    ///     None
+    ///
     /// Example:
-    /// ```python
-    /// router = Router()
-    /// server.attach(router)
-    /// ```
+    ///     ```python
+    ///     router = Router()
+    ///
+    ///     # Define a simple hello world handler
+    ///     @router.get("/")
+    ///     def hello(request):
+    ///         return "Hello, World!"
+    ///
+    ///     # Handler with path parameters
+    ///     @router.get("/users/{user_id}")
+    ///     def get_user(request, user_id: int):
+    ///         return f"User ID: {user_id}"
+    ///
+    ///     # Handler that returns JSON
+    ///     @router.get("/api/data")
+    ///     def get_data(request):
+    ///         return {"message": "Success", "data": [1, 2, 3]}
+    ///
+    ///     # Attach the router to the server
+    ///     server.attach(router)
+    ///     ```
     fn attach(&mut self, router: Router) {
         self.routers.push(Arc::new(router));
     }
 
-    /// Setup Session Store
-    /// then you can get access to the session from request if this is setup
+    /// Set up a session store for managing user sessions.
+    ///
+    /// When configured, session data will be available in request handlers.
     ///
     /// Args:
-    ///     session_store: instance of SessionStore
+    ///     session_store (SessionStore): The session store instance to use.
     ///
     /// Returns:
-    ///      None
-    //
+    ///     None
+    ///
     /// Example:
-    /// ```python
-    /// server.session_store(SessionStore())
-    /// ```
+    ///     ```python
+    ///     server.session_store(SessionStore())
+    ///     ```
     fn session_store(&mut self, session_store: SessionStore) {
         self.session_store = Some(Arc::new(session_store));
     }
 
-    /// Enable Serve template file
+    /// Enable template rendering for the server.
     ///
     /// Args:
-    ///     template: instance of Template
+    ///     template (Template): An instance of Template for rendering HTML.
     ///
     /// Returns:
     ///     None
-    //
-    /// Example:
-    /// ```python
-    /// from oxapy import templating
     ///
-    /// server.template(templating.Template())
-    /// ```
+    /// Example:
+    ///     ```python
+    ///     from oxapy import templating
+    ///
+    ///     server.template(templating.Template())
+    ///     ```
     fn template(&mut self, template: Template) {
         self.template = Some(Arc::new(template))
     }
 
-    /// Setup Cors
+    /// Set up Cross-Origin Resource Sharing (CORS) for the server.
     ///
     /// Args:
-    ///     cors: instace of Cors, you can modify the cors headers
+    ///     cors (Cors): An instance of Cors with your desired CORS configuration.
     ///
     /// Returns:
     ///     None
     ///
     /// Example:
-    /// ```python
-    /// server.cors(Cors())
-    /// ```
+    ///     ```python
+    ///     cors = Cors()
+    ///     cors.origins = ["https://example.com"]
+    ///     server.cors(cors)
+    ///     ```
     fn cors(&mut self, cors: Cors) {
         self.cors = Some(Arc::new(cors));
     }
 
-    // TODO: add document for this
-    fn max_connections(&mut self, max_connections: usize) {
-        self.max_connections = Arc::new(Semaphore::new(max_connections));
-    }
-
-    // TODO: add document for this
-    fn channel_capacity(&mut self, channel_capacity: usize) {
-        self.channel_capacity = channel_capacity;
-    }
-
-    /// Add Catcher handler for Specific status
+    /// Set the maximum number of concurrent connections the server will handle.
     ///
     /// Args:
-    ///     catchers -> list [Catcher]: catcher is the handler
+    ///     max_connections (int): Maximum number of concurrent connections.
     ///
     /// Returns:
     ///     None
     ///
     /// Example:
-    /// ```python
-    /// @catcher(Status.NOT_FOUND)
-    /// def not_found(request, response):
-    ///     return Response("<h1> Page Not Found </h1>)
+    ///     ```python
+    ///     server.max_connections(1000)
+    ///     ```
+    fn max_connections(&mut self, max_connections: usize) {
+        self.max_connections = Arc::new(Semaphore::new(max_connections));
+    }
+
+    /// Set the internal channel capacity for handling requests.
     ///
-    /// server.catchers([not_found])
-    /// ```
+    /// This is an advanced setting that controls how many pending requests
+    /// can be buffered internally.
+    ///
+    /// Args:
+    ///     channel_capacity (int): The channel capacity.
+    ///
+    /// Returns:
+    ///     None
+    ///
+    /// Example:
+    ///     ```python
+    ///     server.channel_capacity(200)
+    ///     ```
+    fn channel_capacity(&mut self, channel_capacity: usize) {
+        self.channel_capacity = channel_capacity;
+    }
+
+    /// Add status code catchers to the server.
+    ///
+    /// Args:
+    ///     catchers (list): A list of Catcher handlers for specific status codes.
+    ///
+    /// Returns:
+    ///     None
+    ///
+    /// Example:
+    ///     ```python
+    ///     @catcher(Status.NOT_FOUND)
+    ///     def not_found(request, response):
+    ///         return Response("<h1>Page Not Found</h1>", content_type="text/html")
+    ///
+    ///     server.catchers([not_found])
+    ///     ```
     fn catchers(&mut self, catchers: Vec<PyRef<Catcher>>, py: Python<'_>) {
         let mut map = HashMap::default();
 
@@ -224,25 +329,27 @@ impl HttpServer {
         self.catchers = Some(Arc::new(map))
     }
 
-    /// Run the httpServer
+    /// Run the HTTP server.
+    ///
+    /// This starts the server and blocks until interrupted (e.g., with Ctrl+C).
     ///
     /// Args:
-    ///     workers -> Optional int: it's optional, tokio runtime will decide by himself the number of worker
-    ///     but you can specify it too, it's will panic if the val is not larger than 0
+    ///     workers (int, optional): Number of worker threads to use. If not specified,
+    ///                              the Tokio runtime will decide automatically.
     ///
     /// Returns:
     ///     None
     ///
     /// Example:
-    /// ```python
-    /// server.run()
+    ///     ```python
+    ///     # Run with default number of workers
+    ///     server.run()
     ///
-    /// # but you can also
-    /// import multiprocessing
-    ///
-    /// workers = multiprocessing.cpu_count()
-    /// serve.run(workers)
-    /// ```
+    ///     # Or specify number of workers based on CPU count
+    ///     import multiprocessing
+    ///     workers = multiprocessing.cpu_count()
+    ///     server.run(workers)
+    ///     ```
     #[pyo3(signature=(workers=None))]
     fn run(&self, workers: Option<usize>, py: Python<'_>) -> PyResult<()> {
         let mut runtime = tokio::runtime::Builder::new_multi_thread();

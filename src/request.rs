@@ -19,19 +19,48 @@ use crate::{
     IntoPyException,
 };
 
+/// HTTP request object containing information about the incoming request.
+///
+/// This class provides access to request details such as method, URI, headers,
+/// body content, form data, uploaded files, and session information.
+///
+/// Args:
+///     method (str): The HTTP method of the request (GET, POST, etc.)
+///     uri (str): The URI of the request
+///     headers (dict): HTTP headers as key-value pairs
+///
+/// Returns:
+///     Request: A new request object
+///
+/// Example:
+///     ```python
+///     # Request objects are typically created by the framework and
+///     # passed to your handler functions:
+///
+///     @router.get("/hello")
+///     def handler(request):
+///         user_agent = request.headers.get("user-agent")
+///         return f"Hello from {user_agent}"
+///     ```
 #[derive(Clone, Debug, Default)]
 #[pyclass]
 pub struct Request {
+    /// The HTTP method of the request (e.g., GET, POST, PUT).
     #[pyo3(get)]
     pub method: String,
+    /// The full URI of the request including path and query string.
     #[pyo3(get)]
     pub uri: String,
+    /// HTTP headers as key-value pairs.
     #[pyo3(get)]
     pub headers: HashMap<String, String>,
+    /// The raw body content of the request as a string, if present.
     #[pyo3(get)]
     pub body: Option<String>,
+    /// Form data parsed from the request body, available when content type is application/x-www-form-urlencoded.
     #[pyo3(get)]
     pub form: Option<HashMap<String, String>>,
+    /// Files uploaded in a multipart form request, mapping field names to File objects.
     #[pyo3(get)]
     pub files: Option<HashMap<String, File>>,
     pub app_data: Option<Arc<Py<PyAny>>>,
@@ -43,6 +72,18 @@ pub struct Request {
 
 #[pymethods]
 impl Request {
+    /// Create a new Request instance.
+    ///
+    /// Note: This is primarily for internal use. Request objects are typically created
+    /// by the framework and passed to your handler functions.
+    ///
+    /// Args:
+    ///     method (str): The HTTP method of the request (GET, POST, etc.)
+    ///     uri (str): The URI of the request
+    ///     headers (dict): HTTP headers as key-value pairs
+    ///
+    /// Returns:
+    ///     Request: A new request object
     #[new]
     pub fn new(method: String, uri: String, headers: HashMap<String, String>) -> Self {
         Self {
@@ -53,21 +94,25 @@ impl Request {
         }
     }
 
-    /// Load the body as dictionary if body is json format
+    /// Parse the request body as JSON and return it as a dictionary.
     ///
-    /// Args: None
+    /// Args:
+    ///     None
     ///
     /// Returns:
-    ///     Return Dictionary: return body as dictionary from body
-    //
+    ///     dict: The parsed JSON data as a Python dictionary
+    ///
     /// Raises:
-    ///     Exception: if body is not present in the request
+    ///     Exception: If the body is not present or cannot be parsed as JSON
     ///
     /// Example:
-    /// ```python
-    /// data = request.json()
-    /// value = data["key"]
-    /// ```
+    ///     ```python
+    ///     @router.post("/api/data")
+    ///     def handle_data(request):
+    ///         data = request.json()
+    ///         value = data["key"]
+    ///         return {"received": value}
+    ///     ```
     pub fn json(&self) -> PyResult<Py<PyDict>> {
         let data = self
             .body
@@ -76,33 +121,48 @@ impl Request {
         json::loads(data)
     }
 
-    /// Get app data from requeset
+    /// Get application-wide data that was set with HttpServer.app_data().
     ///
-    /// Args: None
+    /// Args:
+    ///     None
     ///
     /// Returns:
-    ///     Return: Instance of `app_data` None if there is not app data in your app
+    ///     any: The application data object, or None if no app_data was set
+    ///
+    /// Example:
+    ///     ```python
+    ///     @router.get("/counter")
+    ///     def get_counter(request):
+    ///         app_state = request.app_data
+    ///         app_state.counter += 1
+    ///         return {"count": app_state.counter}
+    ///     ```
     #[getter]
     fn app_data(&self, py: Python<'_>) -> Option<Py<PyAny>> {
         self.app_data.as_ref().map(|d| d.clone_ref(py))
     }
 
-    /// Get query from request uri
+    /// Parse and return the query parameters from the request URI.
     ///
-    /// Args: None
+    /// Args:
+    ///     None
     ///
     /// Returns:
-    ///     Return Dictionary: query from uri request and None if there is not query present
+    ///     dict or None: Dictionary of query parameters, or None if no query string exists
     ///
     /// Raises:
-    ///     Exception: if the uri is not in right format
+    ///     Exception: If the URI cannot be parsed
     ///
     /// Example:
-    /// ```python
-    /// # locahost:8000/api?key=value
-    /// query = request.query()
-    /// value = query["key"]
-    /// ```
+    ///     ```python
+    ///     # For a request to /api?name=John&age=30
+    ///     @router.get("/api")
+    ///     def api_handler(request):
+    ///         query = request.query()
+    ///         name = query.get("name")
+    ///         age = query.get("age")
+    ///         return {"name": name, "age": age}
+    ///     ```
     fn query(&self) -> PyResult<Option<std::collections::HashMap<String, String>>> {
         let uri: Uri = self.uri.parse().into_py_exception()?;
         if let Some(query_string) = uri.query() {
@@ -114,21 +174,28 @@ impl Request {
         Ok(None)
     }
 
-    /// Get Session from requset
+    /// Get the session object for the current request.
     ///
-    /// Args: None
+    /// Use this to access or modify session data that persists across requests.
+    ///
+    /// Args:
+    ///     None
     ///
     /// Returns:
-    ///     Return: Session instance
+    ///     Session: The session instance for this request
     ///
     /// Raises:
-    ///     AttributeError: if session store is not configured on the app
+    ///     AttributeError: If session store is not configured on the server
     ///
     /// Example:
-    /// ```python
-    /// session = request.session()
-    /// session["is_auth"] = true
-    /// ```
+    ///     ```python
+    ///     @router.get("/login")
+    ///     def login(request):
+    ///         session = request.session()
+    ///         session["user_id"] = 123
+    ///         session["is_authenticated"] = True
+    ///         return "Logged in successfully"
+    ///     ```
     pub fn session(&self) -> PyResult<Session> {
         let message = "Session not available. Make sure you've configured SessionStore.";
         let session = self

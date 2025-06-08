@@ -6,6 +6,32 @@ use pyo3::{exceptions::PyValueError, prelude::*, types::PyBytes};
 
 use crate::IntoPyException;
 
+/// Represents an uploaded file in a multipart/form-data request.
+///
+/// The File class provides access to uploaded file data, including the file name,
+/// content type, and binary content. It also allows saving the file to disk.
+///
+/// Args:
+///     None (Files are created internally by the framework)
+///
+/// Returns:
+///     File: A file object containing the uploaded data.
+///
+/// Example:
+///     ```python
+///     @router.post("/upload")
+///     def upload_handler(request):
+///         if request.files:
+///             image = request.files.get("profile_image")
+///             if image:
+///                 # Access file properties
+///                 filename = image.name
+///                 content_type = image.content_type
+///                 # Save the file
+///                 image.save(f"uploads/{filename}")
+///                 return {"status": "success", "filename": filename}
+///         return {"status": "error", "message": "No file uploaded"}
+///     ```
 #[derive(Clone, Debug)]
 #[pyclass]
 pub struct File {
@@ -18,11 +44,42 @@ pub struct File {
 
 #[pymethods]
 impl File {
+    /// Get the file content as bytes.
+    ///
+    /// Args:
+    ///     None
+    ///
+    /// Returns:
+    ///     bytes: The file content as a Python bytes object.
+    ///
+    /// Example:
+    ///     ```python
+    ///     file_bytes = uploaded_file.content()
+    ///     file_size = len(file_bytes)
+    ///     ```
     fn content<'py>(&'py self, py: Python<'py>) -> Bound<'py, PyBytes> {
         let data = &self.data.to_vec()[..];
         PyBytes::new(py, data)
     }
 
+    /// Save the file content to disk.
+    ///
+    /// Args:
+    ///     path (str): The path where the file should be saved.
+    ///
+    /// Returns:
+    ///     None
+    ///
+    /// Raises:
+    ///     Exception: If the file cannot be written to disk.
+    ///
+    /// Example:
+    ///     ```python
+    ///     # Save the uploaded file
+    ///     if "profile_image" in request.files:
+    ///         image = request.files["profile_image"]
+    ///         image.save(f"uploads/{image.name}")
+    ///     ```
     fn save(&self, path: String) -> PyResult<()> {
         std::fs::write(path, &self.data)?;
         Ok(())
