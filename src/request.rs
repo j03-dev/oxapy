@@ -121,7 +121,7 @@ impl Request {
         json::loads(data)
     }
 
-    /// Get application-wide data that was set with HttpServer.app_data().
+    /// Get application-wide data that was set with HttpServer.app_data.
     ///
     /// Args:
     ///     None
