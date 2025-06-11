@@ -228,7 +228,7 @@ impl Session {
         let data = self.data.read().into_py_exception()?;
         match data.get(key) {
             Some(value) => Ok(value.clone_ref(py)),
-            None => Err(pyo3::exceptions::PyKeyError::new_err(key.to_string())),
+            _ => Err(pyo3::exceptions::PyKeyError::new_err(key.to_string())),
         }
     }
 

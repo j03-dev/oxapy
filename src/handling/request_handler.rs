@@ -1,5 +1,5 @@
-use std::mem::transmute;
 use std::sync::Arc;
+use std::{io, mem::transmute};
 
 use ahash::HashMap;
 use http_body_util::{BodyExt, Full};
@@ -61,13 +61,9 @@ fn setup_session_request(
     let headers = &request.headers;
     if let Some(ref store) = session_store {
         let session_id = extract_session_id_from_cookie(headers.get("cookie"), &store.cookie_name);
-
-        let session = store.get_session(session_id).map_err(|e| {
-            Box::new(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Failed to get session: {}", e),
-            ))
-        })?;
+        let session = store
+            .get_session(session_id)
+            .map_err(|e| Box::new(io::Error::other(format!("Failed to get session: {}", e))))?;
         request.session = Some(Arc::new(session));
         request.session_store = Some(store.clone());
     }
