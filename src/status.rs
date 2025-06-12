@@ -16,20 +16,20 @@ use crate::response::Response;
 /// - 5xx: Server error responses
 ///
 /// Example:
-///     ```python
-///     from oxapy import Status, Response
-///     
-///     # Create a not found response
-///     response = Response("Not found", status=Status.NOT_FOUND)
-///     
-///     # Check status in a handler
-///     @router.get("/resource/{id}")
-///     def get_resource(request, id):
-///         resource = find_resource(id)
-///         if resource is None:
-///             return Status.NOT_FOUND
-///         return resource
-///     ```
+/// ```python
+/// from oxapy import Status, Response
+///
+/// # Create a not found response
+/// response = Response("Not found", status=Status.NOT_FOUND)
+///
+/// # Check status in a handler
+/// @router.get("/resource/{id}")
+/// def get_resource(request, id):
+///     resource = find_resource(id)
+///     if resource is None:
+///         return Status.NOT_FOUND
+///     return resource
+/// ```
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 #[pyclass]
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
@@ -180,11 +180,11 @@ impl Status {
     ///     bool: The result of the comparison.
     ///
     /// Example:
-    ///     ```python
-    ///     # Check if a status code is a success code (2xx)
-    ///     if status >= Status.OK and status < Status.MULTIPLE_CHOICES:
-    ///         print("Success!")
-    ///     ```
+    /// ```python
+    /// # Check if a status code is a success code (2xx)
+    /// if status >= Status.OK and status < Status.MULTIPLE_CHOICES:
+    ///     print("Success!")
+    /// ```
     fn __richcmp__(
         &self,
         other: PyRef<Status>,

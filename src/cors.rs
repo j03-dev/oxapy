@@ -13,19 +13,19 @@ use pyo3::prelude::*;
 ///     Cors: A new CORS configuration with default settings.
 ///
 /// Example:
-///     ```python
-///     from oxapy import HttpServer, Cors
-///     
-///     app = HttpServer(("127.0.0.1", 8000))
-///     
-///     # Set up CORS with custom configuration
-///     cors = Cors()
-///     cors.origins = ["https://example.com", "https://app.example.com"]
-///     cors.methods = ["GET", "POST", "OPTIONS"]
-///     cors.headers = ["Content-Type", "Authorization"]
-///     
-///     app.cors(cors)
-///     ```
+/// ```python
+/// from oxapy import HttpServer, Cors
+///
+/// app = HttpServer(("127.0.0.1", 8000))
+///
+/// # Set up CORS with custom configuration
+/// cors = Cors()
+/// cors.origins = ["https://example.com", "https://app.example.com"]
+/// cors.methods = ["GET", "POST", "OPTIONS"]
+/// cors.headers = ["Content-Type", "Authorization"]
+///
+/// app.cors(cors)
+/// ```
 #[derive(Clone, Debug)]
 #[pyclass]
 pub struct Cors {
@@ -66,14 +66,14 @@ impl Cors {
     ///     Cors: A new CORS configuration with default values.
     ///
     /// Example:
-    ///     ```python
-    ///     # Create CORS with default configuration (allows all origins)
-    ///     cors = Cors()
-    ///     
-    ///     # Customize CORS settings
-    ///     cors.origins = ["https://example.com"]
-    ///     cors.allow_credentials = False
-    ///     ```
+    /// ```python
+    /// # Create CORS with default configuration (allows all origins)
+    /// cors = Cors()
+    ///
+    /// # Customize CORS settings
+    /// cors.origins = ["https://example.com"]
+    /// cors.allow_credentials = False
+    /// ```
     #[new]
     fn new() -> Self {
         Self::default()

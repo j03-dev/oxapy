@@ -11,13 +11,13 @@ use pyo3::prelude::*;
 ///     handler (callable): The handler function that will be called when this status occurs.
 ///
 /// Example:
-///     ```python
-///     from oxapy import catcher, Status
-///     
-///     @catcher(Status.NOT_FOUND)
-///     def handle_not_found(request, response):
-///         return Response("<h1>Custom 404 Page</h1>", content_type="text/html")
-///     ```
+/// ```python
+/// from oxapy import catcher, Status
+///
+/// @catcher(Status.NOT_FOUND)
+/// def handle_not_found(request, response):
+///     return Response("<h1>Custom 404 Page</h1>", content_type="text/html")
+/// ```
 #[pyclass]
 pub struct Catcher {
     pub status: Status,
@@ -61,16 +61,16 @@ impl CatcherBuilder {
 ///     CatcherBuilder: A builder that creates a Catcher when called with a handler function.
 ///
 /// Example:
-///     ```python
-///     from oxapy import catcher, Status, Response
-///     
-///     @catcher(Status.NOT_FOUND)
-///     def handle_404(request, response):
-///         return Response("<h1>Page Not Found</h1>", content_type="text/html")
-///     
-///     # Add the catcher to your server
-///     app.catchers([handle_404])
-///     ```
+/// ```python
+/// from oxapy import catcher, Status, Response
+///
+/// @catcher(Status.NOT_FOUND)
+/// def handle_404(request, response):
+///     return Response("<h1>Page Not Found</h1>", content_type="text/html")
+///
+/// # Add the catcher to your server
+/// app.catchers([handle_404])
+/// ```
 #[pyfunction]
 pub fn catcher(status: Status) -> CatcherBuilder {
     CatcherBuilder { status }

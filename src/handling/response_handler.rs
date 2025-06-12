@@ -99,14 +99,13 @@ fn process_response(
         let route = route.value;
 
         let kwargs = prepare_route_params(params, py)?;
-
-        kwargs.set_item("request", request.clone())?;
+        let request = request.clone();
 
         let result = if !router.middlewares.is_empty() {
             let chain = MiddlewareChain::new(router.middlewares.clone());
-            chain.execute(py, &route.handler.clone(), kwargs.clone())?
+            chain.execute(py, &route.handler.clone(), (request,), kwargs.clone())?
         } else {
-            route.handler.call(py, (), Some(&kwargs))?
+            route.handler.call(py, (request,), Some(&kwargs))?
         };
         convert_to_response(result, py)
     } else {

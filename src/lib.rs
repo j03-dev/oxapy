@@ -85,35 +85,35 @@ struct RequestContext {
 ///     HttpServer: A new server instance.
 ///
 /// Example:
-///     ```python
-///     from oxapy import HttpServer, Router
+/// ```python
+/// from oxapy import HttpServer, Router
 ///
-///     # Create a server on localhost port 8000
-///     app = HttpServer(("127.0.0.1", 8000))
+/// # Create a server on localhost port 8000
+/// app = HttpServer(("127.0.0.1", 8000))
 ///
-///     # Create a router
-///     router = Router()
+/// # Create a router
+/// router = Router()
 ///
-///     # Define route handlers
-///     @router.get("/")
-///     def home(request):
-///         return "Hello, World!"
+/// # Define route handlers
+/// @router.get("/")
+/// def home(request):
+///     return "Hello, World!"
 ///
-///     @router.get("/users/{user_id}")
-///     def get_user(request, user_id: int):
-///         return {"user_id": user_id, "name": f"User {user_id}"}
+/// @router.get("/users/{user_id}")
+/// def get_user(request, user_id: int):
+///     return {"user_id": user_id, "name": f"User {user_id}"}
 ///
-///     @router.post("/api/data")
-///     def create_data(request):
-///         # Access JSON data from the request
-///         data = request.json()
-///         return {"status": "success", "received": data}
+/// @router.post("/api/data")
+/// def create_data(request):
+///     # Access JSON data from the request
+///     data = request.json()
+///     return {"status": "success", "received": data}
 ///
-///     # Attach the router to the server
-///     app.attach(router)
+/// # Attach the router to the server
+/// app.attach(router)
 ///
-///     # Run the server
-///     app.run()
+/// # Run the server
+/// app.run()
 ///     ```
 #[derive(Clone)]
 #[pyclass]
@@ -140,9 +140,9 @@ impl HttpServer {
     ///     HttpServer: A new server instance ready to be configured.
     ///
     /// Example:
-    ///     ```python
-    ///     server = HttpServer(("127.0.0.1", 5555))
-    ///     ```
+    /// ```python
+    /// server = HttpServer(("127.0.0.1", 5555))
+    /// ```
     #[new]
     fn new(addr: (String, u16)) -> PyResult<Self> {
         let (ip, port) = addr;
@@ -171,23 +171,23 @@ impl HttpServer {
     ///     None
     ///
     /// Example:
-    ///     ```python
-    ///     class AppState:
-    ///         def __init__(self):
-    ///             self.counter = 0
-    ///             # You can store database connection pools here
-    ///             self.db_pool = create_database_pool()
+    /// ```python
+    /// class AppState:
+    ///     def __init__(self):
+    ///         self.counter = 0
+    ///         # You can store database connection pools here
+    ///         self.db_pool = create_database_pool()
     ///
-    ///     app = HttpServer(("127.0.0.1", 5555))
-    ///     app.app_data(AppState())
+    /// app = HttpServer(("127.0.0.1", 5555))
+    /// app.app_data(AppState())
     ///
-    ///     # Example of a handler that increments the counter
-    ///     @router.get("/counter")
-    ///     def increment_counter(request):
-    ///         state = request.app_data
-    ///         state.counter += 1
-    ///         return {"count": state.counter}
-    ///     ```
+    /// # Example of a handler that increments the counter
+    /// @router.get("/counter")
+    /// def increment_counter(request):
+    ///     state = request.app_data
+    ///     state.counter += 1
+    ///     return {"count": state.counter}
+    /// ```
     fn app_data(&mut self, app_data: Py<PyAny>) {
         self.app_data = Some(Arc::new(app_data))
     }
@@ -201,27 +201,27 @@ impl HttpServer {
     ///     None
     ///
     /// Example:
-    ///     ```python
-    ///     router = Router()
+    /// ```python
+    /// router = Router()
     ///
-    ///     # Define a simple hello world handler
-    ///     @router.get("/")
-    ///     def hello(request):
-    ///         return "Hello, World!"
+    /// # Define a simple hello world handler
+    /// @router.get("/")
+    /// def hello(request):
+    ///     return "Hello, World!"
     ///
-    ///     # Handler with path parameters
-    ///     @router.get("/users/{user_id}")
-    ///     def get_user(request, user_id: int):
-    ///         return f"User ID: {user_id}"
+    /// # Handler with path parameters
+    /// @router.get("/users/{user_id}")
+    /// def get_user(request, user_id: int):
+    ///     return f"User ID: {user_id}"
     ///
-    ///     # Handler that returns JSON
-    ///     @router.get("/api/data")
-    ///     def get_data(request):
-    ///         return {"message": "Success", "data": [1, 2, 3]}
+    /// # Handler that returns JSON
+    /// @router.get("/api/data")
+    /// def get_data(request):
+    ///     return {"message": "Success", "data": [1, 2, 3]}
     ///
-    ///     # Attach the router to the server
-    ///     server.attach(router)
-    ///     ```
+    /// # Attach the router to the server
+    /// server.attach(router)
+    /// ```
     fn attach(&mut self, router: Router) {
         self.routers.push(Arc::new(router));
     }
@@ -237,9 +237,9 @@ impl HttpServer {
     ///     None
     ///
     /// Example:
-    ///     ```python
-    ///     server.session_store(SessionStore())
-    ///     ```
+    /// ```python
+    /// server.session_store(SessionStore())
+    /// ```
     fn session_store(&mut self, session_store: SessionStore) {
         self.session_store = Some(Arc::new(session_store));
     }
@@ -253,11 +253,11 @@ impl HttpServer {
     ///     None
     ///
     /// Example:
-    ///     ```python
-    ///     from oxapy import templating
+    /// ```python
+    /// from oxapy import templating
     ///
-    ///     server.template(templating.Template())
-    ///     ```
+    /// server.template(templating.Template())
+    /// ```
     fn template(&mut self, template: Template) {
         self.template = Some(Arc::new(template))
     }
@@ -271,11 +271,11 @@ impl HttpServer {
     ///     None
     ///
     /// Example:
-    ///     ```python
-    ///     cors = Cors()
-    ///     cors.origins = ["https://example.com"]
-    ///     server.cors(cors)
-    ///     ```
+    /// ```python
+    /// cors = Cors()
+    /// cors.origins = ["https://example.com"]
+    /// server.cors(cors)
+    /// ```
     fn cors(&mut self, cors: Cors) {
         self.cors = Some(Arc::new(cors));
     }
@@ -289,9 +289,9 @@ impl HttpServer {
     ///     None
     ///
     /// Example:
-    ///     ```python
-    ///     server.max_connections(1000)
-    ///     ```
+    /// ```python
+    /// server.max_connections(1000)
+    /// ```
     fn max_connections(&mut self, max_connections: usize) {
         self.max_connections = Arc::new(Semaphore::new(max_connections));
     }
@@ -308,9 +308,9 @@ impl HttpServer {
     ///     None
     ///
     /// Example:
-    ///     ```python
-    ///     server.channel_capacity(200)
-    ///     ```
+    /// ```python
+    /// server.channel_capacity(200)
+    /// ```
     fn channel_capacity(&mut self, channel_capacity: usize) {
         self.channel_capacity = channel_capacity;
     }
@@ -324,13 +324,13 @@ impl HttpServer {
     ///     None
     ///
     /// Example:
-    ///     ```python
-    ///     @catcher(Status.NOT_FOUND)
-    ///     def not_found(request, response):
-    ///         return Response("<h1>Page Not Found</h1>", content_type="text/html")
+    /// ```python
+    /// @catcher(Status.NOT_FOUND)
+    /// def not_found(request, response):
+    ///     return Response("<h1>Page Not Found</h1>", content_type="text/html")
     ///
-    ///     server.catchers([not_found])
-    ///     ```
+    /// server.catchers([not_found])
+    /// ```
     fn catchers(&mut self, catchers: Vec<PyRef<Catcher>>, py: Python<'_>) {
         let mut map = HashMap::default();
 
@@ -353,15 +353,15 @@ impl HttpServer {
     ///     None
     ///
     /// Example:
-    ///     ```python
-    ///     # Run with default number of workers
-    ///     server.run()
+    /// ```python
+    /// # Run with default number of workers
+    /// server.run()
     ///
-    ///     # Or specify number of workers based on CPU count
-    ///     import multiprocessing
-    ///     workers = multiprocessing.cpu_count()
-    ///     server.run(workers)
-    ///     ```
+    /// # Or specify number of workers based on CPU count
+    /// import multiprocessing
+    /// workers = multiprocessing.cpu_count()
+    /// server.run(workers)
+    /// ```
     #[pyo3(signature=(workers=None))]
     fn run(&self, workers: Option<usize>, py: Python<'_>) -> PyResult<()> {
         let mut runtime = tokio::runtime::Builder::new_multi_thread();
