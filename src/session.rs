@@ -31,14 +31,14 @@ pub fn generate_session_id() -> String {
 ///     Session: A new session instance.
 ///
 /// Example:
-///     ```python
-///     # Sessions are typically accessed from the request object:
-///     @router.get("/profile")
-///     def profile(request):
-///         session = request.session()
-///         session["last_visit"] = "today"
-///         return {"user_id": session.get("user_id")}
-///     ```
+/// ```python
+/// # Sessions are typically accessed from the request object:
+/// @router.get("/profile")
+/// def profile(request):
+///     session = request.session()
+///     session["last_visit"] = "today"
+///     return {"user_id": session.get("user_id")}
+/// ```
 #[derive(Clone, Debug)]
 #[pyclass]
 pub struct Session {
@@ -62,10 +62,10 @@ impl Session {
     ///     Session: A new session instance.
     ///
     /// Example:
-    ///     ```python
-    ///     # Manual session creation (normally handled by the framework)
-    ///     session = Session()
-    ///     ```
+    /// ```python
+    /// # Manual session creation (normally handled by the framework)
+    /// session = Session()
+    /// ```
     #[new]
     fn new(id: Option<String>) -> PyResult<Self> {
         let now = SystemTime::now()
@@ -91,11 +91,11 @@ impl Session {
     ///     any: The value associated with the key, or None if the key doesn't exist.
     ///
     /// Example:
-    ///     ```python
-    ///     user_id = session.get("user_id")
-    ///     if user_id is not None:
-    ///         # User is logged in
-    ///     ```
+    /// ```python
+    /// user_id = session.get("user_id")
+    /// if user_id is not None:
+    ///     # User is logged in
+    /// ```
     fn get(&self, key: &str, py: Python<'_>) -> PyResult<PyObject> {
         *self.last_accessed.lock().into_py_exception()? = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -122,11 +122,11 @@ impl Session {
     ///     None
     ///
     /// Example:
-    ///     ```python
-    ///     # Store user information in the session
-    ///     session.set("user_id", 123)
-    ///     session.set("is_admin", False)
-    ///     ```
+    /// ```python
+    /// # Store user information in the session
+    /// session.set("user_id", 123)
+    /// session.set("is_admin", False)
+    /// ```
     fn set(&self, key: &str, value: PyObject) -> PyResult<()> {
         let mut data = self.data.write().into_py_exception()?;
         data.insert(key.to_string(), value);
@@ -143,11 +143,11 @@ impl Session {
     ///     None
     ///
     /// Example:
-    ///     ```python
-    ///     # Log user out by removing their session data
-    ///     session.remove("user_id")
-    ///     session.remove("is_admin")
-    ///     ```
+    /// ```python
+    /// # Log user out by removing their session data
+    /// session.remove("user_id")
+    /// session.remove("is_admin")
+    /// ```
     fn remove(&self, key: &str) -> PyResult<()> {
         let mut data = self.data.write().into_py_exception()?;
         if data.remove(key).is_some() {
@@ -165,10 +165,10 @@ impl Session {
     ///     None
     ///
     /// Example:
-    ///     ```python
-    ///     # Clear all session data (e.g., during logout)
-    ///     session.clear()
-    ///     ```
+    /// ```python
+    /// # Clear all session data (e.g., during logout)
+    /// session.clear()
+    /// ```
     fn clear(&self) -> PyResult<()> {
         let mut data = self.data.write().into_py_exception()?;
         if !data.is_empty() {
@@ -187,11 +187,11 @@ impl Session {
     ///     list: A list of all keys in the session.
     ///
     /// Example:
-    ///     ```python
-    ///     # Check what data is stored in the session
-    ///     for key in session.keys():
-    ///         print(f"Session contains: {key}")
-    ///     ```
+    /// ```python
+    /// # Check what data is stored in the session
+    /// for key in session.keys():
+    ///     print(f"Session contains: {key}")
+    /// ```
     fn keys(&self, py: Python<'_>) -> PyResult<PyObject> {
         let data = self.data.read().into_py_exception()?;
         let keys: Vec<String> = data.keys().cloned().collect();
@@ -283,19 +283,19 @@ impl Session {
 ///     SessionStore: A new session store instance.
 ///
 /// Example:
-///     ```python
-///     from oxapy import HttpServer, SessionStore
-///     
-///     app = HttpServer(("127.0.0.1", 8000))
-///     
-///     # Configure sessions with custom settings
-///     store = SessionStore(
-///         cookie_name="my_app_session",
-///         cookie_secure=True,
-///         expiry_seconds=3600  # 1 hour
-///     )
-///     app.session_store(store)
-///     ```
+/// ```python
+/// from oxapy import HttpServer, SessionStore
+///
+/// app = HttpServer(("127.0.0.1", 8000))
+///
+/// # Configure sessions with custom settings
+/// store = SessionStore(
+///     cookie_name="my_app_session",
+///     cookie_secure=True,
+///     expiry_seconds=3600  # 1 hour
+/// )
+/// app.session_store(store)
+/// ```
 #[derive(Clone, Debug)]
 #[pyclass]
 pub struct SessionStore {
@@ -333,17 +333,17 @@ impl SessionStore {
     ///     SessionStore: A new session store instance.
     ///
     /// Example:
-    ///     ```python
-    ///     # Create a session store with default settings
-    ///     store = SessionStore()
-    ///     
-    ///     # Create a session store with custom settings
-    ///     secure_store = SessionStore(
-    ///         cookie_name="secure_session",
-    ///         cookie_secure=True,
-    ///         cookie_same_site="Strict"
-    ///     )
-    ///     ```
+    /// ```python
+    /// # Create a session store with default settings
+    /// store = SessionStore()
+    ///
+    /// # Create a session store with custom settings
+    /// secure_store = SessionStore(
+    ///     cookie_name="secure_session",
+    ///     cookie_secure=True,
+    ///     cookie_same_site="Strict"
+    /// )
+    /// ```
     #[new]
     #[pyo3(signature = (
         cookie_name = "session".to_string(),
@@ -415,10 +415,10 @@ impl SessionStore {
     ///     bool: True if the session was found and removed, False otherwise.
     ///
     /// Example:
-    ///     ```python
-    ///     # Clear a specific session
-    ///     session_store.clear_session("abcd1234")
-    ///     ```
+    /// ```python
+    /// # Clear a specific session
+    /// session_store.clear_session("abcd1234")
+    /// ```
     fn clear_session(&self, session_id: &str) -> PyResult<bool> {
         let mut sessions = self.sessions.write().into_py_exception()?;
         Ok(sessions.remove(session_id).is_some())
@@ -433,11 +433,11 @@ impl SessionStore {
     ///     int: The number of active sessions in the store.
     ///
     /// Example:
-    ///     ```python
-    ///     # Check how many active sessions exist
-    ///     count = session_store.session_count()
-    ///     print(f"Active sessions: {count}")
-    ///     ```
+    /// ```python
+    /// # Check how many active sessions exist
+    /// count = session_store.session_count()
+    /// print(f"Active sessions: {count}")
+    /// ```
     fn session_count(&self) -> PyResult<usize> {
         let sessions = self.sessions.read().into_py_exception()?;
         Ok(sessions.len())

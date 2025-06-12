@@ -26,18 +26,18 @@ mod tera;
 ///     PyException: If an invalid engine type is specified.
 ///
 /// Example:
-///     ```python
-///     from oxapy import HttpServer
-///     from oxapy.templating import Template
+/// ```python
+/// from oxapy import HttpServer
+/// from oxapy.templating import Template
 ///
-///     app = HttpServer(("127.0.0.1", 8000))
+/// app = HttpServer(("127.0.0.1", 8000))
 ///
-///     # Configure templates with default settings (Jinja)
-///     app.template(Template())
+/// # Configure templates with default settings (Jinja)
+/// app.template(Template())
 ///
-///     # Or use Tera with custom template directory
-///     app.template(Template("./views/**/*.html", "tera"))
-///     ```
+/// # Or use Tera with custom template directory
+/// app.template(Template("./views/**/*.html", "tera"))
+/// ```
 #[derive(Clone, Debug)]
 #[pyclass]
 pub enum Template {
@@ -60,13 +60,13 @@ impl Template {
     ///     PyException: If an invalid engine type is specified.
     ///
     /// Example:
-    ///     ```python
-    ///     # Use Jinja with default template directory
-    ///     template = Template()
+    /// ```python
+    /// # Use Jinja with default template directory
+    /// template = Template()
     ///
-    ///     # Use Tera with custom template directory
-    ///     template = Template("./views/**/*.html", "tera")
-    ///     ```
+    /// # Use Tera with custom template directory
+    /// template = Template("./views/**/*.html", "tera")
+    /// ```
     #[new]
     #[pyo3(signature=(dir="./templates/**/*.html", engine="jinja"))]
     fn new(dir: &str, engine: &str) -> PyResult<Template> {
@@ -98,16 +98,16 @@ impl Template {
 ///     PyValueError: If no template engine is configured for the request.
 ///
 /// Example:
-///     ```python
-///     from oxapy import Router
-///     from oxapy import templating
+/// ```python
+/// from oxapy import Router
+/// from oxapy import templating
 ///
-///     router = Router()
+/// router = Router()
 ///
-///     @router.get("/")
-///     def index(request):
-///         return templating.render(request, "index.html", {"title": "Home Page"})
-///     ```
+/// @router.get("/")
+/// def index(request):
+///     return templating.render(request, "index.html", {"title": "Home Page"})
+/// ```
 #[pyfunction]
 #[pyo3(signature=(request, name, context=None))]
 fn render(

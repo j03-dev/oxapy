@@ -33,15 +33,15 @@ use crate::{
 ///     Request: A new request object
 ///
 /// Example:
-///     ```python
-///     # Request objects are typically created by the framework and
-///     # passed to your handler functions:
+/// ```python
+/// # Request objects are typically created by the framework and
+/// # passed to your handler functions:
 ///
-///     @router.get("/hello")
-///     def handler(request):
-///         user_agent = request.headers.get("user-agent")
-///         return f"Hello from {user_agent}"
-///     ```
+/// @router.get("/hello")
+/// def handler(request):
+///     user_agent = request.headers.get("user-agent")
+///     return f"Hello from {user_agent}"
+/// ```
 #[derive(Clone, Debug, Default)]
 #[pyclass]
 pub struct Request {
@@ -106,13 +106,13 @@ impl Request {
     ///     Exception: If the body is not present or cannot be parsed as JSON
     ///
     /// Example:
-    ///     ```python
-    ///     @router.post("/api/data")
-    ///     def handle_data(request):
-    ///         data = request.json()
-    ///         value = data["key"]
-    ///         return {"received": value}
-    ///     ```
+    /// ```python
+    /// @router.post("/api/data")
+    /// def handle_data(request):
+    ///     data = request.json()
+    ///     value = data["key"]
+    ///     return {"received": value}
+    /// ```
     pub fn json(&self) -> PyResult<Py<PyDict>> {
         let data = self
             .body
@@ -130,13 +130,13 @@ impl Request {
     ///     any: The application data object, or None if no app_data was set
     ///
     /// Example:
-    ///     ```python
-    ///     @router.get("/counter")
-    ///     def get_counter(request):
-    ///         app_state = request.app_data
-    ///         app_state.counter += 1
-    ///         return {"count": app_state.counter}
-    ///     ```
+    /// ```python
+    /// @router.get("/counter")
+    /// def get_counter(request):
+    ///     app_state = request.app_data
+    ///     app_state.counter += 1
+    ///     return {"count": app_state.counter}
+    /// ```
     #[getter]
     fn app_data(&self, py: Python<'_>) -> Option<Py<PyAny>> {
         self.app_data.as_ref().map(|d| d.clone_ref(py))
@@ -154,15 +154,15 @@ impl Request {
     ///     Exception: If the URI cannot be parsed
     ///
     /// Example:
-    ///     ```python
-    ///     # For a request to /api?name=John&age=30
-    ///     @router.get("/api")
-    ///     def api_handler(request):
-    ///         query = request.query()
-    ///         name = query.get("name")
-    ///         age = query.get("age")
-    ///         return {"name": name, "age": age}
-    ///     ```
+    /// ```python
+    /// # For a request to /api?name=John&age=30
+    /// @router.get("/api")
+    /// def api_handler(request):
+    ///     query = request.query()
+    ///     name = query.get("name")
+    ///     age = query.get("age")
+    ///     return {"name": name, "age": age}
+    /// ```
     fn query(&self) -> PyResult<Option<std::collections::HashMap<String, String>>> {
         let uri: Uri = self.uri.parse().into_py_exception()?;
         if let Some(query_string) = uri.query() {
@@ -188,14 +188,14 @@ impl Request {
     ///     AttributeError: If session store is not configured on the server
     ///
     /// Example:
-    ///     ```python
-    ///     @router.get("/login")
-    ///     def login(request):
-    ///         session = request.session()
-    ///         session["user_id"] = 123
-    ///         session["is_authenticated"] = True
-    ///         return "Logged in successfully"
-    ///     ```
+    /// ```python
+    /// @router.get("/login")
+    /// def login(request):
+    ///     session = request.session()
+    ///     session["user_id"] = 123
+    ///     session["is_authenticated"] = True
+    ///     return "Logged in successfully"
+    /// ```
     pub fn session(&self) -> PyResult<Session> {
         let message = "Session not available. Make sure you've configured SessionStore.";
         let session = self

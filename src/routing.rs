@@ -20,15 +20,15 @@ pub type MatchRoute<'l> = matchit::Match<'l, 'l, &'l Route>;
 ///     Route: A route object that can be registered with a router.
 ///
 /// Example:
-///     ```python
-///     from oxapy import Route
+/// ```python
+/// from oxapy import Route
 ///
-///     def handler(request):
-///         return "Hello, World!"
+/// def handler(request):
+///     return "Hello, World!"
 ///
-///     route = Route("/hello", "GET")
-///     route = route(handler)  # Attach the handler
-///     ```
+/// route = Route("/hello", "GET")
+/// route = route(handler)  # Attach the handler
+/// ```
 #[derive(Clone, Debug)]
 #[pyclass]
 pub struct Route {
@@ -72,8 +72,14 @@ impl Route {
 }
 
 macro_rules! method_decorator {
-    ($($method:ident),*) => {
+    (
         $(
+             $(#[$docs:meta])*
+             $method:ident;
+        )*
+    ) => {
+        $(
+            $(#[$docs])*
             #[pyfunction]
             #[pyo3(signature = (path, handler = None))]
             pub fn $method(path: String, handler: Option<Py<PyAny>>, py: Python<'_>) -> Route {
@@ -87,7 +93,112 @@ macro_rules! method_decorator {
     };
 }
 
-method_decorator!(get, post, put, patch, delete, head, options);
+method_decorator!(
+    /// Registers an HTTP GET route.
+    ///
+    /// Parameters:
+    ///     path (str): The route path, which may include parameters (e.g. `/items/{id}`).
+    ///     handler (callable | None): Optional Python function that handles the request.
+    ///
+    /// Returns:
+    ///     Route: A GET Route instance.
+    ///
+    /// Example:
+    /// ```python
+    /// get("/hello/{name}", lambda req, name: f"Hello, {name}!")
+    /// ```
+    get;
+
+    /// Registers an HTTP POST route.
+    ///
+    /// Parameters:
+    ///     path (str): The POST route path.
+    ///     handler (callable | None): Optional Python function that handles the request.
+    ///
+    /// Returns:
+    ///     Route: A POST Route instance.
+    ///
+    /// Example:
+    /// ```python
+    /// post("/users", lambda req: {"id": 1, "name": req.json()["name"]})
+    /// ```
+    post;
+
+    /// Registers an HTTP DELETE route.
+    ///
+    /// Parameters:
+    ///     path (str): The DELETE route path.
+    ///     handler (callable | None): Optional Python function that handles the request.
+    ///
+    /// Returns:
+    ///     Route: A DELETE Route instance.
+    ///
+    /// Example:
+    /// ```python
+    /// delete("/items/{id}", lambda req, id: f"Deleted {id}")
+    /// ```
+    delete;
+
+    /// Registers an HTTP PATCH route.
+    ///
+    /// Parameters:
+    ///     path (str): The PATCH route path.
+    ///     handler (callable | None): Optional Python function for partial updates.
+    ///
+    /// Returns:
+    ///     Route: A PATCH Route instance.
+    ///
+    /// Example:
+    /// ```python
+    /// patch("/users/{id}", lambda req, id: req.json())
+    /// ```
+    patch;
+
+    /// Registers an HTTP PUT route.
+    ///
+    /// Parameters:
+    ///     path (str): The PUT route path.
+    ///     handler (callable | None): Optional Python function for full replacement.
+    ///
+    /// Returns:
+    ///     Route: A PUT Route instance.
+    ///
+    /// Example:
+    /// ```python
+    /// put("/users/{id}", lambda req, id: req.json())
+    /// ```
+    put;
+
+    /// Registers an HTTP HEAD route.
+    ///
+    /// Parameters:
+    ///     path (str): The HEAD route path.
+    ///     handler (callable | None): Optional function for returning headers only.
+    ///
+    /// Returns:
+    ///     Route: A HEAD Route instance.
+    ///
+    /// Example:
+    /// ```python
+    /// head("/status", lambda req: None)
+    /// ```
+    head;
+
+    /// Registers an HTTP OPTIONS route.
+    ///
+    /// Parameters:
+    ///     path (str): The OPTIONS route path.
+    ///     handler (callable | None): Optional handler that returns allowed methods.
+    ///
+    /// Returns:
+    ///     Route: An OPTIONS Route instance.
+    ///
+    /// Example:
+    /// ```python
+    /// options("/users", lambda req: {"Allow": "GET, POST"})
+    /// ```
+    options;
+);
 
 #[derive(Clone)]
 #[pyclass]
@@ -121,15 +232,15 @@ impl RouteBuilder {
 ///     Router: A new router instance.
 ///
 /// Example:
-///     ```python
-///     from oxapy import Router, get
+/// ```python
+/// from oxapy import Router, get
 ///
-///     router = Router()
+/// router = Router()
 ///
-///     @router.get("/hello/{name}")
-///     def hello(request, name):
-///         return f"Hello, {name}!"
-///     ```
+/// @router.get("/hello/{name}")
+/// def hello(request, name):
+///     return f"Hello, {name}!"
+/// ```
 #[derive(Default, Clone, Debug)]
 #[pyclass]
 pub struct Router {
@@ -138,7 +249,12 @@ pub struct Router {
 }
 
 macro_rules! impl_router {
-    ($($method:ident),*) => {
+    (
+        $(
+             $(#[$docs:meta])*
+             $method:ident;
+        )*
+    ) => {
         #[pymethods]
         impl Router {
             /// Create a new Router instance.
@@ -147,9 +263,9 @@ macro_rules! impl_router {
             ///     Router: A new router with no routes or middleware.
             ///
             /// Example:
-            ///     ```python
-            ///     router = Router()
-            ///     ```
+            /// ```python
+            /// router = Router()
+            /// ```
             #[new]
             pub fn new() -> Self {
                 Router::default()
@@ -167,14 +283,14 @@ macro_rules! impl_router {
             ///     None
             ///
             /// Example:
-            ///     ```python
-            ///     def auth_middleware(request, next, **kwargs):
-            ///         if "authorization" not in request.headers:
-            ///             return Status.UNAUTHORIZED
-            ///         return next(request, **kwargs)
+            /// ```python
+            /// def auth_middleware(request, next, **kwargs):
+            ///     if "authorization" not in request.headers:
+            ///         return Status.UNAUTHORIZED
+            ///     return next(request, **kwargs)
             ///
-            ///     router.middleware(auth_middleware)
-            ///     ```
+            /// router.middleware(auth_middleware)
+            /// ```
             fn middleware(&mut self, middleware: Py<PyAny>) {
                 let middleware = Middleware::new(middleware);
                 self.middlewares.push(middleware);
@@ -192,15 +308,15 @@ macro_rules! impl_router {
             ///     Exception: If the route cannot be added.
             ///
             /// Example:
-            ///     ```python
-            ///     from oxapy import get
+            /// ```python
+            /// from oxapy import get
             ///
-            ///     def hello_handler(request):
-            ///         return "Hello World!"
+            /// def hello_handler(request):
+            ///     return "Hello World!"
             ///
-            ///     route = get("/hello", hello_handler)
-            ///     router.route(route)
-            ///     ```
+            /// route = get("/hello", hello_handler)
+            /// router.route(route)
+            /// ```
             fn route(&mut self, route: &Route) -> PyResult<()> {
                 let mut ptr_mr = self.routes.write().unwrap();
                 let method_router = ptr_mr.entry(route.method.clone()).or_default();
@@ -222,21 +338,21 @@ macro_rules! impl_router {
             ///     Exception: If any route cannot be added.
             ///
             /// Example:
-            ///     ```python
-            ///     from oxapy import get, post
+            /// ```python
+            /// from oxapy import get, post
             ///
-            ///     def hello_handler(request):
-            ///         return "Hello World!"
+            /// def hello_handler(request):
+            ///     return "Hello World!"
             ///
-            ///     def submit_handler(request):
-            ///         return "Form submitted!"
+            /// def submit_handler(request):
+            ///     return "Form submitted!"
             ///
-            ///     routes = [
-            ///         get("/hello", hello_handler),
-            ///         post("/submit", submit_handler)
-            ///     ]
-            ///     router.routes(routes)
-            ///     ```
+            /// routes = [
+            ///     get("/hello", hello_handler),
+            ///     post("/submit", submit_handler)
+            /// ]
+            /// router.routes(routes)
+            /// ```
             fn routes(&mut self, routes: Vec<Route>) -> PyResult<()> {
                 for ref route in routes {
                     self.route(route)?;
@@ -244,15 +360,16 @@ macro_rules! impl_router {
                 Ok(())
             }
 
-        $(
-            fn $method(&self, path: String) -> PyResult<RouteBuilder> {
-                Ok(RouteBuilder {
-                    method: stringify!($method).to_string().to_uppercase(),
-                    router: self.clone(),
-                    path,
-                })
-            }
-        )+
+            $(
+                $(#[$docs])*
+                fn $method(&self, path: String) -> PyResult<RouteBuilder> {
+                    Ok(RouteBuilder {
+                        method: stringify!($method).to_string().to_uppercase(),
+                        router: self.clone(),
+                        path,
+                    })
+                }
+            )+
 
             fn __repr__(&self) -> String {
                 format!("{:#?}", self)
@@ -261,7 +378,77 @@ macro_rules! impl_router {
     };
 }
 
-impl_router!(get, post, put, patch, delete, head, options);
+impl_router!(
+    /// Register a GET route using the decorator `@router.get(path)`.
+    ///
+    /// Example:
+    /// ```python
+    /// @router.get("/hello")
+    /// def hello(request):
+    ///     return "Hello, world!"
+    /// ```
+    get;
+
+    /// Register a POST route using the decorator `@router.post(path)`.
+    ///
+    /// Example:
+    /// ```python
+    /// @router.post("/submit")
+    /// def submit(request):
+    ///     return "Submitted!"
+    /// ```
+    post;
+
+    /// Register a PUT route using the decorator `@router.put(path)`.
+    ///
+    /// Example:
+    /// ```python
+    /// @router.put("/items/{id}")
+    /// def update_item(request, id):
+    ///     return f"Updated item {id}"
+    /// ```
+    put;
+
+    /// Register a PATCH route using the decorator `@router.patch(path)`.
+    ///
+    /// Example:
+    /// ```python
+    /// @router.patch("/items/{id}")
+    /// def patch_item(request, id):
+    ///     return f"Patched item {id}"
+    /// ```
+    patch;
+
+    /// Register a DELETE route using the decorator `@router.delete(path)`.
+    ///
+    /// Example:
+    /// ```python
+    /// @router.delete("/items/{id}")
+    /// def delete_item(request, id):
+    ///     return f"Deleted item {id}"
+    /// ```
+    delete;
+
+    /// Register a HEAD route using the decorator `@router.head(path)`.
+    ///
+    /// Example:
+    /// ```python
+    /// @router.head("/ping")
+    /// def head_ping(request):
+    ///     return ""
+    /// ```
+    head;
+
+    /// Register an OPTIONS route using the decorator `@router.options(path)`.
+    ///
+    /// Example:
+    /// ```python
+    /// @router.options("/data")
+    /// def options_data(request):
+    ///     return "OPTIONS OK"
+    /// ```
+    options;
+);
 
 impl Router {
     pub(crate) fn find<'l>(&'l self, method: &str, uri: &'l str) -> Option<MatchRoute<'l>> {
@@ -284,13 +471,13 @@ impl Router {
 ///     Route: A route configured to serve static files.
 ///
 /// Example:
-///     ```python
-///     from oxapy import Router, static_file
+/// ```python
+/// from oxapy import Router, static_file
 ///
-///     router = Router()
-///     router.route(static_file("./static", "static"))
-///     # This will serve files from ./static directory at /static URL path
-///     ```
+/// router = Router()
+/// router.route(static_file("./static", "static"))
+/// # This will serve files from ./static directory at /static URL path
+/// ```
 #[pyfunction]
 pub fn static_file(directory: String, path: String, py: Python<'_>) -> PyResult<Route> {
     let pathlib = py.import("pathlib")?;
