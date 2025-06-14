@@ -21,7 +21,7 @@
 </p>
 
 <p>
-  <img src="https://bench-n9zz.onrender.com/bench"/>
+  <a href="https://github.com/j03-dev/bench"><img src="https://bench-n9zz.onrender.com/bench"/></a>
 </p>
 </div>
 
