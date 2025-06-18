@@ -11,7 +11,7 @@ use once_cell::sync::Lazy;
 
 use std::{collections::HashMap, sync::Mutex};
 
-use crate::{request::Request, IntoPyException};
+use crate::{json, IntoPyException};
 
 use fields::{
     BooleanField, CharField, DateField, DateTimeField, EmailField, EnumField, Field, IntegerField,
@@ -35,33 +35,38 @@ struct Serializer {
     #[pyo3(get, set)]
     validate_data: Option<Py<PyDict>>,
     #[pyo3(get, set)]
-    request: Option<Request>,
+    raw_data: Option<String>,
+    #[pyo3(get, set)]
+    context: Option<Py<PyDict>>,
 }
 
 #[pymethods]
 impl Serializer {
     #[new]
     #[pyo3(signature = (
-        request = None,
+        data = None,
         instance = None,
         required = true,
         many = false,
         title = None,
-        description = None
+        description = None,
+        context = None
     ))]
     fn new(
-        request: Option<Request>,
+        data: Option<String>,
         instance: Option<Py<PyAny>>,
         required: Option<bool>,
         many: Option<bool>,
         title: Option<String>,
         description: Option<String>,
+        context: Option<Py<PyDict>>,
     ) -> (Self, Field) {
         (
             Self {
                 validate_data: None,
+                raw_data: data,
                 instance,
-                request,
+                context,
             },
             Field {
                 required,
@@ -76,18 +81,16 @@ impl Serializer {
 
     fn schema(slf: Bound<'_, Self>) -> PyResult<Py<PyDict>> {
         let schema_value = Self::json_schema_value(&slf.get_type())?;
-        crate::json::loads(&schema_value.to_string())
+        json::loads(&schema_value.to_string())
     }
 
     fn is_valid(slf: &Bound<'_, Self>) -> PyResult<()> {
-        let request: Request = slf.getattr("request")?.extract()?;
+        let raw_data = slf
+            .getattr("raw_data")?
+            .extract::<Option<String>>()?
+            .ok_or_else(|| PyValueError::new_err("data is empty"))?;
 
-        let json_string: String = request
-            .body
-            .clone()
-            .ok_or_else(|| PyValueError::new_err("Request body is empty"))?;
-
-        let attr = crate::json::loads(&json_string)?;
+        let attr = json::loads(&raw_data)?;
 
         let validated_data: Option<Bound<PyDict>> =
             slf.call_method1("validate", (attr,))?.extract()?;
@@ -97,7 +100,7 @@ impl Serializer {
     }
 
     fn validate<'a>(slf: Bound<'a, Self>, attr: Bound<'a, PyDict>) -> PyResult<Bound<'a, PyDict>> {
-        let data = crate::json::dumps(&attr.clone().into())?;
+        let data = json::dumps(&attr.clone().into())?;
         let json_value: Value = serde_json::from_str(&data).into_py_exception()?;
 
         let schema_value = Self::json_schema_value(&slf.get_type())?;

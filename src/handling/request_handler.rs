@@ -111,7 +111,7 @@ async fn convert_hyper_request_to_oxapy_request(
     request = setup_mutltpart_request(request, body_bytes).await?;
 
     if !body.is_empty() {
-        request.body = Some(body);
+        request.data = Some(body);
     }
 
     request.app_data = app_data;

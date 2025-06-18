@@ -54,9 +54,9 @@ pub struct Request {
     /// HTTP headers as key-value pairs.
     #[pyo3(get)]
     pub headers: HashMap<String, String>,
-    /// The raw body content of the request as a string, if present.
+    /// The raw data content of the request as a string, if present.
     #[pyo3(get)]
-    pub body: Option<String>,
+    pub data: Option<String>,
     /// Form data parsed from the request body, available when content type is application/x-www-form-urlencoded.
     #[pyo3(get)]
     pub form: Option<HashMap<String, String>>,
@@ -115,7 +115,7 @@ impl Request {
     /// ```
     pub fn json(&self) -> PyResult<Py<PyDict>> {
         let data = self
-            .body
+            .data
             .as_ref()
             .ok_or_else(|| PyException::new_err("The body is not present"))?;
         json::loads(data)
