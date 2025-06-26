@@ -100,8 +100,7 @@ impl Serializer {
     }
 
     fn validate<'a>(slf: Bound<'a, Self>, attr: Bound<'a, PyDict>) -> PyResult<Bound<'a, PyDict>> {
-        let data = json::dumps(&attr.clone().into())?;
-        let json_value: Value = serde_json::from_str(&data).into_py_exception()?;
+        let json::Wrap(json_value) = attr.clone().try_into()?;
 
         let schema_value = Self::json_schema_value(&slf.get_type())?;
 
