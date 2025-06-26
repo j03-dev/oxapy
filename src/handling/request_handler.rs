@@ -24,9 +24,12 @@ fn convert_oxapy_response_to_hyper_response(
     response: Response,
 ) -> Result<HyperResponse<Full<Bytes>>, hyper::http::Error> {
     let mut response_builder = HyperResponse::builder().status(response.status as u16);
-    for (key, value) in response.headers {
-        response_builder = response_builder.header(key, value);
-    }
+
+    response_builder
+        .headers_mut()
+        .unwrap()
+        .extend(response.headers);
+
     response_builder.body(Full::new(response.body))
 }
 

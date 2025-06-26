@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use hyper::body::Bytes;
+use hyper::{body::Bytes, header::CONTENT_TYPE, HeaderMap};
 use pyo3::{basic::CompareOp, prelude::*, IntoPyObjectExt};
 
 use crate::response::Response;
@@ -207,9 +205,11 @@ impl Status {
 
 impl From<Status> for Response {
     fn from(val: Status) -> Self {
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, "text/plain".parse().unwrap());
         Response {
             status: val,
-            headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
+            headers,
             body: Bytes::new(),
         }
     }

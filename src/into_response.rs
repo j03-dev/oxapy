@@ -1,13 +1,15 @@
-use std::collections::HashMap;
+use hyper::{header::CONTENT_TYPE, HeaderMap};
 
 use crate::{json, status::Status, Response};
 use pyo3::{prelude::*, types::PyAny, Py};
 
 impl From<String> for Response {
     fn from(val: String) -> Self {
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, "text/plain".parse().unwrap());
         Response {
             status: Status::OK,
-            headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
+            headers,
             body: val.clone().into(),
         }
     }
@@ -15,9 +17,11 @@ impl From<String> for Response {
 
 impl From<PyObject> for Response {
     fn from(val: PyObject) -> Self {
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
         Response {
             status: Status::OK,
-            headers: HashMap::from([("Content-Type".to_string(), "application/json".to_string())]),
+            headers,
             body: json::dumps(&val).unwrap().into(),
         }
     }
@@ -25,9 +29,11 @@ impl From<PyObject> for Response {
 
 impl From<(String, Status)> for Response {
     fn from(val: (String, Status)) -> Self {
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, "text/plain".parse().unwrap());
         Response {
             status: val.1,
-            headers: HashMap::from([("Content-Type".to_string(), "text/plain".to_string())]),
+            headers,
             body: val.0.clone().into(),
         }
     }
@@ -35,9 +41,11 @@ impl From<(String, Status)> for Response {
 
 impl From<(PyObject, Status)> for Response {
     fn from(val: (PyObject, Status)) -> Self {
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
         Response {
             status: val.1,
-            headers: HashMap::from([("Content-Type".to_string(), "application/json".to_string())]),
+            headers,
             body: json::dumps(&val.0).unwrap().into(),
         }
     }

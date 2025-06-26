@@ -1,3 +1,4 @@
+use hyper::{header::CONTENT_TYPE, HeaderMap};
 use pyo3::{
     exceptions::{PyException, PyValueError},
     prelude::*,
@@ -125,10 +126,12 @@ fn render(
         Template::Tera(engine) => engine.render(name, context)?,
     };
 
+    let mut headers = HeaderMap::new();
+    headers.insert(CONTENT_TYPE, "text/html".parse().unwrap());
     Ok(Response {
         status: Status::OK,
         body: body.into(),
-        headers: [("Content-Type".to_string(), "text/html".to_string())].into(),
+        headers,
     })
 }
 
