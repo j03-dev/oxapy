@@ -114,20 +114,18 @@ impl Response {
     /// response = Response("Hello")
     /// response.insert_header("Cache-Control", "no-cache")
     /// ```
-    pub fn insert_header(&mut self, key: &str, value: String) -> Self {
+    pub fn insert_header(&mut self, key: &str, value: String) {
         self.headers.insert(
             HeaderName::from_bytes(key.as_bytes()).unwrap(),
             value.parse().unwrap(),
         );
-        self.clone()
     }
 
-    pub fn append_header(&mut self, key: &str, value: String) -> Self {
+    pub fn append_header(&mut self, key: &str, value: String) {
         self.headers.append(
             HeaderName::from_bytes(key.as_bytes()).unwrap(),
             value.parse().unwrap(),
         );
-        self.clone()
     }
 }
 
