@@ -100,6 +100,31 @@ impl Response {
         Ok(str::from_utf8(&self.body).into_py_exception()?.to_string())
     }
 
+    /// Get the response headers as a list of key-value tuples.
+    ///
+    /// Returns:
+    ///
+    ///     list[tuple[str, str]]: The list of headers in the response.
+    ///
+    /// Raises:
+    ///
+    ///     Exception: If a header value cannot be converted to a valid UTF-8 string.
+    ///
+    /// Example:
+    /// ```python
+    /// response = Response("Hello")
+    /// headers = response.headers
+    /// for name, value in headers:
+    ///     print(f"{name}: {value}")
+    /// ```
+    #[getter]
+    fn headers(&self) -> Vec<(&str, &str)> {
+        self.headers
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.to_str().unwrap()))
+            .collect()
+    }
+
     /// Add or update a header in the response.
     ///
     /// Args:
@@ -121,6 +146,25 @@ impl Response {
         );
     }
 
+    /// Append a header to the response.
+    ///
+    /// This is useful for headers that can appear multiple times, such as `Set-Cookie`.
+    ///
+    /// Args:
+    ///
+    ///     key (str): The header name.
+    ///     value (str): The header value.
+    ///
+    /// Returns:
+    ///
+    ///     None
+    ///
+    /// Example:
+    /// ```python
+    /// response = Response("Hello")
+    /// response.append_header("Set-Cookie", "sessionid=abc123")
+    /// response.append_header("Set-Cookie", "theme=dark")
+    /// ```
     pub fn append_header(&mut self, key: &str, value: String) {
         self.headers.append(
             HeaderName::from_bytes(key.as_bytes()).unwrap(),

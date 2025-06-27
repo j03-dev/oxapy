@@ -46,7 +46,6 @@ pub async fn handle_response(
                 if let (Some(session), Some(store)) =
                 (&process_request.request.session, &process_request.request.session_store)
                 {
-                    // FIXME: allow user set cookie too
                     let cookie_header = store.get_cookie_header(session);
                     response.insert_or_append_cookie(cookie_header);
                 }

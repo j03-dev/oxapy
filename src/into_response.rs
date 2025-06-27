@@ -66,7 +66,7 @@ macro_rules! to_response {
     ($rslt:expr, $py:expr, $($type:ty),*) => {{
         $(
             if let Ok(value) = $rslt.extract::<$type>($py) {
-                return Ok(value.try_into().into_py_exception()?);
+                return value.try_into().into_py_exception();
             }
         )*
 
