@@ -1,4 +1,4 @@
-from oxapy import serializer, SessionStore, jwt  # type: ignore
+from oxapy import serializer, SessionStore, Response, jwt  # type: ignore
 import pytest  # type: ignore
 
 
@@ -81,3 +81,15 @@ def test_jwt_generate_and_verify():
     token = jsonwebtoken.generate_token({"exp": 60, "sub": "test@gmail.com"})
     claims = jsonwebtoken.verify_token(token)
     assert claims["sub"] == "test@gmail.com"
+
+
+def test_mult_cookie():
+    response = Response("test")
+    response.insert_header("Set-Cookie", "userId=abcd123;Path=/")
+    response.append_header("Set-Cookie", "theme=dark;Path=/")
+
+    assert response.headers == [
+        ("content-type", "application/json"),
+        ("set-cookie", "userId=abcd123;Path=/"),
+        ("set-cookie", "theme=dark;Path=/"),
+    ]
