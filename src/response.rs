@@ -162,7 +162,7 @@ impl Response {
     /// Example:
     /// ```python
     /// response = Response("Hello")
-    /// response.append_header("Set-Cookie", "sessionid=abc123")
+    /// response.insert_header("Set-Cookie", "sessionid=abc123")
     /// response.append_header("Set-Cookie", "theme=dark")
     /// ```
     pub fn append_header(&mut self, key: &str, value: String) {

@@ -1,6 +1,6 @@
 use pyo3::{
     create_exception,
-    exceptions::{PyException, PyValueError},
+    exceptions::PyException,
     prelude::*,
     types::{PyDict, PyList, PyType},
     IntoPyObjectExt,
@@ -88,7 +88,7 @@ impl Serializer {
         let raw_data = slf
             .getattr("raw_data")?
             .extract::<Option<String>>()?
-            .ok_or_else(|| PyValueError::new_err("data is empty"))?;
+            .ok_or_else(|| ValidationException::new_err("data is empty"))?;
 
         let attr = json::loads(&raw_data)?;
 
