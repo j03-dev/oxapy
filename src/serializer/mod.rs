@@ -49,8 +49,6 @@ impl Serializer {
         required = true,
         nullable = false,
         many = false,
-        title = None,
-        description = None,
         context = None
     ))]
     #[allow(clippy::too_many_arguments)]
@@ -60,8 +58,6 @@ impl Serializer {
         required: Option<bool>,
         nullable: Option<bool>,
         many: Option<bool>,
-        title: Option<String>,
-        description: Option<String>,
         context: Option<Py<PyDict>>,
     ) -> (Self, Field) {
         (
@@ -76,8 +72,6 @@ impl Serializer {
                 ty: "object".to_string(),
                 nullable,
                 many,
-                title,
-                description,
                 ..Default::default()
             },
         )

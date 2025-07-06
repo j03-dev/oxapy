@@ -19,17 +19,9 @@ pub struct Field {
     #[pyo3(get)]
     pub max_length: Option<usize>,
     #[pyo3(get)]
-    pub minimum: Option<f64>,
-    #[pyo3(get)]
-    pub maximum: Option<f64>,
-    #[pyo3(get)]
     pub pattern: Option<String>,
     #[pyo3(get)]
     pub enum_values: Option<Vec<String>>,
-    #[pyo3(get)]
-    pub title: Option<String>,
-    #[pyo3(get)]
-    pub description: Option<String>,
 }
 
 #[pymethods]
@@ -44,12 +36,8 @@ impl Field {
         many = false,
         min_length = None,
         max_length = None,
-        minimum = None,
-        maximum = None,
         pattern = None,
         enum_values = None,
-        title = None,
-        description = None
     ))]
     pub fn new(
         ty: String,
@@ -59,12 +47,8 @@ impl Field {
         many: Option<bool>,
         min_length: Option<usize>,
         max_length: Option<usize>,
-        minimum: Option<f64>,
-        maximum: Option<f64>,
         pattern: Option<String>,
         enum_values: Option<Vec<String>>,
-        title: Option<String>,
-        description: Option<String>,
     ) -> Self {
         Self {
             required,
@@ -74,12 +58,8 @@ impl Field {
             many,
             min_length,
             max_length,
-            minimum,
-            maximum,
             pattern,
             enum_values,
-            title,
-            description,
         }
     }
 }
@@ -90,12 +70,8 @@ impl Field {
             + self.format.is_some() as usize
             + self.min_length.is_some() as usize
             + self.max_length.is_some() as usize
-            + self.minimum.is_some() as usize
-            + self.maximum.is_some() as usize
             + self.pattern.is_some() as usize
-            + self.enum_values.is_some() as usize
-            + self.title.is_some() as usize
-            + self.description.is_some() as usize;
+            + self.enum_values.is_some() as usize;
 
         let mut schema = serde_json::Map::with_capacity(capacity);
         if self.nullable.unwrap_or(false) {
@@ -116,14 +92,6 @@ impl Field {
             schema.insert("maxLength".to_string(), Value::Number(max_length.into()));
         }
 
-        if let Some(minimum) = self.minimum {
-            schema.insert("minimum".to_string(), serde_json::json!(minimum));
-        }
-
-        if let Some(maximum) = self.maximum {
-            schema.insert("maximum".to_string(), serde_json::json!(maximum));
-        }
-
         if let Some(pattern) = &self.pattern {
             schema.insert("pattern".to_string(), Value::String(pattern.clone()));
         }
@@ -134,17 +102,6 @@ impl Field {
                 .map(|v| Value::String(v.clone()))
                 .collect();
             schema.insert("enum".to_string(), Value::Array(enum_array));
-        }
-
-        if let Some(title) = &self.title {
-            schema.insert("title".to_string(), Value::String(title.clone()));
-        }
-
-        if let Some(description) = &self.description {
-            schema.insert(
-                "description".to_string(),
-                Value::String(description.clone()),
-            );
         }
 
         if self.many.unwrap_or(false) {
@@ -181,12 +138,8 @@ macro_rules! define_fields {
                     many=false,
                     min_length=None,
                     max_length=None,
-                    minimum=None,
-                    maximum=None,
                     pattern=None,
                     enum_values=None,
-                    title=None,
-                    description=None
                 ))]
                 fn new(
                     required: Option<bool>,
@@ -195,12 +148,8 @@ macro_rules! define_fields {
                     many: Option<bool>,
                     min_length: Option<usize>,
                     max_length: Option<usize>,
-                    minimum: Option<f64>,
-                    maximum: Option<f64>,
                     pattern: Option<String>,
                     enum_values: Option<Vec<String>>,
-                    title: Option<String>,
-                    description: Option<String>,
                 ) -> (Self, Field) {
                     (
                         Self,
@@ -212,12 +161,8 @@ macro_rules! define_fields {
                             many,
                             min_length,
                             max_length,
-                            minimum,
-                            maximum,
                             pattern,
                             enum_values,
-                            title,
-                            description,
                         ),
                     )
                 }
