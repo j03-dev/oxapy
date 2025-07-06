@@ -9,6 +9,8 @@ pub struct Field {
     #[pyo3(get)]
     pub ty: String,
     #[pyo3(get)]
+    pub nullable: Option<bool>,
+    #[pyo3(get)]
     pub format: Option<String>,
     #[pyo3(get)]
     pub many: Option<bool>,
@@ -37,6 +39,7 @@ impl Field {
     #[pyo3(signature = (
         ty,
         required = true,
+        nullable= false,
         format = None,
         many = false,
         min_length = None,
@@ -51,6 +54,7 @@ impl Field {
     pub fn new(
         ty: String,
         required: Option<bool>,
+        nullable: Option<bool>,
         format: Option<String>,
         many: Option<bool>,
         min_length: Option<usize>,
@@ -65,6 +69,7 @@ impl Field {
         Self {
             required,
             ty,
+            nullable,
             format,
             many,
             min_length,
@@ -93,7 +98,11 @@ impl Field {
             + self.description.is_some() as usize;
 
         let mut schema = serde_json::Map::with_capacity(capacity);
-        schema.insert("type".to_string(), Value::String(self.ty.clone()));
+        if self.nullable.unwrap_or(false) {
+            schema.insert("type".to_string(), serde_json::json!([self.ty, "null"]));
+        } else {
+            schema.insert("type".to_string(), Value::String(self.ty.clone()));
+        }
 
         if let Some(fmt) = &self.format {
             schema.insert("format".to_string(), Value::String(fmt.clone()));
@@ -140,7 +149,13 @@ impl Field {
 
         if self.many.unwrap_or(false) {
             let mut array_schema = serde_json::Map::with_capacity(2);
-            array_schema.insert("type".to_string(), Value::String("array".to_string()));
+
+            if self.nullable.unwrap_or(false) {
+                array_schema.insert("type".to_string(), serde_json::json!(["array", "null"]));
+            } else {
+                array_schema.insert("type".to_string(), Value::String("array".to_string()));
+            }
+
             array_schema.insert("items".to_string(), Value::Object(schema));
             return Value::Object(array_schema);
         }
@@ -161,6 +176,7 @@ macro_rules! define_fields {
                 #[new]
                 #[pyo3(signature=(
                     required=true,
+                    nullable=false,
                     format=$default_format,
                     many=false,
                     min_length=None,
@@ -174,6 +190,7 @@ macro_rules! define_fields {
                 ))]
                 fn new(
                     required: Option<bool>,
+                    nullable: Option<bool>,
                     format: Option<String>,
                     many: Option<bool>,
                     min_length: Option<usize>,
@@ -190,6 +207,7 @@ macro_rules! define_fields {
                         Field::new(
                             $type.to_string(),
                             required,
+                            nullable,
                             format,
                             many,
                             min_length,

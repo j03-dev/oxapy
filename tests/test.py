@@ -22,8 +22,8 @@ def test_serializer():
     }
 
     cred_serializer.is_valid()
-    assert cred_serializer.validate_data["email"] == "test@gmail.com"
-    assert cred_serializer.validate_data["password"] == "password"
+    assert cred_serializer.validated_data["email"] == "test@gmail.com"
+    assert cred_serializer.validated_data["password"] == "password"
 
     with pytest.raises(serializer.ValidationException):
         cred_serializer.raw_data = '{"email": "test", "password": "password"}'
@@ -33,14 +33,15 @@ def test_serializer():
 def test_nested_serializer():
     class Dog(serializer.Serializer):
         name = serializer.CharField()
+        toys = serializer.CharField(many=True, nullable=True)
 
     class User(serializer.Serializer):
         email = serializer.EmailField()
         password = serializer.CharField(min_length=8)
-        dog = Dog()
+        dog = Dog(nullable=True)  # type: ignore
 
     nested_serializer = User(
-        '{"email": "test@gmail.com", "password": "password", "dog" :{"name": "boby"}}'  # type: ignore
+        '{"email": "test@gmail.com", "password": "password", "dog" :{"name": "boby", "toys": null}}'  # type: ignore
     )
 
     assert nested_serializer.schema() == {
@@ -52,9 +53,13 @@ def test_nested_serializer():
                 "additionalProperties": False,
                 "properties": {
                     "name": {"type": "string"},
+                    "toys": {
+                        "items": {"type": ["string", "null"]},
+                        "type": ["array", "null"],
+                    },
                 },
-                "required": ["name"],
-                "type": "object",
+                "required": ["name", "toys"],
+                "type": ["object", "null"],
             },
         },
         "required": ["dog", "email", "password"],
