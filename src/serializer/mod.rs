@@ -33,7 +33,7 @@ struct Serializer {
     #[pyo3(get, set)]
     instance: Option<Py<PyAny>>,
     #[pyo3(get, set)]
-    validate_data: Option<Py<PyDict>>,
+    validated_data: Option<Py<PyDict>>,
     #[pyo3(get, set)]
     raw_data: Option<String>,
     #[pyo3(get, set)]
@@ -47,23 +47,22 @@ impl Serializer {
         data = None,
         instance = None,
         required = true,
+        nullable = false,
         many = false,
-        title = None,
-        description = None,
         context = None
     ))]
+    #[allow(clippy::too_many_arguments)]
     fn new(
         data: Option<String>,
         instance: Option<Py<PyAny>>,
         required: Option<bool>,
+        nullable: Option<bool>,
         many: Option<bool>,
-        title: Option<String>,
-        description: Option<String>,
         context: Option<Py<PyDict>>,
     ) -> (Self, Field) {
         (
             Self {
-                validate_data: None,
+                validated_data: None,
                 raw_data: data,
                 instance,
                 context,
@@ -71,16 +70,15 @@ impl Serializer {
             Field {
                 required,
                 ty: "object".to_string(),
+                nullable,
                 many,
-                title,
-                description,
                 ..Default::default()
             },
         )
     }
 
     fn schema(slf: Bound<'_, Self>) -> PyResult<Py<PyDict>> {
-        let schema_value = Self::json_schema_value(&slf.get_type())?;
+        let schema_value = Self::json_schema_value(&slf.get_type(), None)?;
         json::loads(&schema_value.to_string())
     }
 
@@ -95,14 +93,14 @@ impl Serializer {
         let validated_data: Option<Bound<PyDict>> =
             slf.call_method1("validate", (attr,))?.extract()?;
 
-        slf.setattr("validate_data", validated_data)?;
+        slf.setattr("validated_data", validated_data)?;
         Ok(())
     }
 
     fn validate<'a>(slf: Bound<'a, Self>, attr: Bound<'a, PyDict>) -> PyResult<Bound<'a, PyDict>> {
         let json::Wrap(json_value) = attr.clone().try_into()?;
 
-        let schema_value = Self::json_schema_value(&slf.get_type())?;
+        let schema_value = Self::json_schema_value(&slf.get_type(), None)?;
 
         let validator = jsonschema::options()
             .should_validate_formats(true)
@@ -160,46 +158,42 @@ impl Serializer {
         Ok(py.None())
     }
 
-    fn create(
-        slf: &Bound<Self>,
+    fn create<'l>(
+        slf: &'l Bound<Self>,
         session: PyObject,
-        validate_data: Bound<PyDict>,
-        py: Python<'_>,
-    ) -> PyResult<()> {
-        if let Ok(class_meta) = slf.getattr("Meta") {
-            let model = class_meta.getattr("model")?;
-            let instance = model.call((), Some(&validate_data))?;
-            session.call_method1(py, "add", (instance,))?;
-            session.call_method0(py, "commit")?;
-        }
-        Ok(())
+        validated_data: Bound<PyDict>,
+        py: Python<'l>,
+    ) -> PyResult<PyObject> {
+        let class_meta = slf.getattr("Meta")?;
+        let model = class_meta.getattr("model")?;
+        let instance = model.call((), Some(&validated_data))?;
+        session.call_method1(py, "add", (instance.clone(),))?;
+        session.call_method0(py, "commit")?;
+        Ok(instance.into())
     }
 
-    fn save(slf: Bound<'_, Self>, session: PyObject, py: Python<'_>) -> PyResult<()> {
-        let validate_data: Bound<PyDict> = slf
-            .getattr("validate_data")?
+    fn save(slf: Bound<'_, Self>, session: PyObject) -> PyResult<PyObject> {
+        let validated_data: Bound<PyDict> = slf
+            .getattr("validated_data")?
             .extract::<Option<Bound<PyDict>>>()?
             .ok_or_else(|| PyException::new_err("call `is_valid()` before `save()`"))?;
-
-        Self::create(&slf, session, validate_data, py)?;
-        Ok(())
+        Ok(slf
+            .call_method1("create", (session, validated_data))?
+            .into())
     }
 
     fn update(
-        slf: Bound<'_, Self>,
-        instance: PyObject,
+        &self,
         session: PyObject,
+        instance: PyObject,
+        validated_data: HashMap<String, PyObject>,
         py: Python<'_>,
-    ) -> PyResult<()> {
-        let validate_data = slf
-            .getattr("validate_data")?
-            .extract::<Option<HashMap<String, PyObject>>>()?
-            .ok_or_else(|| PyException::new_err("call `is_valid()` before `save()`"))?;
-        for (key, value) in validate_data {
+    ) -> PyResult<PyObject> {
+        for (key, value) in validated_data {
             instance.setattr(py, key, value)?;
         }
         session.call_method0(py, "commit")?;
-        Ok(())
+        Ok(instance)
     }
 }
 
@@ -207,12 +201,9 @@ static CACHES_JSON_SCHEMA_VALUE: Lazy<Mutex<HashMap<String, Value>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
 impl Serializer {
-    fn json_schema_value(cls: &Bound<'_, PyType>) -> PyResult<Value> {
+    fn json_schema_value(cls: &Bound<'_, PyType>, nullable: Option<bool>) -> PyResult<Value> {
         let mut properties = serde_json::Map::with_capacity(16);
         let mut required_fields = Vec::with_capacity(8);
-        let mut is_many = false;
-        let mut title = None;
-        let mut description = None;
 
         let class_name = cls.name()?;
 
@@ -223,24 +214,6 @@ impl Serializer {
             .cloned()
         {
             return Ok(value);
-        }
-
-        if let Ok(cls_dict) = cls.getattr("__dict__") {
-            if let Ok(many) = cls_dict.get_item("many") {
-                if let Ok(is_many_extract) = many.extract::<bool>() {
-                    is_many = is_many_extract;
-                }
-            }
-            if let Ok(t) = cls_dict.get_item("title") {
-                if let Ok(titre_extract) = t.extract::<Option<String>>() {
-                    title = titre_extract;
-                }
-            }
-            if let Ok(d) = cls_dict.get_item("description") {
-                if let Ok(description_extract) = d.extract::<Option<String>>() {
-                    description = description_extract;
-                }
-            }
         }
 
         let attrs = cls.dir()?;
@@ -260,11 +233,20 @@ impl Serializer {
                         required_fields.push(attr_name.clone());
                     }
 
-                    let nested_schema = Self::json_schema_value(&attr_obj.get_type())?;
+                    let nested_schema =
+                        Self::json_schema_value(&attr_obj.get_type(), field.nullable)?;
 
                     if is_field_many {
                         let mut array_schema = serde_json::Map::with_capacity(2);
-                        array_schema.insert("type".to_string(), Value::String("array".to_string()));
+
+                        if field.nullable.unwrap_or(false) {
+                            array_schema
+                                .insert("type".to_string(), serde_json::json!(["array", "null"]));
+                        } else {
+                            array_schema
+                                .insert("type".to_string(), Value::String("array".to_string()));
+                        }
+
                         array_schema.insert("items".to_string(), nested_schema);
                         properties.insert(attr_name, Value::Object(array_schema));
                     } else {
@@ -281,7 +263,11 @@ impl Serializer {
         }
 
         let mut schema = serde_json::Map::with_capacity(5);
-        schema.insert("type".to_string(), Value::String("object".to_string()));
+        if nullable.unwrap_or_default() {
+            schema.insert("type".to_string(), serde_json::json!(["object", "null"]));
+        } else {
+            schema.insert("type".to_string(), Value::String("object".to_string()));
+        }
         schema.insert("properties".to_string(), Value::Object(properties));
         schema.insert("additionalProperties".to_string(), Value::Bool(false));
 
@@ -290,21 +276,7 @@ impl Serializer {
             schema.insert("required".to_string(), Value::Array(reqs));
         }
 
-        if let Some(t) = title {
-            schema.insert("title".to_string(), Value::String(t));
-        }
-        if let Some(d) = description {
-            schema.insert("description".to_string(), Value::String(d));
-        }
-
-        let final_schema = if is_many {
-            let mut array_schema = serde_json::Map::with_capacity(2);
-            array_schema.insert("type".to_string(), Value::String("array".to_string()));
-            array_schema.insert("items".to_string(), Value::Object(schema));
-            Value::Object(array_schema)
-        } else {
-            Value::Object(schema)
-        };
+        let final_schema = Value::Object(schema);
 
         CACHES_JSON_SCHEMA_VALUE
             .lock()
