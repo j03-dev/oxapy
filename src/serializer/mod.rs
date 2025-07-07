@@ -74,7 +74,6 @@ impl Serializer {
         many = false,
         context = None
     ))]
-    #[allow(clippy::too_many_arguments)]
     fn new(
         data: Option<String>,
         instance: Option<Py<PyAny>>,
