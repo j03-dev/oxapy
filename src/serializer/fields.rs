@@ -41,6 +41,7 @@ impl Field {
     ///     nullable (bool, optional): Whether this field allows `null`. Defaults to `False`.
     ///     format (str, optional): Optional format (e.g., `"email"`, `"uuid"`).
     ///     many (bool, optional): Whether this field is a list of values. Defaults to `False`.
+    ///     length (int, optional): Length for string fields.
     ///     min_length (int, optional): Minimum length for string fields.
     ///     max_length (int, optional): Maximum length for string fields.
     ///     pattern (str, optional): Regular expression pattern for validation.
