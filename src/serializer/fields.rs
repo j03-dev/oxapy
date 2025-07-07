@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
 use serde_json::Value;
 
+/// Base class representing a JSON schema field.
 #[pyclass(subclass)]
 #[derive(Debug, Clone, Default)]
 pub struct Field {
@@ -26,24 +27,26 @@ pub struct Field {
 
 #[pymethods]
 impl Field {
-    /// Creates a new `Field` instance with the specified type and optional schema constraints.
+    /// Create a new field definition.
     ///
-    /// Initializes a field definition for use in Python, supporting options such as required/nullable status, formatting, array handling, length limits, pattern matching, and enumerated values.
+    /// This is the base field class. You usually use one of the subclasses
+    /// (`CharField`, `EmailField`, `IntegerField`, etc.) rather than instantiating
+    /// this directly.
     ///
-    /// # Examples
+    /// Args:
+    ///     ty (str): Field type, e.g., `"string"`, `"integer"`, etc.
+    ///     required (bool, optional): Whether this field is required. Defaults to `True`.
+    ///     nullable (bool, optional): Whether this field allows `null`. Defaults to `False`.
+    ///     format (str, optional): Optional format (e.g., `"email"`, `"uuid"`).
+    ///     many (bool, optional): Whether this field is a list of values. Defaults to `False`.
+    ///     min_length (int, optional): Minimum length for string fields.
+    ///     max_length (int, optional): Maximum length for string fields.
+    ///     pattern (str, optional): Regular expression pattern for validation.
+    ///     enum_values (list[str], optional): List of allowed values.
     ///
-    /// ```
-    /// let field = Field::new(
-    ///     "string".to_string(),
-    ///     Some(true),
-    ///     Some(false),
-    ///     Some("email".to_string()),
-    ///     Some(false),
-    ///     Some(3),
-    ///     Some(255),
-    ///     Some(r"^[a-z]+$".to_string()),
-    ///     Some(vec!["foo".to_string(), "bar".to_string()])
-    /// );
+    /// Example:
+    /// ```python
+    /// field = Field("string", min_length=3, max_length=255)
     /// ```
     #[pyo3(signature = (
         ty,
@@ -84,12 +87,6 @@ impl Field {
 }
 
 impl Field {
-    /// Converts the field definition into a JSON schema representation.
-    ///
-    /// Generates a `serde_json::Value` object describing the field as a JSON schema, including type, format, length constraints, pattern, enum values, and array/nullable handling as specified by the field's properties.
-    ///
-    /// # Returns
-    /// A `serde_json::Value` representing the JSON schema for this field.
     pub fn to_json_schema_value(&self) -> Value {
         let capacity = 1
             + self.format.is_some() as usize
@@ -147,14 +144,31 @@ impl Field {
 }
 
 macro_rules! define_fields {
-    ($(($class:ident, $type:expr, $default_format:expr);)+) => {
+    ($((
+        $class:ident,
+        $type:expr,
+        $default_format:expr,
+        $doc:literal
+    );)+) => {
         $(
             #[pyclass(subclass, extends=Field)]
+            #[doc = $doc]
             pub struct $class;
 
             #[allow(clippy::too_many_arguments)]
             #[pymethods]
             impl $class {
+                /// Create a new field of this type.
+                ///
+                /// Args:
+                ///     required (bool, optional): Whether this field is required. Defaults to `True`.
+                ///     nullable (bool, optional): Whether this field allows `null`. Defaults to `False`.
+                ///     format (str, optional): Optional format override.
+                ///     many (bool, optional): Whether this field is a list of values.
+                ///     min_length (int, optional): Minimum length (for string types).
+                ///     max_length (int, optional): Maximum length (for string types).
+                ///     pattern (str, optional): Regular expression pattern.
+                ///     enum_values (list[str], optional): List of allowed values.
                 #[new]
                 #[pyo3(signature=(
                     required=true,
@@ -197,13 +211,13 @@ macro_rules! define_fields {
 }
 
 define_fields! {
-    (IntegerField, "integer", None);
-    (CharField, "string", None);
-    (BooleanField, "boolean", None);
-    (NumberField, "number", None);
-    (EmailField, "string", Some("email".to_string()));
-    (UUIDField, "string", Some("uuid".to_string()));
-    (DateField, "string", Some("date".to_string()));
-    (DateTimeField, "string", Some("date-time".to_string()));
-    (EnumField, "string", None);
+    (IntegerField, "integer", None, "Represents an integer field in JSON schema.");
+    (CharField, "string", None, "Represents a string field.");
+    (BooleanField, "boolean", None, "Represents a boolean field.");
+    (NumberField, "number", None, "Represents a numeric (float) field.");
+    (EmailField, "string", Some("email".to_string()), "Represents an email field, validated by format.");
+    (UUIDField, "string", Some("uuid".to_string()), "Represents a UUID field.");
+    (DateField, "string", Some("date".to_string()), "Represents a date field (YYYY-MM-DD).");
+    (DateTimeField, "string", Some("date-time".to_string()), "Represents a date-time field (RFC 3339).");
+    (EnumField, "string", None, "Represents an enumerated string field.");
 }
