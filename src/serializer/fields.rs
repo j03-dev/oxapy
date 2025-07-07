@@ -26,19 +26,25 @@ pub struct Field {
 
 #[pymethods]
 impl Field {
-    #[allow(clippy::too_many_arguments)]
-    #[new]
-    #[pyo3(signature = (
-        ty,
-        required = true,
-        nullable= false,
-        format = None,
-        many = false,
-        min_length = None,
-        max_length = None,
-        pattern = None,
-        enum_values = None,
-    ))]
+    /// Creates a new `Field` instance with the specified type and optional schema constraints.
+    ///
+    /// Initializes a field definition for use in Python, supporting options such as required/nullable status, formatting, array handling, length limits, pattern matching, and enumerated values.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let field = Field::new(
+    ///     "string".to_string(),
+    ///     Some(true),
+    ///     Some(false),
+    ///     Some("email".to_string()),
+    ///     Some(false),
+    ///     Some(3),
+    ///     Some(255),
+    ///     Some(r"^[a-z]+$".to_string()),
+    ///     Some(vec!["foo".to_string(), "bar".to_string()])
+    /// );
+    /// ```
     pub fn new(
         ty: String,
         required: Option<bool>,
@@ -65,6 +71,12 @@ impl Field {
 }
 
 impl Field {
+    /// Converts the field definition into a JSON schema representation.
+    ///
+    /// Generates a `serde_json::Value` object describing the field as a JSON schema, including type, format, length constraints, pattern, enum values, and array/nullable handling as specified by the field's properties.
+    ///
+    /// # Returns
+    /// A `serde_json::Value` representing the JSON schema for this field.
     pub fn to_json_schema_value(&self) -> Value {
         let capacity = 1
             + self.format.is_some() as usize

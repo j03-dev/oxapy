@@ -3,6 +3,11 @@ import pytest  # type: ignore
 
 
 def test_serializer():
+    """
+    Test the Cred serializer for correct schema generation, data validation, and error handling.
+    
+    Defines a serializer with email and password fields, checks that the generated JSON schema matches expected constraints, validates correct input data, and asserts that invalid email input raises a ValidationException.
+    """
     class Cred(serializer.Serializer):
         email = serializer.EmailField()
         password = serializer.CharField(min_length=8)
@@ -31,6 +36,11 @@ def test_serializer():
 
 
 def test_nested_serializer():
+    """
+    Test nested serializers with nullable fields and arrays, verifying schema generation and input validation.
+    
+    Defines a `Dog` serializer with a nullable list of toys and a `User` serializer with a nullable nested dog field. Asserts that the generated JSON schema accurately represents the nested structure and nullable fields, and validates input data containing nested objects with null values.
+    """
     class Dog(serializer.Serializer):
         name = serializer.CharField()
         toys = serializer.CharField(many=True, nullable=True)

@@ -42,14 +42,41 @@ struct Serializer {
 
 #[pymethods]
 impl Serializer {
+    /// Creates a new `Serializer` instance and its associated `Field` with configuration options.
+    ///
+    /// Initializes the serializer with optional raw JSON data, an instance to serialize, and context. The returned `Field` is configured for object type with the specified required, nullable, and many flags.
+    ///
+    /// # Parameters
+    /// - `data`: Optional raw JSON string to be validated or deserialized.
+    /// - `instance`: Optional Python object instance to be serialized.
+    /// - `required`: Whether the field is required (default: true).
+    /// - `nullable`: Whether the field allows null values (default: false).
+    /// - `many`: Whether the serializer handles multiple objects (default: false).
+    /// - `context`: Optional context dictionary for additional information.
+    ///
+    /// # Returns
+    /// A tuple containing the new `Serializer` instance and its corresponding `Field`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let (serializer, field) = Serializer::new(
+    ///     Some("{\"name\": \"Alice\"}".to_string()),
+    ///     None,
+    ///     Some(true),
+    ///     Some(false),
+    ///     Some(false),
+    ///     None
+    /// );
+    /// ```
     #[new]
     #[pyo3(signature = (
-        data = None,
-        instance = None,
-        required = true,
-        nullable = false,
-        many = false,
-        context = None
+    data = None,
+    instance = None,
+    required = true,
+    nullable = false,
+    many = false,
+    context = None
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -77,11 +104,24 @@ impl Serializer {
         )
     }
 
+    /// Returns the JSON schema for the serializer as a Python dictionary.
+    ///
+    /// The schema is generated based on the serializer class definition and field attributes.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let schema = serializer.schema()?;
+    /// assert!(schema.is_instance_of::<pyo3::types::PyDict>(py));
+    /// ```
     fn schema(slf: Bound<'_, Self>) -> PyResult<Py<PyDict>> {
         let schema_value = Self::json_schema_value(&slf.get_type(), None)?;
         json::loads(&schema_value.to_string())
     }
 
+    /// Validates the raw JSON data and stores the result in `validated_data`.
+    ///
+    /// Parses the `raw_data` attribute as JSON, validates it using the serializer's `validate` method, and assigns the validated dictionary to the `validated_data` attribute. Raises a `ValidationException` if `raw_data` is missing or invalid.
     fn is_valid(slf: &Bound<'_, Self>) -> PyResult<()> {
         let raw_data = slf
             .getattr("raw_data")?
@@ -97,6 +137,13 @@ impl Serializer {
         Ok(())
     }
 
+    /// Validates a Python dictionary against the serializer's JSON schema.
+    ///
+    /// Converts the input dictionary to a JSON value, retrieves the serializer's schema,
+    /// and validates the data. Raises a `ValidationException` if validation fails.
+    ///
+    /// # Returns
+    /// The original dictionary if validation succeeds.
     fn validate<'a>(slf: Bound<'a, Self>, attr: Bound<'a, PyDict>) -> PyResult<Bound<'a, PyDict>> {
         let json::Wrap(json_value) = attr.clone().try_into()?;
 
@@ -133,6 +180,19 @@ impl Serializer {
         Ok(dict)
     }
 
+    /// Returns the serialized representation of the instance(s).
+    ///
+    /// If `many` is true, returns a list of serialized representations for each instance in `instance`.
+    /// If `many` is false, returns the serialized representation of the single `instance`.
+    /// Returns `None` if no instance is set.
+    ///
+    /// # Examples
+    ///
+    /// ```python
+    /// # Python usage
+    /// serializer = MySerializer(instance=my_model)
+    /// data = serializer.data  # Returns a dict representation of my_model
+    /// ```
     #[getter]
     fn data<'l>(slf: Bound<'l, Self>, py: Python<'l>) -> PyResult<PyObject> {
         let many = slf.getattr("many")?.extract::<bool>()?;
@@ -158,6 +218,28 @@ impl Serializer {
         Ok(py.None())
     }
 
+    /// Creates and saves a new model instance using the provided validated data and database session.
+    ///
+    /// Instantiates the model class specified in the serializer's `Meta.model` attribute with the given validated data,
+    /// adds the new instance to the session, commits the transaction, and returns the created instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `session` - The database session object used to add and commit the new instance.
+    /// * `validated_data` - A Python dictionary containing validated field values.
+    ///
+    /// # Returns
+    ///
+    /// The newly created model instance as a Python object.
+    ///
+    /// # Examples
+    ///
+    /// ```python
+    /// # Python usage example
+    /// serializer = MySerializer(raw_data='{"field": "value"}')
+    /// serializer.is_valid()
+    /// instance = serializer.create(session, serializer.validated_data)
+    /// ```
     fn create<'l>(
         slf: &'l Bound<Self>,
         session: PyObject,
@@ -172,6 +254,16 @@ impl Serializer {
         Ok(instance.into())
     }
 
+    /// Saves the validated data by creating a new model instance in the database.
+    ///
+    /// This method requires that `is_valid()` has been called successfully to populate `validated_data`.
+    /// It creates a new instance using the validated data and adds it to the provided session.
+    ///
+    /// # Returns
+    /// The newly created model instance.
+    ///
+    /// # Errors
+    /// Returns an error if `is_valid()` has not been called or if instance creation fails.
     fn save(slf: Bound<'_, Self>, session: PyObject) -> PyResult<PyObject> {
         let validated_data: Bound<PyDict> = slf
             .getattr("validated_data")?
@@ -182,6 +274,27 @@ impl Serializer {
             .into())
     }
 
+    /// Updates an existing model instance with validated data and commits the changes to the session.
+    ///
+    /// Sets attributes on the provided instance using the key-value pairs from `validated_data`,
+    /// commits the session, and returns the updated instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `session` - The database session object to commit changes.
+    /// * `instance` - The model instance to update.
+    /// * `validated_data` - A map of field names to new values for the instance.
+    /// * `py` - The Python interpreter context.
+    ///
+    /// # Returns
+    ///
+    /// The updated model instance.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let updated = serializer.update(session, instance, validated_data, py)?;
+    /// ```
     fn update(
         &self,
         session: PyObject,
@@ -201,6 +314,25 @@ static CACHES_JSON_SCHEMA_VALUE: Lazy<Mutex<HashMap<String, Value>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
 impl Serializer {
+    /// Generates a JSON schema for the given serializer class type.
+    ///
+    /// Inspects the class attributes to build a JSON schema object, recursively handling nested serializers and field types. The schema includes property definitions, required fields, and nullability as specified by the `nullable` argument. The result is cached for future calls.
+    ///
+    /// # Arguments
+    ///
+    /// * `cls` - The Python type object representing the serializer class.
+    /// * `nullable` - If true, the schema allows `null` as a valid value for the object.
+    ///
+    /// # Returns
+    ///
+    /// A `serde_json::Value` representing the JSON schema for the serializer class.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let schema = Serializer::json_schema_value(&my_serializer_type, Some(true))?;
+    /// assert_eq!(schema["type"], serde_json::json!(["object", "null"]));
+    /// ```
     fn json_schema_value(cls: &Bound<'_, PyType>, nullable: Option<bool>) -> PyResult<Value> {
         let mut properties = serde_json::Map::with_capacity(16);
         let mut required_fields = Vec::with_capacity(8);
