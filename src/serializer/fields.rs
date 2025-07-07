@@ -16,6 +16,8 @@ pub struct Field {
     #[pyo3(get)]
     pub many: Option<bool>,
     #[pyo3(get)]
+    pub length: Option<usize>,
+    #[pyo3(get)]
     pub min_length: Option<usize>,
     #[pyo3(get)]
     pub max_length: Option<usize>,
@@ -39,6 +41,7 @@ impl Field {
     ///     nullable (bool, optional): Whether this field allows `null`. Defaults to `False`.
     ///     format (str, optional): Optional format (e.g., `"email"`, `"uuid"`).
     ///     many (bool, optional): Whether this field is a list of values. Defaults to `False`.
+    ///     length (int, optional): Length for string fields.
     ///     min_length (int, optional): Minimum length for string fields.
     ///     max_length (int, optional): Maximum length for string fields.
     ///     pattern (str, optional): Regular expression pattern for validation.
@@ -54,6 +57,7 @@ impl Field {
         nullable = false,
         format = None,
         many = false,
+        length = None,
         min_length = None,
         max_length = None,
         pattern = None,
@@ -67,6 +71,7 @@ impl Field {
         nullable: Option<bool>,
         format: Option<String>,
         many: Option<bool>,
+        length: Option<usize>,
         min_length: Option<usize>,
         max_length: Option<usize>,
         pattern: Option<String>,
@@ -78,6 +83,7 @@ impl Field {
             nullable,
             format,
             many,
+            length,
             min_length,
             max_length,
             pattern,
@@ -96,6 +102,7 @@ impl Field {
             + self.enum_values.is_some() as usize;
 
         let mut schema = serde_json::Map::with_capacity(capacity);
+
         if self.nullable.unwrap_or(false) {
             schema.insert("type".to_string(), serde_json::json!([self.ty, "null"]));
         } else {
@@ -106,12 +113,16 @@ impl Field {
             schema.insert("format".to_string(), Value::String(fmt.clone()));
         }
 
-        if let Some(min_length) = self.min_length {
-            schema.insert("minLength".to_string(), Value::Number(min_length.into()));
-        }
-
-        if let Some(max_length) = self.max_length {
-            schema.insert("maxLength".to_string(), Value::Number(max_length.into()));
+        if let Some(length) = self.length {
+            schema.insert("minLength".to_string(), Value::Number(length.into()));
+            schema.insert("maxLength".to_string(), Value::Number(length.into()));
+        } else {
+            if let Some(min_length) = self.min_length {
+                schema.insert("minLength".to_string(), Value::Number(min_length.into()));
+            }
+            if let Some(max_length) = self.max_length {
+                schema.insert("maxLength".to_string(), Value::Number(max_length.into()));
+            }
         }
 
         if let Some(pattern) = &self.pattern {
@@ -175,6 +186,7 @@ macro_rules! define_fields {
                     nullable=false,
                     format=$default_format,
                     many=false,
+                    length=None,
                     min_length=None,
                     max_length=None,
                     pattern=None,
@@ -185,6 +197,7 @@ macro_rules! define_fields {
                     nullable: Option<bool>,
                     format: Option<String>,
                     many: Option<bool>,
+                    length: Option<usize>,
                     min_length: Option<usize>,
                     max_length: Option<usize>,
                     pattern: Option<String>,
@@ -198,6 +211,7 @@ macro_rules! define_fields {
                             nullable,
                             format,
                             many,
+                            length,
                             min_length,
                             max_length,
                             pattern,
