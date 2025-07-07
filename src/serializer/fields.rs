@@ -45,6 +45,19 @@ impl Field {
     ///     Some(vec!["foo".to_string(), "bar".to_string()])
     /// );
     /// ```
+    #[allow(clippy::too_many_arguments)]
+    #[new]
+    #[pyo3(signature = (
+        ty,
+        required = true,
+        nullable = false,
+        format = None,
+        many = false,
+        min_length = None,
+        max_length = None,
+        pattern = None,
+        enum_values = None,
+    ))]
     pub fn new(
         ty: String,
         required: Option<bool>,
