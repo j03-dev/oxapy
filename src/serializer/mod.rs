@@ -71,12 +71,12 @@ impl Serializer {
     /// ```
     #[new]
     #[pyo3(signature = (
-    data = None,
-    instance = None,
-    required = true,
-    nullable = false,
-    many = false,
-    context = None
+        data = None,
+        instance = None,
+        required = true,
+        nullable = false,
+        many = false,
+        context = None
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
