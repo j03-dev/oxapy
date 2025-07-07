@@ -110,9 +110,8 @@ impl Serializer {
     ///
     /// # Examples
     ///
-    /// ```
-    /// let schema = serializer.schema()?;
-    /// assert!(schema.is_instance_of::<pyo3::types::PyDict>(py));
+    /// ```python
+    /// schema = serializer.schema();
     /// ```
     fn schema(slf: Bound<'_, Self>) -> PyResult<Py<PyDict>> {
         let schema_value = Self::json_schema_value(&slf.get_type(), None)?;
@@ -284,7 +283,6 @@ impl Serializer {
     /// * `session` - The database session object to commit changes.
     /// * `instance` - The model instance to update.
     /// * `validated_data` - A map of field names to new values for the instance.
-    /// * `py` - The Python interpreter context.
     ///
     /// # Returns
     ///
@@ -292,8 +290,8 @@ impl Serializer {
     ///
     /// # Examples
     ///
-    /// ```
-    /// let updated = serializer.update(session, instance, validated_data, py)?;
+    /// ```python
+    /// updated = serializer.update(session, instance, validated_data);
     /// ```
     fn update(
         &self,
@@ -314,25 +312,6 @@ static CACHES_JSON_SCHEMA_VALUE: Lazy<Mutex<HashMap<String, Value>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
 impl Serializer {
-    /// Generates a JSON schema for the given serializer class type.
-    ///
-    /// Inspects the class attributes to build a JSON schema object, recursively handling nested serializers and field types. The schema includes property definitions, required fields, and nullability as specified by the `nullable` argument. The result is cached for future calls.
-    ///
-    /// # Arguments
-    ///
-    /// * `cls` - The Python type object representing the serializer class.
-    /// * `nullable` - If true, the schema allows `null` as a valid value for the object.
-    ///
-    /// # Returns
-    ///
-    /// A `serde_json::Value` representing the JSON schema for the serializer class.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let schema = Serializer::json_schema_value(&my_serializer_type, Some(true))?;
-    /// assert_eq!(schema["type"], serde_json::json!(["object", "null"]));
-    /// ```
     fn json_schema_value(cls: &Bound<'_, PyType>, nullable: Option<bool>) -> PyResult<Value> {
         let mut properties = serde_json::Map::with_capacity(16);
         let mut required_fields = Vec::with_capacity(8);
