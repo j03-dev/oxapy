@@ -1,13 +1,12 @@
-use hyper::{
-    header::{InvalidHeaderValue, CONTENT_TYPE},
-    HeaderMap,
-};
+use hyper::{header::CONTENT_TYPE, HeaderMap};
 
 use crate::{json, status::Status, IntoPyException, Response};
 use pyo3::{prelude::*, types::PyAny, Py};
 
+type Error = Box<dyn std::error::Error>;
+
 impl TryFrom<String> for Response {
-    type Error = InvalidHeaderValue;
+    type Error = Error;
 
     fn try_from(val: String) -> Result<Self, Self::Error> {
         let mut headers = HeaderMap::new();
@@ -21,7 +20,7 @@ impl TryFrom<String> for Response {
 }
 
 impl TryFrom<PyObject> for Response {
-    type Error = InvalidHeaderValue;
+    type Error = Error;
 
     fn try_from(val: PyObject) -> Result<Self, Self::Error> {
         let mut headers = HeaderMap::new();
@@ -29,13 +28,13 @@ impl TryFrom<PyObject> for Response {
         Ok(Response {
             status: Status::OK,
             headers,
-            body: json::dumps(&val).unwrap().into(),
+            body: json::dumps(&val)?.into(),
         })
     }
 }
 
 impl TryFrom<(String, Status)> for Response {
-    type Error = InvalidHeaderValue;
+    type Error = Error;
 
     fn try_from(val: (String, Status)) -> Result<Self, Self::Error> {
         let mut headers = HeaderMap::new();
@@ -49,7 +48,7 @@ impl TryFrom<(String, Status)> for Response {
 }
 
 impl TryFrom<(PyObject, Status)> for Response {
-    type Error = InvalidHeaderValue;
+    type Error = Error;
 
     fn try_from(val: (PyObject, Status)) -> Result<Self, Self::Error> {
         let mut headers = HeaderMap::new();
@@ -57,7 +56,7 @@ impl TryFrom<(PyObject, Status)> for Response {
         Ok(Response {
             status: val.1,
             headers,
-            body: json::dumps(&val.0).unwrap().into(),
+            body: json::dumps(&val.0)?.into(),
         })
     }
 }
