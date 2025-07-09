@@ -72,8 +72,11 @@ impl Serializer {
         required = true,
         nullable = false,
         many = false,
-        context = None
+        context = None,
+        read_only= false,
+        write_only = false,
     ))]
+    #[allow(clippy::too_many_arguments)]
     fn new(
         data: Option<String>,
         instance: Option<Py<PyAny>>,
@@ -81,6 +84,8 @@ impl Serializer {
         nullable: Option<bool>,
         many: Option<bool>,
         context: Option<Py<PyDict>>,
+        read_only: Option<bool>,
+        write_only: Option<bool>,
     ) -> (Self, Field) {
         (
             Self {
@@ -94,6 +99,8 @@ impl Serializer {
                 ty: "object".to_string(),
                 nullable,
                 many,
+                read_only,
+                write_only,
                 ..Default::default()
             },
         )
@@ -171,6 +178,16 @@ impl Serializer {
         validator
             .validate(&json_value)
             .map_err(|err| ValidationException::new_err(err.to_string()))?;
+
+        for k in attr.keys() {
+            let key = k.to_string();
+            if let Ok(field) = slf.getattr(&key) {
+                let field = field.extract::<Field>()?;
+                if field.read_only.unwrap_or_default() {
+                    attr.del_item(&key)?;
+                }
+            }
+        }
 
         Ok(attr)
     }
@@ -306,7 +323,8 @@ impl Serializer {
             .try_iter()?;
         for c in columns {
             let col = c.unwrap().getattr("name")?.to_string();
-            if slf.getattr(&col).is_ok() {
+            let field: Field = slf.getattr(&col)?.extract()?;
+            if slf.getattr(&col).is_ok() && !field.write_only.unwrap_or_default() {
                 dict.set_item(&col, instance.getattr(&col)?)?;
             }
         }
