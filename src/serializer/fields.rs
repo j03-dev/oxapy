@@ -50,6 +50,8 @@ impl Field {
     ///     max_length (int, optional): Maximum length for string fields.
     ///     pattern (str, optional): Regular expression pattern for validation.
     ///     enum_values (list[str], optional): List of allowed values.
+    ///     read_only (bool, optional): If `True`, the field will be excluded when deserializing. Defaults to `None`.
+    ///     write_only (bool, optional): If `True`, the field will be excluded when serializing. Defaults to `None`.
     ///
     /// Example:
     /// ```python
@@ -190,6 +192,8 @@ macro_rules! define_fields {
                 ///     max_length (int, optional): Maximum length (for string types).
                 ///     pattern (str, optional): Regular expression pattern.
                 ///     enum_values (list[str], optional): List of allowed values.
+                ///     read_only (bool, optional): If `True`, the field will be excluded when deserializing.
+                ///     write_only (bool, optional): If `True`, the field will be excluded when serializing.
                 #[new]
                 #[pyo3(signature=(
                     required=true,
