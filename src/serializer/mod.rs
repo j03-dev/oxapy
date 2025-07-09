@@ -55,6 +55,8 @@ impl Serializer {
     ///     nullable (bool, optional): Whether the field allows null values (default: False).
     ///     many (bool, optional): Whether the serializer handles multiple objects (default: False).
     ///     context (dict, optional): Additional context information.
+    ///     read_only (bool, optional): If `True`, the serializer will be excluded when deserializing (default: False).
+    ///     write_only (bool, optional): If `True`, the serializer will be excluded when serializing (default: False).
     ///
     /// Returns:
     ///     tuple[Serializer, Field]: A tuple containing the serializer instance and its associated `Field`.
@@ -72,8 +74,11 @@ impl Serializer {
         required = true,
         nullable = false,
         many = false,
-        context = None
+        context = None,
+        read_only= false,
+        write_only = false,
     ))]
+    #[allow(clippy::too_many_arguments)]
     fn new(
         data: Option<String>,
         instance: Option<Py<PyAny>>,
@@ -81,6 +86,8 @@ impl Serializer {
         nullable: Option<bool>,
         many: Option<bool>,
         context: Option<Py<PyDict>>,
+        read_only: Option<bool>,
+        write_only: Option<bool>,
     ) -> (Self, Field) {
         (
             Self {
@@ -94,6 +101,8 @@ impl Serializer {
                 ty: "object".to_string(),
                 nullable,
                 many,
+                read_only,
+                write_only,
                 ..Default::default()
             },
         )
@@ -149,7 +158,7 @@ impl Serializer {
     ///     attr (dict): The data to validate.
     ///
     /// Returns:
-    ///     dict: The validated data.
+    ///     dict: The validated data, with any `read_only` fields removed.
     ///
     /// Raises:
     ///     ValidationException: If validation fails.
@@ -172,13 +181,26 @@ impl Serializer {
             .validate(&json_value)
             .map_err(|err| ValidationException::new_err(err.to_string()))?;
 
-        Ok(attr)
+        let new_attr = attr.copy()?;
+
+        for k in new_attr.keys() {
+            let key = k.to_string();
+            if let Ok(field) = slf.getattr(&key) {
+                let field = field.extract::<Field>()?;
+                if field.read_only.unwrap_or_default() {
+                    new_attr.del_item(&key)?;
+                }
+            }
+        }
+
+        Ok(new_attr)
     }
 
     /// Return the serialized representation of the instance(s).
     ///
     /// If `many=True`, returns a list of serialized dicts.
     /// Otherwise returns a single dict, or None if no instance.
+    /// Fields marked as `write_only=True` will be excluded from the serialized output.
     ///
     /// Returns:
     ///     dict or list[dict] or None: Serialized representation(s).
@@ -294,6 +316,15 @@ impl Serializer {
         Ok(instance)
     }
 
+    /// Convert a model instance to a Python dictionary.
+    ///
+    /// Processes each field in the model, excluding those marked as `write_only=True`.
+    ///
+    /// Args:
+    ///     instance: The model instance to serialize.
+    ///
+    /// Returns:
+    ///     dict: Dictionary representation of the instance.
     fn to_representation<'l>(
         slf: &Bound<'_, Self>,
         instance: Bound<PyAny>,
@@ -306,7 +337,8 @@ impl Serializer {
             .try_iter()?;
         for c in columns {
             let col = c.unwrap().getattr("name")?.to_string();
-            if slf.getattr(&col).is_ok() {
+            let field: Field = slf.getattr(&col)?.extract()?;
+            if slf.getattr(&col).is_ok() && !field.write_only.unwrap_or_default() {
                 dict.set_item(&col, instance.getattr(&col)?)?;
             }
         }

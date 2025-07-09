@@ -25,6 +25,10 @@ pub struct Field {
     pub pattern: Option<String>,
     #[pyo3(get)]
     pub enum_values: Option<Vec<String>>,
+    #[pyo3(get)]
+    pub read_only: Option<bool>,
+    #[pyo3(get)]
+    pub write_only: Option<bool>,
 }
 
 #[pymethods]
@@ -46,6 +50,8 @@ impl Field {
     ///     max_length (int, optional): Maximum length for string fields.
     ///     pattern (str, optional): Regular expression pattern for validation.
     ///     enum_values (list[str], optional): List of allowed values.
+    ///     read_only (bool, optional): If `True`, the field will be excluded when deserializing. Defaults to `None`.
+    ///     write_only (bool, optional): If `True`, the field will be excluded when serializing. Defaults to `None`.
     ///
     /// Example:
     /// ```python
@@ -62,6 +68,8 @@ impl Field {
         max_length = None,
         pattern = None,
         enum_values = None,
+        read_only = None,
+        write_only = None
     ))]
     #[allow(clippy::too_many_arguments)]
     #[new]
@@ -76,6 +84,8 @@ impl Field {
         max_length: Option<usize>,
         pattern: Option<String>,
         enum_values: Option<Vec<String>>,
+        read_only: Option<bool>,
+        write_only: Option<bool>,
     ) -> Self {
         Self {
             required,
@@ -88,6 +98,8 @@ impl Field {
             max_length,
             pattern,
             enum_values,
+            read_only,
+            write_only,
         }
     }
 }
@@ -180,6 +192,8 @@ macro_rules! define_fields {
                 ///     max_length (int, optional): Maximum length (for string types).
                 ///     pattern (str, optional): Regular expression pattern.
                 ///     enum_values (list[str], optional): List of allowed values.
+                ///     read_only (bool, optional): If `True`, the field will be excluded when deserializing.
+                ///     write_only (bool, optional): If `True`, the field will be excluded when serializing.
                 #[new]
                 #[pyo3(signature=(
                     required=true,
@@ -191,6 +205,8 @@ macro_rules! define_fields {
                     max_length=None,
                     pattern=None,
                     enum_values=None,
+                    read_only=None,
+                    write_only=None
                 ))]
                 fn new(
                     required: Option<bool>,
@@ -202,6 +218,8 @@ macro_rules! define_fields {
                     max_length: Option<usize>,
                     pattern: Option<String>,
                     enum_values: Option<Vec<String>>,
+                    read_only: Option<bool>,
+                    write_only: Option<bool>
                 ) -> (Self, Field) {
                     (
                         Self,
@@ -216,6 +234,8 @@ macro_rules! define_fields {
                             max_length,
                             pattern,
                             enum_values,
+                            read_only,
+                            write_only,
                         ),
                     )
                 }

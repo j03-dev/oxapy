@@ -1,5 +1,10 @@
 from oxapy import serializer, SessionStore, Response, jwt  # type: ignore
+from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
 import pytest  # type: ignore
+
+
+class Base(DeclarativeBase):
+    pass
 
 
 def test_serializer():
@@ -41,7 +46,8 @@ def test_nested_serializer():
         dog = Dog(nullable=True)  # type: ignore
 
     nested_serializer = User(
-        '{"email": "test@gmail.com", "password": "password", "dog" :{"name": "boby", "toys": null}}'  # type: ignore
+        # type: ignore
+        '{"email": "test@gmail.com", "password": "password", "dog" :{"name": "boby", "toys": null}}'
     )
 
     assert nested_serializer.schema() == {
@@ -67,6 +73,33 @@ def test_nested_serializer():
     }
 
     nested_serializer.is_valid()
+
+
+def test_serializer_read_and_write_only():
+    class User(Base):
+        __tablename__ = "users"
+
+        id: Mapped[str] = mapped_column(primary_key=True)
+        name: Mapped[str] = mapped_column(nullable=False)
+        password: Mapped[str] = mapped_column(nullable=False)
+
+    class UserSerializer(serializer.Serializer):
+        id = serializer.CharField(
+            read_only=True, nullable=True, required=False)  # type: ignore
+        name = serializer.CharField()
+        password = serializer.CharField(write_only=True)  # type: ignore
+
+    user_serializer = UserSerializer(
+        '{"id": null, "name": "joe", "password": "password"}')  # type: ignore
+    user_serializer.is_valid()
+
+    user = User(id="abcd1234", name="joe", password="password")
+
+    assert user_serializer.validated_data == {
+        "name": "joe", "password": "password"}
+
+    new_user_serializer = UserSerializer(instance=user)  # type: ignore
+    assert new_user_serializer.data == {"id": "abcd1234", "name": "joe"}
 
 
 def test_session_store_usage():
