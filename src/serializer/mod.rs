@@ -181,17 +181,19 @@ impl Serializer {
             .validate(&json_value)
             .map_err(|err| ValidationException::new_err(err.to_string()))?;
 
-        for k in attr.keys() {
+        let new_attr = attr.copy()?;
+
+        for k in new_attr.keys() {
             let key = k.to_string();
             if let Ok(field) = slf.getattr(&key) {
                 let field = field.extract::<Field>()?;
                 if field.read_only.unwrap_or_default() {
-                    attr.del_item(&key)?;
+                    new_attr.del_item(&key)?;
                 }
             }
         }
 
-        Ok(attr)
+        Ok(new_attr)
     }
 
     /// Return the serialized representation of the instance(s).
