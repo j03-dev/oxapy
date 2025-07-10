@@ -38,6 +38,8 @@ struct Serializer {
     raw_data: Option<String>,
     #[pyo3(get, set)]
     context: Option<Py<PyDict>>,
+    #[pyo3(get)]
+    inspect: Option<Py<PyAny>>,
 }
 
 #[pymethods]
@@ -88,13 +90,23 @@ impl Serializer {
         context: Option<Py<PyDict>>,
         read_only: Option<bool>,
         write_only: Option<bool>,
-    ) -> (Self, Field) {
-        (
+        py: Python<'_>,
+    ) -> PyResult<(Self, Field)> {
+        let inspect: Option<Py<PyAny>> = match PyModule::import(py, "sqlalchemy") {
+            Ok(sqlalchemy) => {
+                let inspection = sqlalchemy.getattr("inspection")?;
+                Some(inspection.getattr("inspect")?.into())
+            }
+            _ => None,
+        };
+
+        Ok((
             Self {
                 validated_data: None,
                 raw_data: data,
                 instance,
                 context,
+                inspect,
             },
             Field {
                 required,
@@ -105,7 +117,7 @@ impl Serializer {
                 write_only,
                 ..Default::default()
             },
-        )
+        ))
     }
 
     /// Generate and return the JSON Schema for this serializer.
@@ -324,21 +336,32 @@ impl Serializer {
     /// Returns:
     ///     dict: Dictionary representation of the instance.
     fn to_representation<'l>(
-        slf: &Bound<'_, Self>,
+        slf: Bound<'_, Self>,
         instance: Bound<PyAny>,
         py: Python<'l>,
     ) -> PyResult<Bound<'l, PyDict>> {
         let dict = PyDict::new(py);
-        let columns = instance
-            .getattr("__table__")?
-            .getattr("columns")?
-            .try_iter()?;
+        let inspect = slf.getattr("inspect")?;
+        let mapper = inspect.call1((instance.get_type(),))?;
+
+        let columns = mapper.getattr("columns")?.try_iter()?;
+        let relationships = mapper.getattr("relationships")?.try_iter()?;
+
         for c in columns {
-            let col = c.unwrap().getattr("name")?.to_string();
+            let col = c?.getattr("name")?.to_string();
             if let Ok(field) = slf.getattr(&col) {
-                let field: Field = field.extract()?;
-                if !field.write_only.unwrap_or_default() {
+                if !field.extract::<Field>()?.write_only.unwrap_or_default() {
                     dict.set_item(&col, instance.getattr(&col)?)?;
+                }
+            }
+        }
+
+        for r in relationships {
+            let key = r?.getattr("key")?.to_string();
+            if let Ok(field) = slf.getattr(&key) {
+                if !field.extract::<Field>()?.write_only.unwrap_or_default() {
+                    field.setattr("instance", instance.getattr(&key)?)?;
+                    dict.set_item(key, field.getattr("data")?)?;
                 }
             }
         }
