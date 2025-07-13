@@ -7,7 +7,7 @@ use pyo3::{
 };
 use serde_json::Value;
 
-use once_cell::sync::Lazy;
+use once_cell::sync::{Lazy, OnceCell};
 
 use std::{collections::HashMap, sync::Mutex};
 
@@ -38,8 +38,6 @@ struct Serializer {
     raw_data: Option<String>,
     #[pyo3(get, set)]
     context: Option<Py<PyDict>>,
-    #[pyo3(get)]
-    inspect: Option<Py<PyAny>>,
 }
 
 #[pymethods]
@@ -90,23 +88,13 @@ impl Serializer {
         context: Option<Py<PyDict>>,
         read_only: Option<bool>,
         write_only: Option<bool>,
-        py: Python<'_>,
-    ) -> PyResult<(Self, Field)> {
-        let inspect: Option<Py<PyAny>> = match PyModule::import(py, "sqlalchemy") {
-            Ok(sqlalchemy) => {
-                let inspection = sqlalchemy.getattr("inspection")?;
-                Some(inspection.getattr("inspect")?.into())
-            }
-            _ => None,
-        };
-
-        Ok((
+    ) -> (Self, Field) {
+        (
             Self {
                 validated_data: None,
                 raw_data: data,
                 instance,
                 context,
-                inspect,
             },
             Field {
                 required,
@@ -117,7 +105,7 @@ impl Serializer {
                 write_only,
                 ..Default::default()
             },
-        ))
+        )
     }
 
     /// Generate and return the JSON Schema for this serializer.
@@ -341,11 +329,17 @@ impl Serializer {
         py: Python<'l>,
     ) -> PyResult<Bound<'l, PyDict>> {
         let dict = PyDict::new(py);
-        let inspect = slf.getattr("inspect")?;
-        let mapper = inspect.call1((instance.get_type(),))?;
 
-        let columns = mapper.getattr("columns")?.try_iter()?;
-        let relationships = mapper.getattr("relationships")?.try_iter()?;
+        let inspect = INSPECT
+            .get()
+            .ok_or_else(|| PyException::new_err("sqlalchemy is not installed"))?;
+        let mapper = inspect.call1(py, (instance.get_type(),))?;
+
+        let columns = mapper.getattr(py, "columns")?.into_bound(py).try_iter()?;
+        let relationships = mapper
+            .getattr(py, "relationships")?
+            .into_bound(py)
+            .try_iter()?;
 
         for c in columns {
             let col = c?.getattr("name")?.to_string();
@@ -459,8 +453,18 @@ impl Serializer {
     }
 }
 
+static INSPECT: OnceCell<Py<PyAny>> = OnceCell::new();
+
 pub fn serializer_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    let serializer = PyModule::new(m.py(), "serializer")?;
+    let py = m.py();
+    let serializer = PyModule::new(py, "serializer")?;
+
+    if let Ok(sqlalchemy) = PyModule::import(py, "sqlalchemy") {
+        let inspection = sqlalchemy.getattr("inspection")?;
+        let inspect = inspection.getattr("inspect")?;
+        INSPECT.set(inspect.into()).ok();
+    }
+
     serializer.add_class::<Field>()?;
     serializer.add_class::<EmailField>()?;
     serializer.add_class::<IntegerField>()?;
