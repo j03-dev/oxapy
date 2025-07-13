@@ -333,6 +333,7 @@ impl Serializer {
         let inspect = INSPECT
             .get()
             .ok_or_else(|| PyException::new_err("sqlalchemy is not installed"))?;
+
         let mapper = inspect.call1(py, (instance.get_type(),))?;
 
         let columns = mapper.getattr(py, "columns")?.into_bound(py).try_iter()?;
