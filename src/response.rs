@@ -65,15 +65,16 @@ impl Response {
     #[new]
     #[pyo3(signature=(body, status = Status::OK , content_type="application/json"))]
     pub fn new(
-        body: PyObject,
+        body: Bound<PyAny>,
         status: Status,
         content_type: &str,
         py: Python<'_>,
     ) -> PyResult<Self> {
-        let body = if let Ok(bytes) = body.extract::<Py<PyBytes>>(py) {
+        let body = if body.is_instance_of::<PyBytes>() {
+            let bytes = body.extract::<Py<PyBytes>>()?;
             bytes.as_bytes(py).to_vec().into()
         } else if content_type == "application/json" {
-            json::dumps(&body)?.into()
+            json::dumps(&body.into())?.into()
         } else {
             body.to_string().into()
         };
