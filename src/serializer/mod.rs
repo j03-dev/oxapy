@@ -326,6 +326,7 @@ impl Serializer {
     ///
     /// Returns:
     ///     dict: Dictionary representation of the instance.
+    #[inline]
     fn to_representation<'l>(
         slf: Bound<'_, Self>,
         instance: Bound<PyAny>,

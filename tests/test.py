@@ -167,7 +167,7 @@ def test_serializer_bench():
     data = user_serializer.data
     end = time.perf_counter()
 
-    assert end - start < 0.00016
+    assert end - start < 0.00012
 
     assert data == {
         "id": "abcd1234",
@@ -180,6 +180,5 @@ def test_bench_create_response():
     start = time.perf_counter()
     response: Response = Response({"message": "User is created"})
     end = time.perf_counter()
-    assert end - start < 0.0001
-
+    assert end - start < 0.000013
     assert response.body == '{"message":"User is created"}'

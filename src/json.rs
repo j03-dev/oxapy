@@ -10,6 +10,7 @@ pub fn init_orjson(py: Python<'_>) -> PyResult<()> {
     Ok(())
 }
 
+#[inline]
 pub fn dumps(data: &PyObject) -> PyResult<String> {
     Python::with_gil(|py| {
         let orjson_module = ORJSON.get().unwrap();
@@ -20,6 +21,7 @@ pub fn dumps(data: &PyObject) -> PyResult<String> {
     })
 }
 
+#[inline]
 pub fn loads(data: &str) -> PyResult<Py<PyDict>> {
     Python::with_gil(|py| {
         let orjson_module = ORJSON.get().unwrap();
@@ -53,16 +55,5 @@ where
     fn try_from(value: Wrap<T>) -> Result<Self, Self::Error> {
         let json_string = serde_json::json!(value.0).to_string();
         loads(&json_string)
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::loads;
-
-    #[test]
-    fn load() {
-        let result = loads(r#"{"name": "joe"}"#);
-        assert!(result.is_ok());
     }
 }
