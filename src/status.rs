@@ -201,6 +201,17 @@ impl Status {
         };
         result.into_py_any(py)
     }
+
+    /// Return the status code
+    ///
+    /// Args:
+    ///     None
+    ///
+    /// Returns:
+    ///     int: The status code
+    fn code(&self) -> u16 {
+        *self as u16
+    }
 }
 
 impl From<Status> for Response {
