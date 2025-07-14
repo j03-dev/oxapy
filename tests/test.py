@@ -1,4 +1,4 @@
-from oxapy import serializer, SessionStore, Response, jwt  # type: ignore
+from oxapy import serializer, SessionStore, Response, convert_to_response, jwt  # type: ignore
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, relationship
 from sqlalchemy import ForeignKey
 import pytest  # type: ignore
@@ -174,3 +174,12 @@ def test_serializer_bench():
         "name": "joe",
         "dog": {"id": "efgh5678", "name": "boby"},
     }
+
+
+def test_bench_create_response():
+    start = time.perf_counter()
+    response: Response = convert_to_response({"message": "User is created"})
+    end = time.perf_counter()
+    assert end - start < 0.0001
+
+    assert response.body == '{"message":"User is created"}'

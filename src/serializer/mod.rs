@@ -9,7 +9,10 @@ use serde_json::Value;
 
 use once_cell::sync::{Lazy, OnceCell};
 
-use std::{collections::HashMap, sync::Mutex};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use crate::{json, IntoPyException};
 
@@ -364,8 +367,8 @@ impl Serializer {
     }
 }
 
-static CACHES_JSON_SCHEMA_VALUE: Lazy<Mutex<HashMap<String, Value>>> =
-    Lazy::new(|| Mutex::new(HashMap::new()));
+static CACHES_JSON_SCHEMA_VALUE: Lazy<Arc<Mutex<HashMap<String, Value>>>> =
+    Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 impl Serializer {
     fn json_schema_value(cls: &Bound<'_, PyType>, nullable: Option<bool>) -> PyResult<Value> {
