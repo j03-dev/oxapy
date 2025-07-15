@@ -7,9 +7,12 @@ use pyo3::{
 };
 use serde_json::Value;
 
-use once_cell::sync::Lazy;
+use once_cell::sync::{Lazy, OnceCell};
 
-use std::{collections::HashMap, sync::Mutex};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use crate::{json, IntoPyException};
 
@@ -181,19 +184,17 @@ impl Serializer {
             .validate(&json_value)
             .map_err(|err| ValidationException::new_err(err.to_string()))?;
 
-        let new_attr = attr.copy()?;
-
-        for k in new_attr.keys() {
+        for k in attr.keys() {
             let key = k.to_string();
             if let Ok(field) = slf.getattr(&key) {
                 let field = field.extract::<Field>()?;
                 if field.read_only.unwrap_or_default() {
-                    new_attr.del_item(&key)?;
+                    attr.del_item(&key)?;
                 }
             }
         }
 
-        Ok(new_attr)
+        Ok(attr)
     }
 
     /// Return the serialized representation of the instance(s).
@@ -325,29 +326,50 @@ impl Serializer {
     ///
     /// Returns:
     ///     dict: Dictionary representation of the instance.
+    #[inline]
     fn to_representation<'l>(
-        slf: &Bound<'_, Self>,
+        slf: Bound<'_, Self>,
         instance: Bound<PyAny>,
         py: Python<'l>,
     ) -> PyResult<Bound<'l, PyDict>> {
         let dict = PyDict::new(py);
-        let columns = instance
-            .getattr("__table__")?
-            .getattr("columns")?
+
+        let inspect = INSPECT
+            .get()
+            .ok_or_else(|| PyException::new_err("sqlalchemy is not installed"))?;
+
+        let mapper = inspect.call1(py, (instance.get_type(),))?;
+
+        let columns = mapper.getattr(py, "columns")?.into_bound(py).try_iter()?;
+        let relationships = mapper
+            .getattr(py, "relationships")?
+            .into_bound(py)
             .try_iter()?;
+
         for c in columns {
-            let col = c.unwrap().getattr("name")?.to_string();
-            let field: Field = slf.getattr(&col)?.extract()?;
-            if slf.getattr(&col).is_ok() && !field.write_only.unwrap_or_default() {
-                dict.set_item(&col, instance.getattr(&col)?)?;
+            let col = c?.getattr("name")?.to_string();
+            if let Ok(field) = slf.getattr(&col) {
+                if !field.extract::<Field>()?.write_only.unwrap_or_default() {
+                    dict.set_item(&col, instance.getattr(&col)?)?;
+                }
+            }
+        }
+
+        for r in relationships {
+            let key = r?.getattr("key")?.to_string();
+            if let Ok(field) = slf.getattr(&key) {
+                if !field.extract::<Field>()?.write_only.unwrap_or_default() {
+                    field.setattr("instance", instance.getattr(&key)?)?;
+                    dict.set_item(key, field.getattr("data")?)?;
+                }
             }
         }
         Ok(dict)
     }
 }
 
-static CACHES_JSON_SCHEMA_VALUE: Lazy<Mutex<HashMap<String, Value>>> =
-    Lazy::new(|| Mutex::new(HashMap::new()));
+static CACHES_JSON_SCHEMA_VALUE: Lazy<Arc<Mutex<HashMap<String, Value>>>> =
+    Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 impl Serializer {
     fn json_schema_value(cls: &Bound<'_, PyType>, nullable: Option<bool>) -> PyResult<Value> {
@@ -436,8 +458,18 @@ impl Serializer {
     }
 }
 
+static INSPECT: OnceCell<Py<PyAny>> = OnceCell::new();
+
 pub fn serializer_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    let serializer = PyModule::new(m.py(), "serializer")?;
+    let py = m.py();
+    let serializer = PyModule::new(py, "serializer")?;
+
+    if let Ok(sqlalchemy) = PyModule::import(py, "sqlalchemy") {
+        let inspection = sqlalchemy.getattr("inspection")?;
+        let inspect = inspection.getattr("inspect")?;
+        INSPECT.set(inspect.into()).ok();
+    }
+
     serializer.add_class::<Field>()?;
     serializer.add_class::<EmailField>()?;
     serializer.add_class::<IntegerField>()?;

@@ -76,6 +76,7 @@ macro_rules! to_response {
 }
 
 #[pyfunction]
+#[inline]
 pub fn convert_to_response(result: Py<PyAny>, py: Python<'_>) -> PyResult<Response> {
     to_response!(
         result,

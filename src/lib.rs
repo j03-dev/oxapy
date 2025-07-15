@@ -468,6 +468,7 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(catcher::catcher, m)?)?;
     m.add_function(wrap_pyfunction!(convert_to_response, m)?)?;
 
+    json::init_orjson(m.py())?;
     templating::templating_submodule(m)?;
     serializer::serializer_submodule(m)?;
 

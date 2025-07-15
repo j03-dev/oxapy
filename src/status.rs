@@ -1,5 +1,5 @@
 use hyper::{body::Bytes, header::CONTENT_TYPE, HeaderMap};
-use pyo3::{basic::CompareOp, prelude::*, IntoPyObjectExt};
+use pyo3::{basic::CompareOp, prelude::*};
 
 use crate::response::Response;
 
@@ -183,23 +183,28 @@ impl Status {
     /// if status >= Status.OK and status < Status.MULTIPLE_CHOICES:
     ///     print("Success!")
     /// ```
-    fn __richcmp__(
-        &self,
-        other: PyRef<Status>,
-        op: CompareOp,
-        py: Python<'_>,
-    ) -> PyResult<PyObject> {
+    fn __richcmp__(&self, other: PyRef<Status>, op: CompareOp) -> bool {
         let lhs = *self as u16;
         let rhs = *other as u16;
-        let result = match op {
+        match op {
             CompareOp::Eq => lhs == rhs,
             CompareOp::Ne => lhs != rhs,
             CompareOp::Lt => lhs < rhs,
             CompareOp::Le => lhs <= rhs,
             CompareOp::Gt => lhs > rhs,
             CompareOp::Ge => lhs >= rhs,
-        };
-        result.into_py_any(py)
+        }
+    }
+
+    /// Return the status code
+    ///
+    /// Args:
+    ///     None
+    ///
+    /// Returns:
+    ///     int: The status code
+    fn code(&self) -> u16 {
+        *self as u16
     }
 }
 
