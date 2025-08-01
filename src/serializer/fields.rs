@@ -5,29 +5,29 @@ use serde_json::Value;
 #[pyclass(subclass)]
 #[derive(Debug, Clone, Default)]
 pub struct Field {
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub required: Option<bool>,
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub ty: String,
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub nullable: Option<bool>,
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub format: Option<String>,
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub many: Option<bool>,
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub length: Option<usize>,
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub min_length: Option<usize>,
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub max_length: Option<usize>,
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub pattern: Option<String>,
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub enum_values: Option<Vec<String>>,
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub read_only: Option<bool>,
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     pub write_only: Option<bool>,
 }
 
