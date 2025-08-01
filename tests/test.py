@@ -109,12 +109,22 @@ def test_serializer_read_and_write_only():
     )
     user_serializer.is_valid()
 
-    user = User(id="abcd1234", name="joe", password="password")
+    user = User(id="abcd1234", name="joe", password="password")  # type: ignore
 
     assert user_serializer.validated_data == {"name": "joe", "password": "password"}
 
     new_user_serializer = UserSerializer(instance=user)  # type: ignore
     assert new_user_serializer.data == {"id": "abcd1234", "name": "joe"}
+
+
+def test_serializer_pattern():
+    class PhoneNumberSerializer(serializer.Serializer):
+        phone_number = serializer.CharField(
+            format="phone_number", pattern=r"^(?:\+261|0)(32|33|34|37|38)\d{7}$"
+        )
+
+    w = PhoneNumberSerializer('{"phone_number":"0325911514"}')
+    w.is_valid()
 
 
 def test_session_store_usage():
@@ -159,7 +169,7 @@ def test_serializer_bench():
         password = serializer.CharField(write_only=True)  # type: ignore
         dog = DogSerializer(read_only=True)
 
-    user = User(id="abcd1234", name="joe", password="password")
+    user = User(id="abcd1234", name="joe", password="password")  # type: ignore
     user.dog = Dog(id="efgh5678", name="boby", owner="abcd1234")
 
     user_serializer = UserSerializer(instance=user)  # type: ignore
