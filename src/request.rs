@@ -205,6 +205,18 @@ impl Request {
         Ok(session.as_ref().clone())
     }
 
+    fn get_cookie(&self, name: &str) -> Option<&str> {
+        let cookie = self.headers.get("cookie")?;
+        let cookies = cookie.split(';');
+        for c in cookies {
+            let (k, v) = c.split_once('=')?;
+            if k == name {
+                return Some(v);
+            }
+        }
+        None
+    }
+
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<PyObject> {
         let message = format!("Request object has no attribute {name}");
         let obj = self
