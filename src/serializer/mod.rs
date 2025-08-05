@@ -359,6 +359,8 @@ impl Serializer {
             let key = r?.getattr("key")?.to_string();
             if let Ok(field) = slf.getattr(&key) {
                 if !field.extract::<Field>()?.write_only.unwrap_or_default() {
+                    slf.getattr("context")
+                        .and_then(|ctx| field.setattr("context", ctx))?;
                     field.setattr("instance", instance.getattr(&key)?)?;
                     dict.set_item(key, field.getattr("data")?)?;
                 }
