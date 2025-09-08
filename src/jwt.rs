@@ -11,11 +11,11 @@ use serde_json::Value;
 use std::str::FromStr;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-create_exception!("jwt", JwtError, PyException);
-create_exception!("jwt", JwtEncodingError, JwtError);
-create_exception!("jwt", JwtDecodingError, JwtError);
-create_exception!("jwt", JwtInvalidAlgorithm, JwtError);
-create_exception!("jwt", JwtInvalidClaim, JwtError);
+create_exception!(jwt, JwtError, PyException);
+create_exception!(jwt, JwtEncodingError, JwtError);
+create_exception!(jwt, JwtDecodingError, JwtError);
+create_exception!(jwt, JwtInvalidAlgorithm, JwtError);
+create_exception!(jwt, JwtInvalidClaim, JwtError);
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {

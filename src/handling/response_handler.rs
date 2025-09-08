@@ -9,8 +9,7 @@ use tokio::sync::mpsc::Receiver;
 
 use crate::{
     into_response::convert_to_response, middleware::MiddlewareChain, request::Request,
-    response::Response, routing::Router, serializer::ValidationException, status::Status,
-    MatchRoute, ProcessRequest,
+    response::Response, routing::Router, status::Status, MatchRoute, ProcessRequest,
 };
 
 pub async fn handle_response(
@@ -27,12 +26,7 @@ pub async fn handle_response(
                         process_request.match_route,
                         &process_request.request,
                         py,
-                    ).unwrap_or_else(|err| {
-                        let status = if err.is_instance_of::<ValidationException>(py)
-                            { Status::BAD_REQUEST } else { Status::INTERNAL_SERVER_ERROR };
-                        let response: Response = status.into();
-                        response.set_body(err.to_string())
-                });
+                    ).unwrap_or_else(Response::from);
 
                 if let Some(catchers) = process_request.catchers {
                     if let Some(handler) = catchers.get(&response.status)  {
