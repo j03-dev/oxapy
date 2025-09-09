@@ -257,8 +257,9 @@ impl Serializer {
         let class_meta = slf.getattr("Meta")?;
         let model = class_meta.getattr("model")?;
         let instance = model.call((), Some(&validated_data))?;
-        session.call_method1(py, "add", (instance.clone(),))?;
+        session.call_method1(py, "add", (&instance,))?;
         session.call_method0(py, "commit")?;
+        session.call_method1(py, "refresh", (&instance,))?;
         Ok(instance.into())
     }
 
