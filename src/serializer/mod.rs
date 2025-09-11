@@ -1,10 +1,10 @@
 use pyo3::{
-    create_exception,
     exceptions::PyException,
     prelude::*,
     types::{PyDict, PyList, PyType},
     IntoPyObjectExt,
 };
+use pyo3_stub_gen::derive::*;
 use serde_json::Value;
 
 use once_cell::sync::{Lazy, OnceCell};
@@ -16,6 +16,7 @@ use std::{
 
 use crate::{json, IntoPyException};
 
+use crate::exceptions::ValidationException;
 use fields::{
     BooleanField, CharField, DateField, DateTimeField, EmailField, EnumField, Field, IntegerField,
     NumberField, UUIDField,
@@ -23,15 +24,9 @@ use fields::{
 
 mod fields;
 
-create_exception!(
-    serializer,
-    ValidationException,
-    PyException,
-    "Validation Exception"
-);
-
-#[pyclass(subclass, extends=Field)]
 #[derive(Debug)]
+#[gen_stub_pyclass]
+#[pyclass(module="oxapy.serializer", subclass, extends=Field)]
 struct Serializer {
     #[pyo3(get, set)]
     instance: Option<Py<PyAny>>,
@@ -43,6 +38,7 @@ struct Serializer {
     context: Option<Py<PyDict>>,
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl Serializer {
     /// Create a new `Serializer` instance.
@@ -74,12 +70,12 @@ impl Serializer {
     #[pyo3(signature = (
         data = None,
         instance = None,
-        required = true,
-        nullable = false,
-        many = false,
+        required = Some(true),
+        nullable = Some(false),
+        many = Some(false),
         context = None,
-        read_only= false,
-        write_only = false,
+        read_only= Some(false),
+        write_only = Some(false),
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -91,7 +87,7 @@ impl Serializer {
         context: Option<Py<PyDict>>,
         read_only: Option<bool>,
         write_only: Option<bool>,
-    ) -> (Self, Field) {
+    ) -> (Serializer, Field) {
         (
             Self {
                 validated_data: None,
@@ -123,6 +119,7 @@ impl Serializer {
     /// schema = serializer.schema()
     /// print(schema)
     /// ```
+    #[pyo3(signature=())]
     fn schema(slf: Bound<'_, Self>) -> PyResult<Py<PyDict>> {
         let schema_value = Self::json_schema_value(&slf.get_type(), None)?;
         json::loads(&schema_value.to_string())
@@ -140,6 +137,7 @@ impl Serializer {
     /// serializer.is_valid()
     /// print(serializer.validated_data["email"])
     /// ```
+    #[pyo3(signature=())]
     fn is_valid(slf: &Bound<'_, Self>) -> PyResult<()> {
         let raw_data = slf
             .getattr("raw_data")?
@@ -170,6 +168,7 @@ impl Serializer {
     /// ```python
     /// serializer.validate({"email": "user@example.com"})
     /// ```
+    #[pyo3(signature=(attr))]
     fn validate<'a>(slf: Bound<'a, Self>, attr: Bound<'a, PyDict>) -> PyResult<Bound<'a, PyDict>> {
         let json::Wrap(json_value) = attr.clone().try_into()?;
 
@@ -200,7 +199,7 @@ impl Serializer {
     /// Return the serialized representation of the instance(s).
     ///
     /// If `many=True`, returns a list of serialized dicts.
-    /// Otherwise returns a single dict, or None if no instance.
+    /// Otherwise, returns a single dict, or None if no instance.
     /// Fields marked as `write_only=True` will be excluded from the serialized output.
     ///
     /// Returns:
@@ -248,6 +247,7 @@ impl Serializer {
     /// ```python
     /// instance = serializer.create(session, serializer.validated_data)
     /// ```
+    #[pyo3(signature=(session, validated_data))]
     fn create<'l>(
         slf: &'l Bound<Self>,
         session: PyObject,
@@ -280,6 +280,7 @@ impl Serializer {
     /// ```python
     /// instance = serializer.save(session)
     /// ```
+    #[pyo3(signature=(session))]
     fn save(slf: Bound<'_, Self>, session: PyObject) -> PyResult<PyObject> {
         let validated_data: Bound<PyDict> = slf
             .getattr("validated_data")?
@@ -327,6 +328,7 @@ impl Serializer {
     ///
     /// Returns:
     ///     dict: Dictionary representation of the instance.
+    #[pyo3(signature=(instance))]
     #[inline]
     fn to_representation<'l>(
         slf: Bound<'_, Self>,

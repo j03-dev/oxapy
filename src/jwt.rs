@@ -6,6 +6,7 @@ use pyo3::create_exception;
 use pyo3::exceptions::PyException;
 use pyo3::types::PyDict;
 use pyo3::{exceptions::PyValueError, prelude::*};
+use pyo3_stub_gen::derive::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::str::FromStr;
@@ -29,14 +30,16 @@ struct Claims {
     extra: Value,
 }
 
-#[pyclass]
 /// Python class for generating and verifying JWT tokens
 #[derive(Clone)]
+#[gen_stub_pyclass]
+#[pyclass(module = "oxapy.jwt")]
 pub struct Jwt {
     secret: String,
     algorithm: Algorithm,
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl Jwt {
     /// Create a new JWT

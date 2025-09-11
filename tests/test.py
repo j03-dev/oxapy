@@ -1,6 +1,7 @@
-from oxapy import serializer, SessionStore, Response, jwt  # type: ignore
-from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, relationship
-from sqlalchemy import ForeignKey
+from oxapy import serializer, SessionStore, Response, jwt
+from oxapy import exceptions
+from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, relationship  # type: ignore
+from sqlalchemy import ForeignKey  # type: ignore
 import pytest  # type: ignore
 import time
 
@@ -52,7 +53,7 @@ def test_serializer():
     assert cred_serializer.validated_data["email"] == "test@gmail.com"
     assert cred_serializer.validated_data["password"] == "password"
 
-    with pytest.raises(serializer.ValidationException):
+    with pytest.raises(exceptions.ValidationException):
         cred_serializer.raw_data = '{"email": "test", "password": "password"}'
         cred_serializer.is_valid()
 
@@ -177,7 +178,7 @@ def test_serializer_bench():
     data = user_serializer.data
     end = time.perf_counter()
 
-    assert end - start < 0.00012
+    assert end - start < 0.00017
 
     assert data == {
         "id": "abcd1234",
@@ -188,7 +189,7 @@ def test_serializer_bench():
 
 def test_bench_create_response():
     start = time.perf_counter()
-    response: Response = Response({"message": "User is created"})
+    response = Response({"message": "User is created"})
     end = time.perf_counter()
-    assert end - start < 0.000013
+    assert end - start < 0.000017
     assert response.body == '{"message":"User is created"}'

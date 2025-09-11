@@ -8,7 +8,11 @@ repository = "https://github.com/j03-dev/oxapy"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 name = "oxapy"
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "stub_gen"
+path = "src/stub_gen.rs"
 
 [dependencies]
 ctrlc = "3.4.7"
@@ -30,6 +34,7 @@ serde = "1.0.219"
 rand = "0.9.1"
 url = "2.5.4"
 ahash = "0.8.12"
+pyo3-stub-gen = "0.13.1"
 
 [target.'cfg(not(target_arch = "aarch64"))'.dependencies]
 jsonwebtoken = "9.3.1"

@@ -6,6 +6,7 @@ use hyper::{
     HeaderMap,
 };
 use pyo3::{prelude::*, types::PyBytes};
+use pyo3_stub_gen::derive::*;
 
 use crate::{json, status::Status, IntoPyException};
 
@@ -31,6 +32,7 @@ use crate::{json, status::Status, IntoPyException};
 /// response = Response("<h1>Not Found</h1>", Status.NOT_FOUND, "text/html")
 /// ```
 #[derive(Clone)]
+#[gen_stub_pyclass]
 #[pyclass(subclass)]
 pub struct Response {
     #[pyo3(get, set)]
@@ -39,6 +41,7 @@ pub struct Response {
     pub headers: HeaderMap,
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl Response {
     /// Create a new Response instance.
@@ -207,10 +210,12 @@ impl Response {
 /// # Redirect to an external site
 /// return Redirect("https://example.com")
 /// ```
+#[gen_stub_pyclass]
 #[pyclass(subclass, extends=Response)]
 pub struct Redirect;
 
 #[pymethods]
+#[gen_stub_pymethods]
 impl Redirect {
     /// Create a new HTTP redirect response.
     ///
@@ -229,7 +234,7 @@ impl Redirect {
     ///     return Redirect("/thank-you")
     /// ```
     #[new]
-    fn new(location: String) -> (Self, Response) {
+    fn new(location: String) -> (Redirect, Response) {
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, "text/html".parse().unwrap());
         headers.insert(LOCATION, location.parse().unwrap());

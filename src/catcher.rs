@@ -1,5 +1,6 @@
 use crate::Status;
 use pyo3::prelude::*;
+use pyo3_stub_gen::derive::*;
 
 /// A catcher for handling specific HTTP status codes.
 ///
@@ -18,6 +19,7 @@ use pyo3::prelude::*;
 /// def handle_not_found(request, response):
 ///     return Response("<h1>Custom 404 Page</h1>", content_type="text/html")
 /// ```
+#[gen_stub_pyclass]
 #[pyclass]
 pub struct Catcher {
     pub status: Status,
@@ -28,11 +30,13 @@ pub struct Catcher {
 ///
 /// This class is returned by the `catcher` function and is used to create
 /// a Catcher when called with a handler function.
+#[gen_stub_pyclass]
 #[pyclass]
 pub struct CatcherBuilder {
     status: Status,
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl CatcherBuilder {
     /// Create a Catcher when called with a handler function.
@@ -72,6 +76,7 @@ impl CatcherBuilder {
 /// app.catchers([handle_404])
 /// ```
 #[pyfunction]
+#[gen_stub_pyfunction]
 pub fn catcher(status: Status) -> CatcherBuilder {
     CatcherBuilder { status }
 }

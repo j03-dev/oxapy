@@ -42,6 +42,8 @@ use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::Semaphore;
 
 use pyo3::{exceptions::PyException, prelude::*};
+use pyo3_stub_gen::define_stub_info_gatherer;
+use pyo3_stub_gen::derive::*;
 
 trait IntoPyException<T> {
     fn into_py_exception(self) -> PyResult<T>;
@@ -117,6 +119,7 @@ struct RequestContext {
 /// app.run()
 ///     ```
 #[derive(Clone)]
+#[gen_stub_pyclass]
 #[pyclass]
 struct HttpServer {
     addr: SocketAddr,
@@ -130,6 +133,7 @@ struct HttpServer {
     catchers: Option<Arc<HashMap<Status, Py<PyAny>>>>,
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl HttpServer {
     /// Create a new instance of HttpServer.
@@ -259,7 +263,7 @@ impl HttpServer {
     ///
     /// server.template(templating.Template())
     /// ```
-    fn template(&mut self, template: Template) {
+    fn template(&mut self, template: templating::Template) {
         self.template = Some(Arc::new(template))
     }
 
@@ -445,6 +449,8 @@ impl HttpServer {
         Ok(())
     }
 }
+
+define_stub_info_gatherer!(stub_info);
 
 #[pymodule]
 fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {

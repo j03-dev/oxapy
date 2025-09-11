@@ -5,6 +5,7 @@ use std::{
 
 use ahash::HashMap;
 use pyo3::{ffi::c_str, prelude::*, types::PyDict, Py, PyAny};
+use pyo3_stub_gen::derive::*;
 
 use crate::{middleware::Middleware, IntoPyException};
 
@@ -30,6 +31,7 @@ pub type MatchRoute<'l> = matchit::Match<'l, 'l, &'l Route>;
 /// route = route(handler)  # Attach the handler
 /// ```
 #[derive(Clone, Debug)]
+#[gen_stub_pyclass]
 #[pyclass]
 pub struct Route {
     pub method: String,
@@ -47,6 +49,7 @@ impl Default for Route {
     }
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl Route {
     #[new]
@@ -80,6 +83,7 @@ macro_rules! method_decorator {
     ) => {
         $(
             $(#[$docs])*
+            #[gen_stub_pyfunction]
             #[pyfunction]
             #[pyo3(signature = (path, handler = None))]
             pub fn $method(path: String, handler: Option<Py<PyAny>>, py: Python<'_>) -> Route {
@@ -201,6 +205,7 @@ method_decorator!(
 );
 
 #[derive(Clone)]
+#[gen_stub_pyclass]
 #[pyclass]
 struct RouteBuilder {
     method: String,
@@ -208,6 +213,7 @@ struct RouteBuilder {
     path: String,
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl RouteBuilder {
     fn __call__(&mut self, handler: Py<PyAny>) -> PyResult<Route> {
@@ -242,6 +248,7 @@ impl RouteBuilder {
 ///     return f"Hello, {name}!"
 /// ```
 #[derive(Default, Clone, Debug)]
+#[gen_stub_pyclass]
 #[pyclass]
 pub struct Router {
     pub routes: Arc<RwLock<HashMap<String, matchit::Router<Route>>>>,
@@ -255,6 +262,7 @@ macro_rules! impl_router {
              $method:ident;
         )*
     ) => {
+        #[gen_stub_pymethods]
         #[pymethods]
         impl Router {
             /// Create a new Router instance.
@@ -478,6 +486,7 @@ impl Router {
 /// router.route(static_file("./static", "static"))
 /// # This will serve files from ./static directory at /static URL path
 /// ```
+#[gen_stub_pyfunction]
 #[pyfunction]
 pub fn static_file(directory: String, path: String, py: Python<'_>) -> PyResult<Route> {
     let pathlib = py.import("pathlib")?;

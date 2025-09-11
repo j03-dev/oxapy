@@ -12,7 +12,7 @@ use tokio::sync::mpsc::channel;
 
 use crate::status::Status;
 use crate::{
-    multipart::{parse_mutltipart, MultiPart},
+    multipart::{parse_multipart, MultiPart},
     request::Request,
     response::Response,
     session::SessionStore,
@@ -77,7 +77,7 @@ async fn setup_mutltpart_request(mut request: Request, body_bytes: Bytes) -> PyR
     let headers = &request.headers;
     if let Some(content_type) = headers.get("content-type") {
         if content_type.starts_with("multipart/form-data") {
-            let MultiPart { fields, files } = parse_mutltipart(content_type, body_bytes)
+            let MultiPart { fields, files } = parse_multipart(content_type, body_bytes)
                 .await
                 .into_py_exception()?;
             request.form = Some(fields);

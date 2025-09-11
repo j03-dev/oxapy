@@ -7,6 +7,7 @@ use pyo3::{
     prelude::*,
     types::PyDict,
 };
+use pyo3_stub_gen::derive::*;
 
 use hyper::Uri;
 use url::form_urlencoded;
@@ -43,6 +44,7 @@ use crate::{
 ///     return f"Hello from {user_agent}"
 /// ```
 #[derive(Clone, Debug, Default)]
+#[gen_stub_pyclass]
 #[pyclass]
 pub struct Request {
     /// The HTTP method of the request (e.g., GET, POST, PUT).
@@ -70,6 +72,7 @@ pub struct Request {
     pub session_store: Option<Arc<SessionStore>>,
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl Request {
     /// Create a new Request instance.
