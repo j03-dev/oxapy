@@ -1,8 +1,5 @@
 use pyo3::{
-    exceptions::PyException,
-    prelude::*,
-    types::{PyDict, PyList, PyType},
-    IntoPyObjectExt,
+    create_exception, exceptions::PyException, prelude::*, types::{PyDict, PyList, PyType}, IntoPyObjectExt
 };
 use pyo3_stub_gen::derive::*;
 use serde_json::Value;
@@ -14,9 +11,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::{json, IntoPyException};
+use crate::{exceptions::BaseError, json, IntoPyException};
 
-use crate::exceptions::ValidationException;
 use fields::{
     BooleanField, CharField, DateField, DateTimeField, EmailField, EnumField, Field, IntegerField,
     NumberField, UUIDField,
@@ -464,6 +460,9 @@ impl Serializer {
 }
 
 static INSPECT: OnceCell<Py<PyAny>> = OnceCell::new();
+
+
+create_exception!(exceptions, ValidationException, BaseError);
 
 pub fn serializer_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let py = m.py();

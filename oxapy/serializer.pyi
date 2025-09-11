@@ -3,6 +3,7 @@
 
 import builtins
 import typing
+from oxapy.exceptions import BaseError
 
 class BooleanField(Field):
     r"""
@@ -450,3 +451,5 @@ class UUIDField(Field):
             read_only (bool, optional): If `True`, the field will be excluded when deserializing.
             write_only (bool, optional): If `True`, the field will be excluded when serializing.
         """
+
+class ValidationException(BaseError): ...

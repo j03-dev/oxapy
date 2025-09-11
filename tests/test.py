@@ -52,7 +52,7 @@ def test_serializer():
     assert cred_serializer.validated_data["email"] == "test@gmail.com"
     assert cred_serializer.validated_data["password"] == "password"
 
-    with pytest.raises(exceptions.ValidationException):
+    with pytest.raises(serializer.ValidationException):
         cred_serializer.raw_data = '{"email": "test", "password": "password"}'
         cred_serializer.is_valid()
 

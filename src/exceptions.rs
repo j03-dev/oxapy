@@ -8,7 +8,6 @@ create_exception!(exceptions, ForbiddenError, BaseError);
 create_exception!(exceptions, NotFoundError, BaseError);
 create_exception!(exceptions, ConflictError, BaseError);
 create_exception!(exceptions, InternalError, BaseError);
-create_exception!(exceptions, ValidationException, BaseError);
 
 pub fn exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let exceptions = PyModule::new(m.py(), "exceptions")?;
@@ -19,6 +18,5 @@ pub fn exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     exceptions.add("NotFoundError", m.py().get_type::<NotFoundError>())?;
     exceptions.add("ConflictError", m.py().get_type::<ConflictError>())?;
     exceptions.add("InternalError", m.py().get_type::<InternalError>())?;
-    exceptions.add("ValidationException", m.py().get_type::<ValidationException>())?;
     m.add_submodule(&exceptions)
 }
