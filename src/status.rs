@@ -1,4 +1,6 @@
-use hyper::{body::Bytes, header::CONTENT_TYPE, HeaderMap};
+use pyo3::{basic::CompareOp, prelude::*};
+use pyo3_stub_gen::derive::*;
+
 /// HTTP status codes enumeration.
 ///
 /// This enum contains standard HTTP status codes as defined in RFC 7231 and other RFCs.
@@ -159,13 +161,6 @@ pub enum Status {
     /// 511 Network Authentication Required - The client needs to authenticate to gain network access
     NETWORK_AUTHENTICATION_REQUIRED = 511,
 }
-use pyo3::{basic::CompareOp, prelude::*};
-use pyo3_stub_gen::derive::*;
-
-use crate::{
-    exceptions::{BaseError, InternalError, NotFoundError, UnauthorizedError},
-    response::Response,
-};
 
 #[pymethods]
 #[gen_stub_pymethods]
@@ -210,39 +205,5 @@ impl Status {
     ///     int: The status code
     fn code(&self) -> u16 {
         *self as u16
-    }
-}
-
-impl From<Status> for Response {
-    fn from(val: Status) -> Self {
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
-        Response {
-            status: val,
-            headers,
-            body: Bytes::new(),
-        }
-    }
-}
-
-impl From<PyErr> for Response {
-    fn from(value: PyErr) -> Self {
-        Python::with_gil(|py| {
-            let status = match value.is_instance_of::<BaseError>(py) {
-                true if value.is_instance_of::<NotFoundError>(py) => Status::NOT_FOUND,
-                true if value.is_instance_of::<UnauthorizedError>(py) => Status::UNAUTHORIZED,
-                true if value.is_instance_of::<InternalError>(py) => Status::INTERNAL_SERVER_ERROR,
-                true => Status::BAD_REQUEST,
-                false => {
-                    value.display(py);
-                    Status::INTERNAL_SERVER_ERROR
-                }
-            };
-            let response: Response = status.into();
-            response.set_body(format!(
-                r#"{{"detail": "{}"}}"#,
-                value.value(py).to_string().replace('"', "'")
-            ))
-        })
     }
 }

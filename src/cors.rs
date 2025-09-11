@@ -1,4 +1,4 @@
-use crate::{response::Response, status::Status};
+use crate::response::Response;
 use pyo3::prelude::*;
 use pyo3_stub_gen::derive::*;
 
@@ -88,14 +88,6 @@ impl Cors {
     ///     str: A debug string showing the CORS configuration.
     fn __repr__(&self) -> String {
         format!("{:#?}", self.clone())
-    }
-}
-
-impl From<Cors> for Response {
-    fn from(val: Cors) -> Self {
-        let mut response = Status::NO_CONTENT.into();
-        val.apply_headers(&mut response);
-        response
     }
 }
 
