@@ -14,6 +14,9 @@ crate-type = ["cdylib", "rlib"]
 name = "stub_gen"
 path = "src/stub_gen.rs"
 
+[features]
+stubgen = []
+
 [dependencies]
 ctrlc = "3.4.7"
 hyper = { version = "1", features = ["full"] }

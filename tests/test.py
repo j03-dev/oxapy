@@ -1,5 +1,5 @@
-from oxapy import serializer, SessionStore, Response, jwt
-from oxapy import exceptions
+from oxapy import serializer, SessionStore, Response, jwt #type: ignore
+from oxapy import exceptions # type: ignore
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, relationship  # type: ignore
 from sqlalchemy import ForeignKey  # type: ignore
 import pytest  # type: ignore
@@ -35,9 +35,7 @@ def test_serializer():
         email = serializer.EmailField()
         password = serializer.CharField(min_length=8)
 
-    cred_serializer = Cred(
-        '{"email": "test@gmail.com", "password": "password"}'  # type: ignore
-    )
+    cred_serializer = Cred('{"email": "test@gmail.com", "password": "password"}')
     schema = cred_serializer.schema()
     assert schema == {
         "additionalProperties": False,
@@ -50,6 +48,7 @@ def test_serializer():
     }
 
     cred_serializer.is_valid()
+    assert cred_serializer.validated_data
     assert cred_serializer.validated_data["email"] == "test@gmail.com"
     assert cred_serializer.validated_data["password"] == "password"
 
