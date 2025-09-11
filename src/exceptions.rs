@@ -14,7 +14,7 @@ pub fn exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     exceptions.add("BaseError", m.py().get_type::<BaseError>())?;
     exceptions.add("BadRequestError", m.py().get_type::<BadRequestError>())?;
     exceptions.add("UnauthorizedError", m.py().get_type::<UnauthorizedError>())?;
-    exceptions.add("ForebiddenError", m.py().get_type::<ForbiddenError>())?;
+    exceptions.add("ForbiddenError", m.py().get_type::<ForbiddenError>())?;
     exceptions.add("NotFoundError", m.py().get_type::<NotFoundError>())?;
     exceptions.add("ConflictError", m.py().get_type::<ConflictError>())?;
     exceptions.add("InternalError", m.py().get_type::<InternalError>())?;

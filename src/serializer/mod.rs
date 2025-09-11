@@ -27,7 +27,7 @@ struct Serializer {
     #[pyo3(get, set)]
     instance: Option<Py<PyAny>>,
     #[pyo3(get, set)]
-    validated_data: Option<Py<PyDict>>,
+    validated_data: Py<PyDict>,
     #[pyo3(get, set)]
     raw_data: Option<String>,
     #[pyo3(get, set)]
@@ -83,10 +83,11 @@ impl Serializer {
         context: Option<Py<PyDict>>,
         read_only: Option<bool>,
         write_only: Option<bool>,
+        py: Python<'_>,
     ) -> (Serializer, Field) {
         (
             Self {
-                validated_data: None,
+                validated_data: PyDict::new(py).into(),
                 raw_data: data,
                 instance,
                 context,
