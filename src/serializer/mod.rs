@@ -20,9 +20,9 @@ use fields::{
 
 mod fields;
 
-#[derive(Debug)]
 #[gen_stub_pyclass]
 #[pyclass(module="oxapy.serializer", subclass, extends=Field)]
+#[derive(Debug)]
 struct Serializer {
     #[pyo3(get, set)]
     instance: Option<Py<PyAny>>,
