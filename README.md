@@ -9,7 +9,7 @@
   <b>OxAPY</b> is Python HTTP server library build in Rust - a fast, safe and feature-rich HTTP server implementation.
 </p>
 
-<a href='https://github.com/j03-dev/oxapy/#'><img src='https://img.shields.io/badge/version-0.6.1-%23b7410e'/></a>
+<a href='https://github.com/j03-dev/oxapy/#'><img src='https://img.shields.io/badge/version-0.6.2-%23b7410e'/></a>
 <a href="https://pepy.tech/projects/oxapy"><img src="https://static.pepy.tech/badge/oxapy" alt="PyPI Downloads"></a>
 
 <p>

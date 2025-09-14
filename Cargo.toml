@@ -1,6 +1,6 @@
 [package]
 name = "oxapy"
-version = "0.6.1"
+version = "0.6.2"
 edition = "2021"
 authors = ["FITAHIANA Nomeniavo Joe <24nomeniavo@gmail.com>"]
 repository = "https://github.com/j03-dev/oxapy"
@@ -15,6 +15,7 @@ name = "stub_gen"
 path = "src/stub_gen.rs"
 
 [dependencies]
+# TODO: upgrade deps
 ctrlc = "3.4.7"
 hyper = { version = "1", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
