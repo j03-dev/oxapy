@@ -1,7 +1,6 @@
 mod catcher;
 mod cors;
 mod exceptions;
-mod handling;
 mod into_response;
 mod json;
 #[cfg(not(target_arch = "aarch64"))]
@@ -22,11 +21,8 @@ use std::sync::Arc;
 
 use crate::catcher::Catcher;
 use crate::cors::Cors;
-use crate::handling::request_handler::handle_request;
-use crate::handling::response_handler::handle_response;
-use crate::into_response::convert_to_response;
 use crate::multipart::File;
-use crate::request::Request;
+use crate::request::{Request, RequestBuilder};
 use crate::response::{Redirect, Response};
 use crate::routing::*;
 use crate::session::{Session, SessionStore};
@@ -37,6 +33,9 @@ use ahash::HashMap;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper_util::rt::TokioIo;
+use middleware::MiddlewareChain;
+use pyo3::exceptions::PyValueError;
+use pyo3::types::{PyDict, PyInt, PyString};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::Semaphore;
@@ -59,7 +58,7 @@ struct ProcessRequest {
     request: Arc<Request>,
     router: Option<Arc<Router>>,
     match_route: Option<MatchRoute<'static>>,
-    response_sender: Sender<Response>,
+    tx: Sender<Response>,
     cors: Option<Arc<Cors>>,
     catchers: Option<Arc<HashMap<Status, Py<PyAny>>>>,
 }
@@ -68,11 +67,8 @@ struct ProcessRequest {
 struct RequestContext {
     request_sender: Sender<ProcessRequest>,
     routers: Vec<Arc<Router>>,
-    app_data: Option<Arc<Py<PyAny>>>,
     channel_capacity: usize,
     cors: Option<Arc<Cors>>,
-    template: Option<Arc<Template>>,
-    session_store: Option<Arc<SessionStore>>,
     catchers: Option<Arc<HashMap<Status, Py<PyAny>>>>,
 }
 
@@ -391,14 +387,14 @@ impl HttpServer {
         let addr = self.addr;
         let channel_capacity = self.channel_capacity;
 
-        let (request_sender, mut request_receiver) = channel::<ProcessRequest>(channel_capacity);
-        let (shutdown_tx, mut shutdown_rx) = channel::<()>(1);
+        let (tx, mut rx) = channel::<ProcessRequest>(channel_capacity);
+        let (kill_tx, mut kill_rx) = channel::<()>(1);
 
         ctrlc::set_handler(move || {
             println!("\nReceived Ctrl+C! Shutting Down...");
             r.store(false, Ordering::SeqCst);
             let runtime = tokio::runtime::Runtime::new().unwrap();
-            runtime.block_on(shutdown_tx.send(())).unwrap();
+            runtime.block_on(kill_tx.send(())).unwrap();
         })
         .into_py_exception()?;
 
@@ -408,23 +404,28 @@ impl HttpServer {
         let running_clone = running.clone();
         let max_connections = self.max_connections.clone();
 
-        let request_ctx = Arc::new(RequestContext {
+        let request_ctx = RequestContext {
             routers: self.routers.clone(),
-            request_sender: request_sender.clone(),
-            app_data: self.app_data.clone(),
+            request_sender: tx.clone(),
             cors: self.cors.clone(),
-            template: self.template.clone(),
-            session_store: self.session_store.clone(),
             channel_capacity,
             catchers: self.catchers.clone(),
-        });
+        };
+
+        let app_data = self.app_data.clone();
+        let template = self.template.clone();
+        let session_store = self.session_store.clone();
 
         tokio::spawn(async move {
             while running_clone.load(Ordering::SeqCst) {
                 let permit = max_connections.clone().acquire_owned().await.unwrap();
                 let (stream, _) = listener.accept().await.unwrap();
                 let io = TokioIo::new(stream);
+
                 let request_ctx = request_ctx.clone();
+                let app_data = app_data.clone();
+                let template = template.clone();
+                let session_store = session_store.clone();
 
                 tokio::spawn(async move {
                     let _permit = permit;
@@ -433,8 +434,19 @@ impl HttpServer {
                             io,
                             service_fn(move |req| {
                                 let request_ctx = request_ctx.clone();
+                                let app_data = app_data.clone();
+                                let template = template.clone();
+                                let session_store = session_store.clone();
+
                                 async move {
-                                    handle_request(req, request_ctx).await // ping
+                                    let request = RequestBuilder::new(req)
+                                        .with_app_data(app_data)
+                                        .with_template(template)
+                                        .with_session_store(session_store)
+                                        .build()
+                                        .await
+                                        .unwrap();
+                                    request.handle(request_ctx).await
                                 }
                             }),
                         )
@@ -444,9 +456,86 @@ impl HttpServer {
             }
         });
 
-        handle_response(&mut shutdown_rx, &mut request_receiver, py).await; // pong
+        loop {
+            tokio::select! {
+                Some(pros_req) = rx.recv() => {
+                    let mut response = process_response(
+                            pros_req.router,
+                            pros_req.match_route,
+                            &pros_req.request,
+                            py,
+                        ).unwrap_or_else(Response::from);
+
+                    if let Some(catchers) = pros_req.catchers {
+                        if let Some(handler) = catchers.get(&response.status)  {
+                            let request: Request = pros_req.request.as_ref().clone();
+                            let result = handler.call(py, (request, response), None).unwrap();
+                            response = into_response::convert_to_response(result, py).unwrap();
+                        }
+                    }
+
+                    if let (Some(session), Some(store)) =
+                        (&pros_req.request.session, &pros_req.request.session_store)
+                    {
+                        let cookie_header = store.get_cookie_header(session);
+                        response.insert_or_append_cookie(cookie_header);
+                    }
+
+                    if let Some(cors) = pros_req.cors {
+                        response = cors.apply_to_response(response).unwrap()
+                    }
+
+                    pros_req.tx.send(response).await.ok();
+                }
+                _ = kill_rx.recv() => {break}
+            }
+        }
 
         Ok(())
+    }
+}
+
+fn process_response(
+    router: Option<Arc<Router>>,
+    match_route: Option<MatchRoute>,
+    request: &Request,
+    py: Python<'_>,
+) -> PyResult<Response> {
+    if let (Some(route), Some(router)) = (match_route, router) {
+        let params = route.params;
+        let route = route.value;
+
+        let kwargs = PyDict::new(py);
+
+        for (key, value) in params.iter() {
+            match key.split_once(":") {
+                Some((name, ty)) => {
+                    let parsed_value: PyObject = match ty {
+                        "int" => PyInt::new(py, value.parse::<i64>()?).into(),
+                        "str" => PyString::new(py, value).into(),
+                        other => {
+                            return Err(PyValueError::new_err(format!(
+                                "Unsupported type annotation '{other}' in parameter key '{key}'."
+                            )));
+                        }
+                    };
+                    kwargs.set_item(name, parsed_value)?;
+                }
+                None => kwargs.set_item(key, value)?,
+            }
+        }
+
+        let request = request.clone();
+
+        let result = if !router.middlewares.is_empty() {
+            let chain = MiddlewareChain::new(router.middlewares.clone());
+            chain.execute(py, &route.handler.clone(), (request,), kwargs.clone())?
+        } else {
+            route.handler.call(py, (request,), Some(&kwargs))?
+        };
+        into_response::convert_to_response(result, py)
+    } else {
+        Ok(Status::NOT_FOUND.into())
     }
 }
 
@@ -473,7 +562,7 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(options, m)?)?;
     m.add_function(wrap_pyfunction!(static_file, m)?)?;
     m.add_function(wrap_pyfunction!(catcher::catcher, m)?)?;
-    m.add_function(wrap_pyfunction!(convert_to_response, m)?)?;
+    m.add_function(wrap_pyfunction!(into_response::convert_to_response, m)?)?;
 
     json::init_orjson(m.py())?;
     templating::templating_submodule(m)?;

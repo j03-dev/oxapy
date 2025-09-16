@@ -1,5 +1,6 @@
 use std::str;
 
+use http_body_util::Full;
 use hyper::{
     body::Bytes,
     header::{HeaderName, CONTENT_TYPE, LOCATION},
@@ -246,5 +247,15 @@ impl Redirect {
                 headers,
             },
         )
+    }
+}
+
+impl TryFrom<Response> for hyper::Response<Full<hyper::body::Bytes>> {
+    type Error = hyper::http::Error;
+
+    fn try_from(val: Response) -> Result<Self, Self::Error> {
+        let mut response = hyper::Response::builder().status(val.status as u16);
+        response.headers_mut().unwrap().extend(val.headers);
+        response.body(Full::new(val.body))
     }
 }

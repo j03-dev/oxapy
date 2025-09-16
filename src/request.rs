@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use ahash::HashMap;
-
+use http_body_util::{BodyExt, Full};
 use pyo3::{
     exceptions::{PyAttributeError, PyException},
     prelude::*,
@@ -10,14 +10,19 @@ use pyo3::{
 use pyo3_stub_gen::derive::*;
 
 use hyper::Uri;
+use multer::bytes::Bytes;
 use url::form_urlencoded;
 
+use crate::multipart::parse_multipart;
+use crate::response::Response;
+use crate::routing::MatchRoute;
+use crate::status::Status;
 use crate::{
     json,
     multipart::File,
     session::{Session, SessionStore},
     templating::Template,
-    IntoPyException,
+    IntoPyException, ProcessRequest, RequestContext,
 };
 
 /// HTTP request object containing information about the incoming request.
@@ -244,4 +249,160 @@ impl Request {
     pub fn __repr__(&self) -> String {
         format!("{:#?}", self)
     }
+}
+
+impl Request {
+    pub(crate) async fn handle(
+        self,
+        RequestContext {
+            request_sender,
+            routers,
+            channel_capacity,
+            cors,
+            catchers,
+        }: RequestContext,
+    ) -> Result<hyper::Response<Full<Bytes>>, hyper::http::Error> {
+        for router in routers {
+            if let Some(match_route) = router.find(&self.method, &self.uri) {
+                let (tx, mut rx) = tokio::sync::mpsc::channel(channel_capacity);
+                let transmutate_route: MatchRoute = unsafe { std::mem::transmute(match_route) };
+
+                let process_request = ProcessRequest {
+                    tx,
+                    cors: cors.clone(),
+                    catchers: catchers.clone(),
+                    router: Some(router),
+                    match_route: Some(transmutate_route),
+                    request: Arc::new(self.clone()),
+                };
+
+                if request_sender.send(process_request).await.is_ok() {
+                    if let Some(response) = rx.recv().await {
+                        return response.try_into();
+                    }
+                }
+            }
+        }
+
+        let (tx, mut rx) = tokio::sync::mpsc::channel(channel_capacity);
+
+        let process_request = ProcessRequest {
+            tx,
+            cors,
+            catchers,
+            router: None,
+            match_route: None,
+            request: Arc::new(self),
+        };
+
+        if request_sender.send(process_request).await.is_ok() {
+            if let Some(response) = rx.recv().await {
+                return response.try_into();
+            }
+        }
+
+        let response: Response = Status::NOT_FOUND.into();
+        response.try_into()
+    }
+}
+
+pub struct RequestBuilder {
+    method: String,
+    uri: String,
+    headers: HashMap<String, String>,
+    app_data: Option<Arc<Py<PyAny>>>,
+    template: Option<Arc<Template>>,
+    session_store: Option<Arc<SessionStore>>,
+    req: hyper::Request<hyper::body::Incoming>,
+}
+
+impl RequestBuilder {
+    pub fn new(req: hyper::Request<hyper::body::Incoming>) -> Self {
+        Self {
+            method: req.method().to_string(),
+            uri: req.uri().to_string(),
+            headers: req
+                .headers()
+                .iter()
+                .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or_default().to_string()))
+                .collect(),
+            req,
+            app_data: None,
+            template: None,
+            session_store: None,
+        }
+    }
+
+    pub fn with_app_data(mut self, app_data: Option<Arc<Py<PyAny>>>) -> Self {
+        self.app_data = app_data;
+        self
+    }
+
+    pub fn with_template(mut self, template: Option<Arc<Template>>) -> Self {
+        self.template = template;
+        self
+    }
+
+    pub fn with_session_store(mut self, session_store: Option<Arc<SessionStore>>) -> Self {
+        self.session_store = session_store;
+        self
+    }
+
+    pub async fn build(self) -> PyResult<Request> {
+        let mut request = Request::new(self.method, self.uri, self.headers);
+
+        let bytes = self.req.collect().await.into_py_exception()?.to_bytes();
+        let body = String::from_utf8_lossy(&bytes).to_string();
+
+        if !body.is_empty() {
+            request.data = Some(body.clone());
+        }
+
+        if let Some(content_type) = request.headers.get("content-type") {
+            if content_type.starts_with("multipart/form-data") {
+                let parsed_multipart = parse_multipart(content_type, bytes)
+                    .await
+                    .into_py_exception()?;
+                request.form = Some(parsed_multipart.fields);
+                request.files = Some(parsed_multipart.files);
+            }
+        }
+
+        if let Some(store) = self.session_store {
+            if let Some(session_id) =
+                get_session_id(request.headers.get("cookie"), &store.cookie_name)
+            {
+                if let Ok(session) = store.get_session(Some(session_id)) {
+                    request.session = Some(Arc::new(session));
+                    request.session_store = Some(store.clone());
+                }
+            }
+        }
+
+        request.app_data = self.app_data;
+        request.template = self.template;
+
+        Ok(request)
+    }
+}
+
+fn get_session_id(cookie_header: Option<&String>, cookie_name: &str) -> Option<String> {
+    cookie_header.and_then(|cookies| {
+        cookies
+            .split(';')
+            .filter_map(|cookie| {
+                let cookie = cookie.trim();
+                let mut parts = cookie.splitn(2, '=');
+                if let (Some(name), Some(value)) = (
+                    parts.next().map(|s| s.trim()),
+                    parts.next().map(|s| s.trim()),
+                ) {
+                    if name == cookie_name {
+                        return Some(value.to_string());
+                    }
+                }
+                None
+            })
+            .next()
+    })
 }
