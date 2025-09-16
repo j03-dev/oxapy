@@ -459,18 +459,22 @@ impl HttpServer {
         loop {
             tokio::select! {
                 Some(pros_req) = rx.recv() => {
-                    let mut response = process_response(
+                    let mut response = call_python_handler(
                             pros_req.router,
                             pros_req.match_route,
                             &pros_req.request,
                             py,
-                        ).unwrap_or_else(Response::from);
+                        )
+                    .unwrap_or_else(Response::from);
 
                     if let Some(catchers) = pros_req.catchers {
                         if let Some(handler) = catchers.get(&response.status)  {
                             let request: Request = pros_req.request.as_ref().clone();
-                            let result = handler.call(py, (request, response), None).unwrap();
-                            response = into_response::convert_to_response(result, py).unwrap();
+                            response = {
+                                let result = handler.call(py, (request, response), None)?;
+                                into_response::convert_to_response(result, py)
+                            }
+                            .unwrap_or_else(Response::from);
                         }
                     }
 
@@ -495,47 +499,44 @@ impl HttpServer {
     }
 }
 
-fn process_response(
+fn call_python_handler(
     router: Option<Arc<Router>>,
     match_route: Option<MatchRoute>,
     request: &Request,
     py: Python<'_>,
 ) -> PyResult<Response> {
-    if let (Some(route), Some(router)) = (match_route, router) {
-        let params = route.params;
-        let route = route.value;
-
-        let kwargs = PyDict::new(py);
-
-        for (key, value) in params.iter() {
-            match key.split_once(":") {
-                Some((name, ty)) => {
-                    let parsed_value: PyObject = match ty {
-                        "int" => PyInt::new(py, value.parse::<i64>()?).into(),
-                        "str" => PyString::new(py, value).into(),
-                        other => {
-                            return Err(PyValueError::new_err(format!(
-                                "Unsupported type annotation '{other}' in parameter key '{key}'."
-                            )));
-                        }
-                    };
-                    kwargs.set_item(name, parsed_value)?;
+    match (match_route, router) {
+        (Some(route), Some(router)) => {
+            let params = route.params;
+            let route = route.value;
+            let kwargs = PyDict::new(py);
+            for (key, value) in params.iter() {
+                match key.split_once(":") {
+                    Some((name, ty)) => {
+                        let parsed_value: PyObject = match ty {
+                            "int" => PyInt::new(py, value.parse::<i64>()?).into(),
+                            "str" => PyString::new(py, value).into(),
+                            other => {
+                                return Err(PyValueError::new_err(format!(
+                                        "Unsupported type annotation '{other}' in parameter key '{key}'."
+                                    )));
+                            }
+                        };
+                        kwargs.set_item(name, parsed_value)?;
+                    }
+                    None => kwargs.set_item(key, value)?,
                 }
-                None => kwargs.set_item(key, value)?,
             }
+            let request = request.clone();
+            let result = if !router.middlewares.is_empty() {
+                let chain = MiddlewareChain::new(router.middlewares.clone());
+                chain.execute(py, &route.handler.clone(), (request,), kwargs.clone())?
+            } else {
+                route.handler.call(py, (request,), Some(&kwargs))?
+            };
+            into_response::convert_to_response(result, py)
         }
-
-        let request = request.clone();
-
-        let result = if !router.middlewares.is_empty() {
-            let chain = MiddlewareChain::new(router.middlewares.clone());
-            chain.execute(py, &route.handler.clone(), (request,), kwargs.clone())?
-        } else {
-            route.handler.call(py, (request,), Some(&kwargs))?
-        };
-        into_response::convert_to_response(result, py)
-    } else {
-        Ok(Status::NOT_FOUND.into())
+        _ => Ok(Status::NOT_FOUND.into()),
     }
 }
 
