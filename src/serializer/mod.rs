@@ -5,7 +5,6 @@ use pyo3::{
     types::{PyDict, PyList, PyType},
     IntoPyObjectExt,
 };
-use pyo3_stub_gen::derive::*;
 use serde_json::Value;
 
 use once_cell::sync::{Lazy, OnceCell};
@@ -24,7 +23,6 @@ use fields::{
 
 mod fields;
 
-#[gen_stub_pyclass]
 #[pyclass(module="oxapy.serializer", subclass, extends=Field)]
 #[derive(Debug)]
 struct Serializer {
@@ -38,7 +36,6 @@ struct Serializer {
     context: Option<Py<PyDict>>,
 }
 
-#[gen_stub_pymethods]
 #[pymethods]
 impl Serializer {
     /// Create a new `Serializer` instance.

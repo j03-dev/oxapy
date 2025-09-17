@@ -1,5 +1,4 @@
 use pyo3::{basic::CompareOp, prelude::*};
-use pyo3_stub_gen::derive::*;
 
 /// HTTP status codes enumeration.
 ///
@@ -28,7 +27,6 @@ use pyo3_stub_gen::derive::*;
 /// ```
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-#[gen_stub_pyclass_enum]
 #[pyclass]
 pub enum Status {
     /// 100 Continue - Server has received the request headers and client should proceed to send the request body
@@ -163,7 +161,6 @@ pub enum Status {
 }
 
 #[pymethods]
-#[gen_stub_pymethods]
 impl Status {
     /// Compare two Status objects.
     ///

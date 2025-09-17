@@ -8,15 +8,10 @@ repository = "https://github.com/j03-dev/oxapy"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 name = "oxapy"
-crate-type = ["cdylib", "rlib"]
-
-[[bin]]
-name = "stub_gen"
-path = "src/stub_gen.rs"
+crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = ">=0.26.0"
-pyo3-stub-gen = { git = "https://github.com/j03-dev/pyo3-stub-gen", branch="chore/bump-pyo3" }
 
 hyper = { version = "1", features = ["full"] }
 tokio = { version = "1", features = ["full"] }

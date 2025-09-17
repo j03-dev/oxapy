@@ -5,7 +5,6 @@ use std::{
 
 use ahash::HashMap;
 use pyo3::{prelude::*, types::PyTuple, IntoPyObjectExt};
-use pyo3_stub_gen::derive::*;
 use rand::{distr::Alphanumeric, Rng};
 
 use crate::IntoPyException;
@@ -41,7 +40,6 @@ pub fn generate_session_id() -> String {
 ///     return {"user_id": session.get("user_id")}
 /// ```
 #[derive(Clone, Debug)]
-#[gen_stub_pyclass]
 #[pyclass]
 pub struct Session {
     #[pyo3(get)]
@@ -53,7 +51,6 @@ pub struct Session {
     modified: Arc<Mutex<bool>>,
 }
 
-#[gen_stub_pymethods]
 #[pymethods]
 impl Session {
     /// Create a new Session instance.
@@ -300,7 +297,6 @@ impl Session {
 /// app.session_store(store)
 /// ```
 #[derive(Clone, Debug)]
-#[gen_stub_pyclass]
 #[pyclass]
 pub struct SessionStore {
     sessions: Arc<RwLock<HashMap<String, Arc<Session>>>>,
@@ -320,7 +316,6 @@ pub struct SessionStore {
     expiry_seconds: Option<u64>,
 }
 
-#[gen_stub_pymethods]
 #[pymethods]
 impl SessionStore {
     /// Create a new SessionStore.

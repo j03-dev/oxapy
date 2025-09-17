@@ -4,7 +4,6 @@ use futures_util::stream;
 use hyper::body::Bytes;
 use multer::Multipart;
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyBytes};
-use pyo3_stub_gen::derive::*;
 
 /// Represents an uploaded file in a multipart/form-data request.
 ///
@@ -33,7 +32,6 @@ use pyo3_stub_gen::derive::*;
 ///     return {"status": "error", "message": "No file uploaded"}
 /// ```
 #[derive(Clone, Debug)]
-#[gen_stub_pyclass]
 #[pyclass]
 pub struct File {
     #[pyo3(get)]
@@ -43,7 +41,6 @@ pub struct File {
     pub data: Bytes,
 }
 
-#[gen_stub_pymethods]
 #[pymethods]
 impl File {
     /// Get the file content as bytes.

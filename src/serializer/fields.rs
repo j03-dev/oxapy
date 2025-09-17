@@ -1,9 +1,7 @@
 use pyo3::prelude::*;
-use pyo3_stub_gen::derive::*;
 use serde_json::Value;
 
 /// Base class representing a JSON schema field.
-#[gen_stub_pyclass]
 #[pyclass(subclass, module = "oxapy.serializer")]
 #[derive(Debug, Clone, Default)]
 pub struct Field {
@@ -33,7 +31,6 @@ pub struct Field {
     pub write_only: Option<bool>,
 }
 
-#[gen_stub_pymethods]
 #[pymethods]
 impl Field {
     /// Create a new field definition.
@@ -177,12 +174,10 @@ macro_rules! define_fields {
         $doc:literal
     );)+) => {
         $(
-            #[gen_stub_pyclass]
             #[pyclass(module="oxapy.serializer", subclass, extends=Field)]
             #[doc = $doc]
             pub struct $class;
 
-            #[gen_stub_pymethods]
             #[pymethods]
             #[allow(clippy::too_many_arguments)]
             impl $class {

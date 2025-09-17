@@ -4,16 +4,13 @@ use crate::json;
 use crate::IntoPyException;
 use ahash::HashMap;
 use pyo3::{prelude::*, types::PyDict};
-use pyo3_stub_gen::derive::*;
 
 #[derive(Debug, Clone)]
-#[gen_stub_pyclass(module = "oxapy.templating")]
 #[pyclass]
 pub struct Tera {
     engine: Arc<tera::Tera>,
 }
 
-#[gen_stub_pymethods]
 #[pymethods]
 impl Tera {
     #[new]
