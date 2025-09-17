@@ -12,7 +12,7 @@ pub fn init_orjson(py: Python<'_>) -> PyResult<()> {
 
 #[inline]
 pub fn dumps(data: &Py<PyAny>) -> PyResult<String> {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let orjson_module = ORJSON.get().unwrap();
         let serialized_data = orjson_module
             .call_method1(py, "dumps", (data,))?
@@ -23,7 +23,7 @@ pub fn dumps(data: &Py<PyAny>) -> PyResult<String> {
 
 #[inline]
 pub fn loads(data: &str) -> PyResult<Py<PyDict>> {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let orjson_module = ORJSON.get().unwrap();
         let deserialized_data = orjson_module.call_method1(py, "loads", (data,))?;
         deserialized_data.extract(py)

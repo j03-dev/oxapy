@@ -75,7 +75,7 @@ impl From<Status> for Response {
 
 impl From<PyErr> for Response {
     fn from(value: PyErr) -> Self {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let status = match value.is_instance_of::<BaseError>(py) {
                 true if value.is_instance_of::<UnauthorizedError>(py) => Status::UNAUTHORIZED,
                 true if value.is_instance_of::<ForbiddenError>(py) => Status::FORBIDDEN,
