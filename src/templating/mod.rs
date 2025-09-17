@@ -40,10 +40,10 @@ mod tera;
 /// app.template(Template("./views/**/*.html", "tera"))
 /// ```
 #[derive(Clone, Debug)]
-#[pyclass]
+#[pyclass(module = "oxapy.templating")]
 pub enum Template {
-    Jinja(self::minijinja::Jinja),
-    Tera(self::tera::Tera),
+    Jinja(minijinja::Jinja),
+    Tera(tera::Tera),
 }
 
 #[pymethods]
@@ -72,10 +72,8 @@ impl Template {
     #[pyo3(signature=(dir="./templates/**/*.html", engine="jinja"))]
     fn new(dir: &str, engine: &str) -> PyResult<Template> {
         match engine {
-            "jinja" => Ok(Template::Jinja(self::minijinja::Jinja::new(
-                dir.to_string(),
-            )?)),
-            "tera" => Ok(Template::Tera(self::tera::Tera::new(dir.to_string())?)),
+            "jinja" => Ok(Template::Jinja(minijinja::Jinja::new(dir.to_string())?)),
+            "tera" => Ok(Template::Tera(tera::Tera::new(dir.to_string())?)),
             e => Err(PyException::new_err(format!(
                 "Invalid engine type '{e}'. Valid options are 'jinja' or 'tera'.",
             ))),
@@ -137,9 +135,9 @@ fn render(
 
 pub fn templating_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let templating = PyModule::new(m.py(), "templating")?;
-    templating.add_function(wrap_pyfunction!(render, &templating)?)?;
     templating.add_class::<Template>()?;
-    templating.add_class::<self::tera::Tera>()?;
-    templating.add_class::<self::minijinja::Jinja>()?;
+    templating.add_class::<tera::Tera>()?;
+    templating.add_class::<minijinja::Jinja>()?;
+    m.add_function(wrap_pyfunction!(render, m)?)?;
     m.add_submodule(&templating)
 }

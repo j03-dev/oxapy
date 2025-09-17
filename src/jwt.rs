@@ -29,9 +29,9 @@ struct Claims {
     extra: Value,
 }
 
-#[pyclass]
 /// Python class for generating and verifying JWT tokens
 #[derive(Clone)]
+#[pyclass(module = "oxapy.jwt")]
 pub struct Jwt {
     secret: String,
     algorithm: Algorithm,

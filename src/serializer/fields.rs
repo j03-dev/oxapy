@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 use serde_json::Value;
 
 /// Base class representing a JSON schema field.
-#[pyclass(subclass)]
+#[pyclass(subclass, module = "oxapy.serializer")]
 #[derive(Debug, Clone, Default)]
 pub struct Field {
     #[pyo3(get, set)]
@@ -59,10 +59,10 @@ impl Field {
     /// ```
     #[pyo3(signature = (
         ty,
-        required = true,
-        nullable = false,
+        required = Some(true),
+        nullable = Some(false),
         format = None,
-        many = false,
+        many = Some(false),
         length = None,
         min_length = None,
         max_length = None,
@@ -174,12 +174,12 @@ macro_rules! define_fields {
         $doc:literal
     );)+) => {
         $(
-            #[pyclass(subclass, extends=Field)]
+            #[pyclass(module="oxapy.serializer", subclass, extends=Field)]
             #[doc = $doc]
             pub struct $class;
 
-            #[allow(clippy::too_many_arguments)]
             #[pymethods]
+            #[allow(clippy::too_many_arguments)]
             impl $class {
                 /// Create a new field of this type.
                 ///
@@ -196,10 +196,10 @@ macro_rules! define_fields {
                 ///     write_only (bool, optional): If `True`, the field will be excluded when serializing.
                 #[new]
                 #[pyo3(signature=(
-                    required=true,
-                    nullable=false,
+                    required=Some(true),
+                    nullable=Some(false),
                     format=$default_format,
-                    many=false,
+                    many=Some(false),
                     length=None,
                     min_length=None,
                     max_length=None,
@@ -220,7 +220,7 @@ macro_rules! define_fields {
                     enum_values: Option<Vec<String>>,
                     read_only: Option<bool>,
                     write_only: Option<bool>
-                ) -> (Self, Field) {
+                ) -> ($class, Field) {
                     (
                         Self,
                         Field::new(

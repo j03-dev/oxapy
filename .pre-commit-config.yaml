@@ -1,20 +1,25 @@
 repos:
+  # Rust hooks (clippy + fmt)
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: v1.0  # pin to a tag or commit
+    hooks:
+      - id: fmt
+      - id: clippy
+        args: ["--all-targets", "--all-features", "--", "-D", "warnings"]
+
+  # Python hooks
   - repo: local
     hooks:
+      # Build Python extension with maturin
       - id: dev
-        name: develop release
+        name: Build (maturin develop --release)
         entry: .venv/bin/maturin develop --release
         language: system
         pass_filenames: false
 
+      # Run pytest
       - id: pytest
         name: Run pytest
-        entry: .venv/bin/pytest tests/test.py
-        language: system
-        pass_filenames: false
-
-      - id: clippy
-        name: Run clippy
-        entry: cargo clippy --all-targets --all-features -- -D warnings
+        entry: .venv/bin/pytest -vv tests/test.py
         language: system
         pass_filenames: false

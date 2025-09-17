@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
-use ahash::HashMap;
-use pyo3::{prelude::*, types::PyDict};
-
 use crate::json;
 use crate::IntoPyException;
+use ahash::HashMap;
+use pyo3::{prelude::*, types::PyDict};
 
 #[derive(Debug, Clone)]
 #[pyclass]

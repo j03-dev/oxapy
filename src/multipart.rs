@@ -1,10 +1,9 @@
+use crate::IntoPyException;
 use ahash::HashMap;
 use futures_util::stream;
 use hyper::body::Bytes;
 use multer::Multipart;
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyBytes};
-
-use crate::IntoPyException;
 
 /// Represents an uploaded file in a multipart/form-data request.
 ///
@@ -91,7 +90,7 @@ pub struct MultiPart {
     pub files: HashMap<String, File>,
 }
 
-pub async fn parse_mutltipart(content_type: &str, body_stream: Bytes) -> PyResult<MultiPart> {
+pub async fn parse_multipart(content_type: &str, body_stream: Bytes) -> PyResult<MultiPart> {
     let mut fields = HashMap::default();
     let mut files = HashMap::default();
 

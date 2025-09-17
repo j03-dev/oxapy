@@ -1,10 +1,4 @@
-use hyper::{body::Bytes, header::CONTENT_TYPE, HeaderMap};
 use pyo3::{basic::CompareOp, prelude::*};
-
-use crate::{
-    exceptions::{BaseError, InternalError, NotFoundError, UnauthorizedError},
-    response::Response,
-};
 
 /// HTTP status codes enumeration.
 ///
@@ -31,9 +25,9 @@ use crate::{
 ///         return Status.NOT_FOUND
 ///     return resource
 /// ```
+#[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 #[pyclass]
-#[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 pub enum Status {
     /// 100 Continue - Server has received the request headers and client should proceed to send the request body
     CONTINUE = 100,
@@ -208,39 +202,5 @@ impl Status {
     ///     int: The status code
     fn code(&self) -> u16 {
         *self as u16
-    }
-}
-
-impl From<Status> for Response {
-    fn from(val: Status) -> Self {
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
-        Response {
-            status: val,
-            headers,
-            body: Bytes::new(),
-        }
-    }
-}
-
-impl From<PyErr> for Response {
-    fn from(value: PyErr) -> Self {
-        Python::with_gil(|py| {
-            let status = match value.is_instance_of::<BaseError>(py) {
-                true if value.is_instance_of::<NotFoundError>(py) => Status::NOT_FOUND,
-                true if value.is_instance_of::<UnauthorizedError>(py) => Status::UNAUTHORIZED,
-                true if value.is_instance_of::<InternalError>(py) => Status::INTERNAL_SERVER_ERROR,
-                true => Status::BAD_REQUEST,
-                false => {
-                    value.display(py);
-                    Status::INTERNAL_SERVER_ERROR
-                }
-            };
-            let response: Response = status.into();
-            response.set_body(format!(
-                r#"{{"detail": "{}"}}"#,
-                value.value(py).to_string().replace('"', "'")
-            ))
-        })
     }
 }

@@ -14,7 +14,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::{json, IntoPyException};
+use crate::{exceptions::BaseError, json, IntoPyException};
 
 use fields::{
     BooleanField, CharField, DateField, DateTimeField, EmailField, EnumField, Field, IntegerField,
@@ -23,14 +23,7 @@ use fields::{
 
 mod fields;
 
-create_exception!(
-    serializer,
-    ValidationException,
-    PyException,
-    "Validation Exception"
-);
-
-#[pyclass(subclass, extends=Field)]
+#[pyclass(module="oxapy.serializer", subclass, extends=Field)]
 #[derive(Debug)]
 struct Serializer {
     #[pyo3(get, set)]
@@ -74,12 +67,12 @@ impl Serializer {
     #[pyo3(signature = (
         data = None,
         instance = None,
-        required = true,
-        nullable = false,
-        many = false,
+        required = Some(true),
+        nullable = Some(false),
+        many = Some(false),
         context = None,
-        read_only= false,
-        write_only = false,
+        read_only= Some(false),
+        write_only = Some(false),
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -91,7 +84,7 @@ impl Serializer {
         context: Option<Py<PyDict>>,
         read_only: Option<bool>,
         write_only: Option<bool>,
-    ) -> (Self, Field) {
+    ) -> (Serializer, Field) {
         (
             Self {
                 validated_data: None,
@@ -123,6 +116,7 @@ impl Serializer {
     /// schema = serializer.schema()
     /// print(schema)
     /// ```
+    #[pyo3(signature=())]
     fn schema(slf: Bound<'_, Self>) -> PyResult<Py<PyDict>> {
         let schema_value = Self::json_schema_value(&slf.get_type(), None)?;
         json::loads(&schema_value.to_string())
@@ -140,6 +134,7 @@ impl Serializer {
     /// serializer.is_valid()
     /// print(serializer.validated_data["email"])
     /// ```
+    #[pyo3(signature=())]
     fn is_valid(slf: &Bound<'_, Self>) -> PyResult<()> {
         let raw_data = slf
             .getattr("raw_data")?
@@ -170,6 +165,7 @@ impl Serializer {
     /// ```python
     /// serializer.validate({"email": "user@example.com"})
     /// ```
+    #[pyo3(signature=(attr))]
     fn validate<'a>(slf: Bound<'a, Self>, attr: Bound<'a, PyDict>) -> PyResult<Bound<'a, PyDict>> {
         let json::Wrap(json_value) = attr.clone().try_into()?;
 
@@ -200,7 +196,7 @@ impl Serializer {
     /// Return the serialized representation of the instance(s).
     ///
     /// If `many=True`, returns a list of serialized dicts.
-    /// Otherwise returns a single dict, or None if no instance.
+    /// Otherwise, returns a single dict, or None if no instance.
     /// Fields marked as `write_only=True` will be excluded from the serialized output.
     ///
     /// Returns:
@@ -211,13 +207,13 @@ impl Serializer {
     /// print(serializer.data)
     /// ```
     #[getter]
-    fn data<'l>(slf: Bound<'l, Self>, py: Python<'l>) -> PyResult<PyObject> {
+    fn data<'l>(slf: Bound<'l, Self>, py: Python<'l>) -> PyResult<Py<PyAny>> {
         let many = slf.getattr("many")?.extract::<bool>()?;
         if many {
-            let mut results: Vec<PyObject> = Vec::new();
+            let mut results: Vec<Py<PyAny>> = Vec::new();
             if let Some(instances) = slf
                 .getattr("instance")?
-                .extract::<Option<Vec<PyObject>>>()?
+                .extract::<Option<Vec<Py<PyAny>>>>()?
             {
                 for instance in instances {
                     let repr = slf.call_method1("to_representation", (instance,))?;
@@ -227,7 +223,7 @@ impl Serializer {
             return PyList::new(py, results)?.into_py_any(py);
         }
 
-        if let Some(instance) = slf.getattr("instance")?.extract::<Option<PyObject>>()? {
+        if let Some(instance) = slf.getattr("instance")?.extract::<Option<Py<PyAny>>>()? {
             let repr = slf.call_method1("to_representation", (instance,))?;
             return repr.extract();
         }
@@ -248,12 +244,13 @@ impl Serializer {
     /// ```python
     /// instance = serializer.create(session, serializer.validated_data)
     /// ```
+    #[pyo3(signature=(session, validated_data))]
     fn create<'l>(
         slf: &'l Bound<Self>,
-        session: PyObject,
+        session: Py<PyAny>,
         validated_data: Bound<PyDict>,
         py: Python<'l>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         let class_meta = slf.getattr("Meta")?;
         let model = class_meta.getattr("model")?;
         let instance = model.call((), Some(&validated_data))?;
@@ -280,7 +277,8 @@ impl Serializer {
     /// ```python
     /// instance = serializer.save(session)
     /// ```
-    fn save(slf: Bound<'_, Self>, session: PyObject) -> PyResult<PyObject> {
+    #[pyo3(signature=(session))]
+    fn save(slf: Bound<'_, Self>, session: Py<PyAny>) -> PyResult<Py<PyAny>> {
         let validated_data: Bound<PyDict> = slf
             .getattr("validated_data")?
             .extract::<Option<Bound<PyDict>>>()?
@@ -306,11 +304,11 @@ impl Serializer {
     /// ```
     fn update(
         &self,
-        session: PyObject,
-        instance: PyObject,
-        validated_data: HashMap<String, PyObject>,
+        session: Py<PyAny>,
+        instance: Py<PyAny>,
+        validated_data: HashMap<String, Py<PyAny>>,
         py: Python<'_>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         for (key, value) in validated_data {
             instance.setattr(py, key, value)?;
         }
@@ -327,6 +325,7 @@ impl Serializer {
     ///
     /// Returns:
     ///     dict: Dictionary representation of the instance.
+    #[pyo3(signature=(instance))]
     #[inline]
     fn to_representation<'l>(
         slf: Bound<'_, Self>,
@@ -462,6 +461,8 @@ impl Serializer {
 }
 
 static INSPECT: OnceCell<Py<PyAny>> = OnceCell::new();
+
+create_exception!(exceptions, ValidationException, BaseError);
 
 pub fn serializer_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let py = m.py();

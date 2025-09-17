@@ -39,7 +39,7 @@ pub struct Route {
 
 impl Default for Route {
     fn default() -> Self {
-        Python::with_gil(|py| Self {
+        Python::attach(|py| Self {
             method: "GET".to_string(),
             path: String::default(),
             handler: Arc::new(py.None()),

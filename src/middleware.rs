@@ -1,11 +1,6 @@
 use std::sync::Arc;
 
-use pyo3::{
-    ffi::c_str,
-    prelude::*,
-    types::{PyDict, PyTuple},
-    Py, PyAny, PyResult, Python,
-};
+use pyo3::{call::PyCallArgs, ffi::c_str, prelude::*, types::PyDict, Py, PyAny, PyResult, Python};
 
 #[derive(Clone, Debug)]
 pub struct Middleware {
@@ -37,7 +32,7 @@ impl MiddlewareChain {
         kwargs: Bound<'py, PyDict>,
     ) -> PyResult<Py<PyAny>>
     where
-        A: IntoPyObject<'py, Target = PyTuple>,
+        A: PyCallArgs<'py>,
     {
         let handler = self.build_middleware_chain(py, route_handler, 0)?;
         handler.call(py, args, Some(&kwargs))
