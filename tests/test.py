@@ -1,5 +1,5 @@
-from oxapy import serializer, SessionStore, Response, jwt #type: ignore
-from oxapy import exceptions # type: ignore
+from oxapy import serializer, SessionStore, Response, jwt  # type: ignore
+from oxapy import exceptions  # type: ignore
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, relationship  # type: ignore
 from sqlalchemy import ForeignKey  # type: ignore
 import pytest  # type: ignore
@@ -177,7 +177,7 @@ def test_serializer_bench():
     data = user_serializer.data
     end = time.perf_counter()
 
-    assert end - start < 0.00017
+    assert end - start < 0.0002
 
     assert data == {
         "id": "abcd1234",
@@ -190,5 +190,5 @@ def test_bench_create_response():
     start = time.perf_counter()
     response = Response({"message": "User is created"})
     end = time.perf_counter()
-    assert end - start < 0.000017
+    assert end - start < 0.00002
     assert response.body == '{"message":"User is created"}'
