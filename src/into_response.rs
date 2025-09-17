@@ -19,10 +19,10 @@ impl TryFrom<String> for Response {
     }
 }
 
-impl TryFrom<PyObject> for Response {
+impl TryFrom<Py<PyAny>> for Response {
     type Error = Error;
 
-    fn try_from(val: PyObject) -> Result<Self, Self::Error> {
+    fn try_from(val: Py<PyAny>) -> Result<Self, Self::Error> {
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, "application/json".parse()?);
         Ok(Response {
@@ -47,10 +47,10 @@ impl TryFrom<(String, Status)> for Response {
     }
 }
 
-impl TryFrom<(PyObject, Status)> for Response {
+impl TryFrom<(Py<PyAny>, Status)> for Response {
     type Error = Error;
 
-    fn try_from(val: (PyObject, Status)) -> Result<Self, Self::Error> {
+    fn try_from(val: (Py<PyAny>, Status)) -> Result<Self, Self::Error> {
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, "application/json".parse()?);
         Ok(Response {
@@ -128,8 +128,8 @@ pub fn convert_to_response(result: Py<PyAny>, py: Python<'_>) -> PyResult<Respon
         Response,
         Status,
         (String, Status),
-        (PyObject, Status),
+        (Py<PyAny>, Status),
         String,
-        PyObject
+        Py<PyAny>
     )
 }

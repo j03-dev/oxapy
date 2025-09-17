@@ -10,7 +10,7 @@ use rand::{distr::Alphanumeric, Rng};
 
 use crate::IntoPyException;
 
-type SessionData = HashMap<String, PyObject>;
+type SessionData = HashMap<String, Py<PyAny>>;
 
 pub fn generate_session_id() -> String {
     rand::rng()
@@ -99,7 +99,7 @@ impl Session {
     /// if user_id is not None:
     ///     # User is logged in
     /// ```
-    fn get(&self, key: &str, py: Python<'_>) -> PyResult<PyObject> {
+    fn get(&self, key: &str, py: Python<'_>) -> PyResult<Py<PyAny>> {
         *self.last_accessed.lock().into_py_exception()? = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .into_py_exception()?
@@ -130,7 +130,7 @@ impl Session {
     /// session.set("user_id", 123)
     /// session.set("is_admin", False)
     /// ```
-    fn set(&self, key: &str, value: PyObject) -> PyResult<()> {
+    fn set(&self, key: &str, value: Py<PyAny>) -> PyResult<()> {
         let mut data = self.data.write().into_py_exception()?;
         data.insert(key.to_string(), value);
         *self.modified.lock().unwrap() = true;
@@ -195,21 +195,21 @@ impl Session {
     /// for key in session.keys():
     ///     print(f"Session contains: {key}")
     /// ```
-    fn keys(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn keys(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let data = self.data.read().into_py_exception()?;
         let keys: Vec<String> = data.keys().cloned().collect();
         keys.into_py_any(py)
     }
 
-    fn values(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn values(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let data = self.data.read().into_py_exception()?;
-        let values: Vec<PyObject> = data.values().map(|v| v.clone_ref(py)).collect();
+        let values: Vec<Py<PyAny>> = data.values().map(|v| v.clone_ref(py)).collect();
         values.into_py_any(py)
     }
 
-    fn items(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn items(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let data = self.data.read().into_py_exception()?;
-        let items: Vec<(String, PyObject)> = data
+        let items: Vec<(String, Py<PyAny>)> = data
             .iter()
             .map(|(k, v)| (k.clone(), v.clone_ref(py)))
             .collect();
@@ -221,13 +221,13 @@ impl Session {
         Ok(data.contains_key(key))
     }
 
-    fn __iter__(slf: PyRef<'_, Self>, py: Python<'_>) -> PyResult<PyObject> {
+    fn __iter__(slf: PyRef<'_, Self>, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let keys = slf.keys(py)?;
         let iter_func = py.get_type::<PyTuple>().call_method1("__iter__", (keys,))?;
         iter_func.into_py_any(py)
     }
 
-    fn __getitem__(&self, key: &str, py: Python<'_>) -> PyResult<PyObject> {
+    fn __getitem__(&self, key: &str, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let data = self.data.read().into_py_exception()?;
         match data.get(key) {
             Some(value) => Ok(value.clone_ref(py)),
@@ -235,7 +235,7 @@ impl Session {
         }
     }
 
-    fn __setitem__(&self, key: &str, value: PyObject) -> PyResult<()> {
+    fn __setitem__(&self, key: &str, value: Py<PyAny>) -> PyResult<()> {
         self.set(key, value)
     }
 

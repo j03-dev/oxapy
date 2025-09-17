@@ -72,7 +72,7 @@ pub struct Request {
     pub files: Option<HashMap<String, File>>,
     pub app_data: Option<Arc<Py<PyAny>>>,
     pub template: Option<Arc<Template>>,
-    pub ext: HashMap<String, Arc<PyObject>>,
+    pub ext: HashMap<String, Arc<Py<PyAny>>>,
     pub session: Option<Arc<Session>>,
     pub session_store: Option<Arc<SessionStore>>,
 }
@@ -225,7 +225,7 @@ impl Request {
         None
     }
 
-    fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<PyObject> {
+    fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let message = format!("Request object has no attribute {name}");
         let obj = self
             .ext
@@ -234,7 +234,7 @@ impl Request {
         Ok(obj.clone_ref(py))
     }
 
-    fn __setattr__(&mut self, name: &str, value: PyObject) -> PyResult<()> {
+    fn __setattr__(&mut self, name: &str, value: Py<PyAny>) -> PyResult<()> {
         match name {
             "method" | "uri" | "headers" | "body" | "template" => Err(PyException::new_err(
                 format!("Attribute '{}' is read-only and cannot be set", name),

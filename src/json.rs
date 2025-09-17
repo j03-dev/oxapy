@@ -11,7 +11,7 @@ pub fn init_orjson(py: Python<'_>) -> PyResult<()> {
 }
 
 #[inline]
-pub fn dumps(data: &PyObject) -> PyResult<String> {
+pub fn dumps(data: &Py<PyAny>) -> PyResult<String> {
     Python::with_gil(|py| {
         let orjson_module = ORJSON.get().unwrap();
         let serialized_data = orjson_module

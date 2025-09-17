@@ -1,5 +1,9 @@
 use pyo3::{
-    create_exception, exceptions::PyException, prelude::*, types::{PyDict, PyList, PyType}, IntoPyObjectExt
+    create_exception,
+    exceptions::PyException,
+    prelude::*,
+    types::{PyDict, PyList, PyType},
+    IntoPyObjectExt,
 };
 use pyo3_stub_gen::derive::*;
 use serde_json::Value;
@@ -206,13 +210,13 @@ impl Serializer {
     /// print(serializer.data)
     /// ```
     #[getter]
-    fn data<'l>(slf: Bound<'l, Self>, py: Python<'l>) -> PyResult<PyObject> {
+    fn data<'l>(slf: Bound<'l, Self>, py: Python<'l>) -> PyResult<Py<PyAny>> {
         let many = slf.getattr("many")?.extract::<bool>()?;
         if many {
-            let mut results: Vec<PyObject> = Vec::new();
+            let mut results: Vec<Py<PyAny>> = Vec::new();
             if let Some(instances) = slf
                 .getattr("instance")?
-                .extract::<Option<Vec<PyObject>>>()?
+                .extract::<Option<Vec<Py<PyAny>>>>()?
             {
                 for instance in instances {
                     let repr = slf.call_method1("to_representation", (instance,))?;
@@ -222,7 +226,7 @@ impl Serializer {
             return PyList::new(py, results)?.into_py_any(py);
         }
 
-        if let Some(instance) = slf.getattr("instance")?.extract::<Option<PyObject>>()? {
+        if let Some(instance) = slf.getattr("instance")?.extract::<Option<Py<PyAny>>>()? {
             let repr = slf.call_method1("to_representation", (instance,))?;
             return repr.extract();
         }
@@ -246,10 +250,10 @@ impl Serializer {
     #[pyo3(signature=(session, validated_data))]
     fn create<'l>(
         slf: &'l Bound<Self>,
-        session: PyObject,
+        session: Py<PyAny>,
         validated_data: Bound<PyDict>,
         py: Python<'l>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         let class_meta = slf.getattr("Meta")?;
         let model = class_meta.getattr("model")?;
         let instance = model.call((), Some(&validated_data))?;
@@ -277,7 +281,7 @@ impl Serializer {
     /// instance = serializer.save(session)
     /// ```
     #[pyo3(signature=(session))]
-    fn save(slf: Bound<'_, Self>, session: PyObject) -> PyResult<PyObject> {
+    fn save(slf: Bound<'_, Self>, session: Py<PyAny>) -> PyResult<Py<PyAny>> {
         let validated_data: Bound<PyDict> = slf
             .getattr("validated_data")?
             .extract::<Option<Bound<PyDict>>>()?
@@ -303,11 +307,11 @@ impl Serializer {
     /// ```
     fn update(
         &self,
-        session: PyObject,
-        instance: PyObject,
-        validated_data: HashMap<String, PyObject>,
+        session: Py<PyAny>,
+        instance: Py<PyAny>,
+        validated_data: HashMap<String, Py<PyAny>>,
         py: Python<'_>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         for (key, value) in validated_data {
             instance.setattr(py, key, value)?;
         }
@@ -460,7 +464,6 @@ impl Serializer {
 }
 
 static INSPECT: OnceCell<Py<PyAny>> = OnceCell::new();
-
 
 create_exception!(exceptions, ValidationException, BaseError);
 

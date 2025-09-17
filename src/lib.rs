@@ -16,6 +16,7 @@ mod status;
 mod templating;
 
 use std::net::SocketAddr;
+use std::ops::Deref;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -462,7 +463,7 @@ impl HttpServer {
                     let mut response = call_python_handler(
                             pros_req.router,
                             pros_req.match_route,
-                            &pros_req.request,
+                            pros_req.request.deref().clone(),
                             py,
                         )
                     .unwrap_or_else(Response::from);
@@ -486,7 +487,7 @@ impl HttpServer {
                     }
 
                     if let Some(cors) = pros_req.cors {
-                        response = cors.apply_to_response(response).unwrap()
+                        response = cors.apply_to_response(response)?;
                     }
 
                     pros_req.tx.send(response).await.ok();
@@ -502,7 +503,7 @@ impl HttpServer {
 fn call_python_handler(
     router: Option<Arc<Router>>,
     match_route: Option<MatchRoute>,
-    request: &Request,
+    request: Request,
     py: Python<'_>,
 ) -> PyResult<Response> {
     match (match_route, router) {
@@ -513,13 +514,12 @@ fn call_python_handler(
             for (key, value) in params.iter() {
                 match key.split_once(":") {
                     Some((name, ty)) => {
-                        let parsed_value: PyObject = match ty {
+                        let parsed_value: Py<PyAny> = match ty {
                             "int" => PyInt::new(py, value.parse::<i64>()?).into(),
                             "str" => PyString::new(py, value).into(),
                             other => {
-                                return Err(PyValueError::new_err(format!(
-                                        "Unsupported type annotation '{other}' in parameter key '{key}'."
-                                    )));
+                                let message = format!("Unsupported type annotation '{other}' in parameter key '{key}'.");
+                                return Err(PyValueError::new_err(message));
                             }
                         };
                         kwargs.set_item(name, parsed_value)?;
@@ -527,12 +527,12 @@ fn call_python_handler(
                     None => kwargs.set_item(key, value)?,
                 }
             }
-            let request = request.clone();
-            let result = if !router.middlewares.is_empty() {
-                let chain = MiddlewareChain::new(router.middlewares.clone());
-                chain.execute(py, &route.handler.clone(), (request,), kwargs.clone())?
-            } else {
-                route.handler.call(py, (request,), Some(&kwargs))?
+            let result = match router.middlewares.is_empty() {
+                true => route.handler.call(py, (request,), Some(&kwargs))?,
+                false => {
+                    let chain = MiddlewareChain::new(router.middlewares.clone());
+                    chain.execute(py, route.handler.deref(), (request,), kwargs.clone())?
+                }
             };
             into_response::convert_to_response(result, py)
         }
