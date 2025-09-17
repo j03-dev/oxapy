@@ -520,7 +520,7 @@ fn call_python_handler(
                         };
                         kwargs.set_item(name, parsed_value)?;
                     }
-                    None => kwargs.set_item(key, value)?,
+                    _ => kwargs.set_item(key, value)?,
                 }
             }
             let result = match router.middlewares.is_empty() {
