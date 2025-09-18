@@ -37,6 +37,7 @@ use hyper_util::rt::TokioIo;
 use middleware::MiddlewareChain;
 use pyo3::exceptions::PyValueError;
 use pyo3::types::{PyDict, PyInt, PyString};
+use pyo3_async_runtimes::tokio::{future_into_py, into_future};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::Semaphore;
@@ -360,25 +361,38 @@ impl HttpServer {
     /// workers = multiprocessing.cpu_count()
     /// server.run(workers)
     /// ```
-    #[pyo3(signature=(workers=None))]
-    fn run(&self, workers: Option<usize>, py: Python<'_>) -> PyResult<()> {
-        let mut runtime = tokio::runtime::Builder::new_multi_thread();
+    #[pyo3(signature=(workers=None, is_async=false))]
+    fn run<'l>(
+        &'l self,
+        workers: Option<usize>,
+        is_async: bool,
+        py: Python<'l>,
+    ) -> PyResult<Bound<'l, PyAny>> {
+        match is_async {
+            true => {
+                let server = self.clone();
+                future_into_py(py, async move { server.run_server(is_async).await })
+            }
+            false => {
+                let mut runtime = tokio::runtime::Builder::new_multi_thread();
 
-        if let Some(workers) = workers {
-            runtime.worker_threads(workers);
+                if let Some(workers) = workers {
+                    runtime.worker_threads(workers);
+                }
+
+                runtime
+                    .enable_all()
+                    .build()?
+                    .block_on(async move { self.run_server(is_async).await })?;
+
+                Ok(py.None().into_bound(py))
+            }
         }
-
-        runtime
-            .enable_all()
-            .build()?
-            .block_on(async move { self.run_server(py).await })?;
-
-        Ok(())
     }
 }
 
 impl HttpServer {
-    async fn run_server(&self, py: Python<'_>) -> PyResult<()> {
+    async fn run_server(&self, is_async: bool) -> PyResult<()> {
         let running = Arc::new(AtomicBool::new(true));
         let r = running.clone();
         let addr = self.addr;
@@ -460,17 +474,17 @@ impl HttpServer {
                             pros_req.router,
                             pros_req.match_route,
                             pros_req.request.deref().clone(),
-                            py,
-                        )
+                            is_async,
+                        ).await
                     .unwrap_or_else(Response::from);
 
                     if let Some(catchers) = pros_req.catchers {
                         if let Some(handler) = catchers.get(&response.status)  {
                             let request: Request = pros_req.request.as_ref().clone();
-                            response = {
+                            response = Python::attach(|py|{
                                 let result = handler.call(py, (request, response), None)?;
                                 into_response::convert_to_response(result, py)
-                            }
+                            })
                             .unwrap_or_else(Response::from);
                         }
                     }
@@ -496,41 +510,52 @@ impl HttpServer {
     }
 }
 
-fn call_python_handler(
+async fn call_python_handler<'l>(
     router: Option<Arc<Router>>,
-    match_route: Option<MatchRoute>,
+    match_route: Option<MatchRoute<'l>>,
     request: Request,
-    py: Python<'_>,
+    is_async: bool,
 ) -> PyResult<Response> {
     match (match_route, router) {
         (Some(route), Some(router)) => {
             let params = route.params;
             let route = route.value;
-            let kwargs = PyDict::new(py);
-            for (key, value) in params.iter() {
-                match key.split_once(":") {
-                    Some((name, ty)) => {
-                        let parsed_value: Py<PyAny> = match ty {
-                            "int" => PyInt::new(py, value.parse::<i64>()?).into(),
-                            "str" => PyString::new(py, value).into(),
-                            other => {
-                                let message = format!("Unsupported type annotation '{other}' in parameter key '{key}'.");
-                                return Err(PyValueError::new_err(message));
-                            }
-                        };
-                        kwargs.set_item(name, parsed_value)?;
+
+            let result = Python::attach(|py| {
+                let kwargs = PyDict::new(py);
+
+                for (key, value) in params.iter() {
+                    match key.split_once(":") {
+                        Some((name, ty)) => {
+                            let parsed_value: Py<PyAny> = match ty {
+                                "int" => PyInt::new(kwargs.py(), value.parse::<i64>()?).into(),
+                                "str" => PyString::new(kwargs.py(), value).into(),
+                                other => {
+                                    let message = format!("Unsupported type annotation '{other}' in parameter key '{key}'.");
+                                    return Err(PyValueError::new_err(message));
+                                }
+                            };
+                            kwargs.set_item(name, parsed_value)?;
+                        }
+                        _ => kwargs.set_item(key, value)?,
                     }
-                    _ => kwargs.set_item(key, value)?,
                 }
-            }
-            let result = match router.middlewares.is_empty() {
-                true => route.handler.call(py, (request,), Some(&kwargs))?,
-                false => {
-                    let chain = MiddlewareChain::new(router.middlewares.clone());
-                    chain.execute(py, route.handler.deref(), (request,), kwargs.clone())?
-                }
+
+                Python::attach(|py| match router.middlewares.is_empty() {
+                    true => route.handler.call(py, (request,), Some(&kwargs)),
+                    false => {
+                        let chain = MiddlewareChain::new(router.middlewares.clone());
+                        chain.execute(py, route.handler.deref(), (request,), kwargs.clone())
+                    }
+                })
+            })?;
+
+            let response = match is_async {
+                true => Python::attach(|py| into_future(result.into_bound(py)))?.await?,
+                false => result,
             };
-            into_response::convert_to_response(result, py)
+
+            Python::attach(|py| into_response::convert_to_response(response, py))
         }
         _ => Ok(Status::NOT_FOUND.into()),
     }
