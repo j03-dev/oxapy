@@ -403,7 +403,7 @@ class HttpServer:
         server.catchers([not_found])
         ```
         """
-    def run(self, workers:typing.Optional[builtins.int]=None) -> typing.Any:
+    def run(self, workers:typing.Optional[builtins.int]=None, is_async:bool=False) -> typing.Any:
         r"""
         Run the HTTP server.
 

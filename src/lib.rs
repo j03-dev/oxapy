@@ -37,6 +37,7 @@ use hyper_util::rt::TokioIo;
 use middleware::MiddlewareChain;
 use pyo3::exceptions::PyValueError;
 use pyo3::types::{PyDict, PyInt, PyString};
+use pyo3_async_runtimes::tokio::{future_into_py, into_future};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::Semaphore;
@@ -360,14 +361,38 @@ impl HttpServer {
     /// workers = multiprocessing.cpu_count()
     /// server.run(workers)
     /// ```
-    fn run<'l>(&'l self, py: Python<'l>) -> PyResult<Bound<'l, PyAny>> {
-        let server = self.clone();
-        pyo3_async_runtimes::tokio::future_into_py(py, async move { server.run_server().await })
+    #[pyo3(signature=(workers=None, is_async=false))]
+    fn run<'l>(
+        &'l self,
+        workers: Option<usize>,
+        is_async: bool,
+        py: Python<'l>,
+    ) -> PyResult<Bound<'l, PyAny>> {
+        match is_async {
+            true => {
+                let server = self.clone();
+                future_into_py(py, async move { server.run_server(is_async).await })
+            }
+            false => {
+                let mut runtime = tokio::runtime::Builder::new_multi_thread();
+
+                if let Some(workers) = workers {
+                    runtime.worker_threads(workers);
+                }
+
+                runtime
+                    .enable_all()
+                    .build()?
+                    .block_on(async move { self.run_server(is_async).await })?;
+
+                Ok(py.None().into_bound(py))
+            }
+        }
     }
 }
 
 impl HttpServer {
-    async fn run_server(&self) -> PyResult<()> {
+    async fn run_server(&self, is_async: bool) -> PyResult<()> {
         let running = Arc::new(AtomicBool::new(true));
         let r = running.clone();
         let addr = self.addr;
@@ -448,7 +473,8 @@ impl HttpServer {
                     let mut response = call_python_handler(
                             pros_req.router,
                             pros_req.match_route,
-                            pros_req.request.deref().clone()
+                            pros_req.request.deref().clone(),
+                            is_async,
                         ).await
                     .unwrap_or_else(Response::from);
 
@@ -488,13 +514,14 @@ async fn call_python_handler<'l>(
     router: Option<Arc<Router>>,
     match_route: Option<MatchRoute<'l>>,
     request: Request,
+    is_async: bool,
 ) -> PyResult<Response> {
     match (match_route, router) {
         (Some(route), Some(router)) => {
             let params = route.params;
             let route = route.value;
 
-            let future_response = Python::attach(|py| {
+            let result = Python::attach(|py| {
                 let kwargs = PyDict::new(py);
 
                 for (key, value) in params.iter() {
@@ -514,18 +541,21 @@ async fn call_python_handler<'l>(
                     }
                 }
 
-                let async_result = Python::attach(|py| match router.middlewares.is_empty() {
+                Python::attach(|py| match router.middlewares.is_empty() {
                     true => route.handler.call(py, (request,), Some(&kwargs)),
                     false => {
                         let chain = MiddlewareChain::new(router.middlewares.clone());
                         chain.execute(py, route.handler.deref(), (request,), kwargs.clone())
                     }
-                })?;
+                })
+            })?;
 
-                pyo3_async_runtimes::tokio::into_future(async_result.into_bound(py))
-            })?.await?;
+            let response = match is_async {
+                true => Python::attach(|py| into_future(result.into_bound(py)))?.await?,
+                false => result,
+            };
 
-            Python::attach(|py| into_response::convert_to_response(future_response, py))
+            Python::attach(|py| into_response::convert_to_response(response, py))
         }
         _ => Ok(Status::NOT_FOUND.into()),
     }
