@@ -12,6 +12,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = ">=0.26.0"
+pyo3-async-runtimes = { version = "0.26", features = ["attributes", "tokio-runtime"] }
 
 hyper = { version = "1", features = ["full"] }
 tokio = { version = "1", features = ["full"] }

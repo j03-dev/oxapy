@@ -360,25 +360,14 @@ impl HttpServer {
     /// workers = multiprocessing.cpu_count()
     /// server.run(workers)
     /// ```
-    #[pyo3(signature=(workers=None))]
-    fn run(&self, workers: Option<usize>, py: Python<'_>) -> PyResult<()> {
-        let mut runtime = tokio::runtime::Builder::new_multi_thread();
-
-        if let Some(workers) = workers {
-            runtime.worker_threads(workers);
-        }
-
-        runtime
-            .enable_all()
-            .build()?
-            .block_on(async move { self.run_server(py).await })?;
-
-        Ok(())
+    fn run<'l>(&'l self, py: Python<'l>) -> PyResult<Bound<'l, PyAny>> {
+        let server = self.clone();
+        pyo3_async_runtimes::tokio::future_into_py(py, async move { server.run_server().await })
     }
 }
 
 impl HttpServer {
-    async fn run_server(&self, py: Python<'_>) -> PyResult<()> {
+    async fn run_server(&self) -> PyResult<()> {
         let running = Arc::new(AtomicBool::new(true));
         let r = running.clone();
         let addr = self.addr;
@@ -459,18 +448,17 @@ impl HttpServer {
                     let mut response = call_python_handler(
                             pros_req.router,
                             pros_req.match_route,
-                            pros_req.request.deref().clone(),
-                            py,
-                        )
+                            pros_req.request.deref().clone()
+                        ).await
                     .unwrap_or_else(Response::from);
 
                     if let Some(catchers) = pros_req.catchers {
                         if let Some(handler) = catchers.get(&response.status)  {
                             let request: Request = pros_req.request.as_ref().clone();
-                            response = {
+                            response = Python::attach(|py|{
                                 let result = handler.call(py, (request, response), None)?;
                                 into_response::convert_to_response(result, py)
-                            }
+                            })
                             .unwrap_or_else(Response::from);
                         }
                     }
@@ -496,41 +484,48 @@ impl HttpServer {
     }
 }
 
-fn call_python_handler(
+async fn call_python_handler<'l>(
     router: Option<Arc<Router>>,
-    match_route: Option<MatchRoute>,
+    match_route: Option<MatchRoute<'l>>,
     request: Request,
-    py: Python<'_>,
 ) -> PyResult<Response> {
     match (match_route, router) {
         (Some(route), Some(router)) => {
             let params = route.params;
             let route = route.value;
-            let kwargs = PyDict::new(py);
-            for (key, value) in params.iter() {
-                match key.split_once(":") {
-                    Some((name, ty)) => {
-                        let parsed_value: Py<PyAny> = match ty {
-                            "int" => PyInt::new(py, value.parse::<i64>()?).into(),
-                            "str" => PyString::new(py, value).into(),
-                            other => {
-                                let message = format!("Unsupported type annotation '{other}' in parameter key '{key}'.");
-                                return Err(PyValueError::new_err(message));
-                            }
-                        };
-                        kwargs.set_item(name, parsed_value)?;
+
+            let future_response = Python::attach(|py| {
+                let kwargs = PyDict::new(py);
+
+                for (key, value) in params.iter() {
+                    match key.split_once(":") {
+                        Some((name, ty)) => {
+                            let parsed_value: Py<PyAny> = match ty {
+                                "int" => PyInt::new(kwargs.py(), value.parse::<i64>()?).into(),
+                                "str" => PyString::new(kwargs.py(), value).into(),
+                                other => {
+                                    let message = format!("Unsupported type annotation '{other}' in parameter key '{key}'.");
+                                    return Err(PyValueError::new_err(message));
+                                }
+                            };
+                            kwargs.set_item(name, parsed_value)?;
+                        }
+                        _ => kwargs.set_item(key, value)?,
                     }
-                    _ => kwargs.set_item(key, value)?,
                 }
-            }
-            let result = match router.middlewares.is_empty() {
-                true => route.handler.call(py, (request,), Some(&kwargs))?,
-                false => {
-                    let chain = MiddlewareChain::new(router.middlewares.clone());
-                    chain.execute(py, route.handler.deref(), (request,), kwargs.clone())?
-                }
-            };
-            into_response::convert_to_response(result, py)
+
+                let async_result = Python::attach(|py| match router.middlewares.is_empty() {
+                    true => route.handler.call(py, (request,), Some(&kwargs)),
+                    false => {
+                        let chain = MiddlewareChain::new(router.middlewares.clone());
+                        chain.execute(py, route.handler.deref(), (request,), kwargs.clone())
+                    }
+                })?;
+
+                pyo3_async_runtimes::tokio::into_future(async_result.into_bound(py))
+            })?.await?;
+
+            Python::attach(|py| into_response::convert_to_response(future_response, py))
         }
         _ => Ok(Status::NOT_FOUND.into()),
     }
