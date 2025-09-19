@@ -353,6 +353,7 @@ impl HttpServer {
     ///
     /// Example:
     /// ```python
+    /// import asyncio
     /// app = HttpServer(("127.0.0.1", 8000))
     ///
     /// @router.get("/")
@@ -362,7 +363,11 @@ impl HttpServer {
     ///     return "Hello, World!"
     ///
     /// app.attach(router)
-    /// app.async_mode().run()
+    ///
+    /// await def main():
+    ///     await app.async_mode().run()
+    ///
+    /// asyncio.run(main())
     /// ```
     fn async_mode(&mut self) -> Self {
         self.is_async = true;
