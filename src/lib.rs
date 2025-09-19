@@ -259,7 +259,7 @@ impl HttpServer {
     ///
     /// server.template(templating.Template())
     /// ```
-    fn template(&mut self, template: templating::Template) {
+    fn template(&mut self, template: Template) {
         self.template = Some(Arc::new(template))
     }
 

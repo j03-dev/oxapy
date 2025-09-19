@@ -245,7 +245,7 @@ impl Redirect {
     }
 }
 
-impl TryFrom<Response> for hyper::Response<Full<hyper::body::Bytes>> {
+impl TryFrom<Response> for hyper::Response<Full<Bytes>> {
     type Error = hyper::http::Error;
 
     fn try_from(val: Response) -> Result<Self, Self::Error> {
