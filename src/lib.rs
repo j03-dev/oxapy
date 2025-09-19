@@ -126,6 +126,7 @@ struct HttpServer {
     template: Option<Arc<Template>>,
     session_store: Option<Arc<SessionStore>>,
     catchers: Option<Arc<HashMap<Status, Py<PyAny>>>>,
+    is_async: bool,
 }
 
 #[pymethods]
@@ -155,6 +156,7 @@ impl HttpServer {
             template: None,
             session_store: None,
             catchers: None,
+            is_async: false,
         })
     }
 
@@ -340,6 +342,33 @@ impl HttpServer {
         self.catchers = Some(Arc::new(map))
     }
 
+    /// Enable asynchronous mode for the server.
+    ///
+    /// In asynchronous mode, request handlers can be asynchronous Python functions
+    /// (i.e., defined with `async def`). This allows you to perform non-blocking
+    /// I/O operations within your handlers.
+    ///
+    /// Returns:
+    ///     HttpServer: A new HttpServer instance configured for asynchronous operation.
+    ///
+    /// Example:
+    /// ```python
+    /// app = HttpServer(("127.0.0.1", 8000))
+    ///
+    /// @router.get("/")
+    /// async def home(request):
+    ///     # Asynchronous operations are allowed here
+    ///     data = await fetch_data_from_database()
+    ///     return "Hello, World!"
+    ///
+    /// app.attach(router)
+    /// app.async_mode().run()
+    /// ```
+    fn async_mode(&mut self) -> Self {
+        self.is_async = true;
+        self.clone()
+    }
+
     /// Run the HTTP server.
     ///
     /// This starts the server and blocks until interrupted (e.g., with Ctrl+C).
@@ -361,17 +390,12 @@ impl HttpServer {
     /// workers = multiprocessing.cpu_count()
     /// server.run(workers)
     /// ```
-    #[pyo3(signature=(workers=None, is_async=false))]
-    fn run<'l>(
-        &'l self,
-        workers: Option<usize>,
-        is_async: bool,
-        py: Python<'l>,
-    ) -> PyResult<Bound<'l, PyAny>> {
-        match is_async {
+    #[pyo3(signature=(workers=None))]
+    fn run<'l>(&'l self, workers: Option<usize>, py: Python<'l>) -> PyResult<Bound<'l, PyAny>> {
+        match self.is_async {
             true => {
                 let server = self.clone();
-                future_into_py(py, async move { server.run_server(is_async).await })
+                future_into_py(py, async move { server.run_server().await })
             }
             false => {
                 let mut runtime = tokio::runtime::Builder::new_multi_thread();
@@ -383,7 +407,7 @@ impl HttpServer {
                 runtime
                     .enable_all()
                     .build()?
-                    .block_on(async move { self.run_server(is_async).await })?;
+                    .block_on(async move { self.run_server().await })?;
 
                 Ok(py.None().into_bound(py))
             }
@@ -392,7 +416,7 @@ impl HttpServer {
 }
 
 impl HttpServer {
-    async fn run_server(&self, is_async: bool) -> PyResult<()> {
+    async fn run_server(&self) -> PyResult<()> {
         let running = Arc::new(AtomicBool::new(true));
         let r = running.clone();
         let addr = self.addr;
@@ -474,7 +498,7 @@ impl HttpServer {
                             pros_req.router,
                             pros_req.match_route,
                             pros_req.request.deref().clone(),
-                            is_async,
+                            self.is_async,
                         ).await
                     .unwrap_or_else(Response::from);
 

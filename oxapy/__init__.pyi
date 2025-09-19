@@ -403,7 +403,32 @@ class HttpServer:
         server.catchers([not_found])
         ```
         """
-    def run(self, workers:typing.Optional[builtins.int]=None, is_async:bool=False) -> typing.Any:
+    def async_mode(self) -> HttpServer:
+        r"""
+        Enable asynchronous mode for the server.
+
+        In asynchronous mode, request handlers can be asynchronous Python functions
+        (i.e., defined with `async def`). This allows you to perform non-blocking
+        I/O operations within your handlers.
+
+        Returns:
+            HttpServer: A new HttpServer instance configured for asynchronous operation.
+
+        Example:
+        ```python
+        app = HttpServer(("127.0.0.1", 8000))
+
+        @router.get("/")
+        async def home(request):
+            # Asynchronous operations are allowed here
+            data = await fetch_data_from_database()
+            return "Hello, World!"
+
+        app.attach(router)
+        app.async_mode().run()
+        ```
+        """
+    def run(self, workers:typing.Optional[builtins.int]=None) -> typing.Any:
         r"""
         Run the HTTP server.
 

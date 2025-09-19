@@ -9,7 +9,7 @@
   <b>OxAPY</b> is Python HTTP server library build in Rust - a fast, safe and feature-rich HTTP server implementation.
 </p>
 
-<a href='https://github.com/j03-dev/oxapy/#'><img src='https://img.shields.io/badge/version-0.6.3-%23b7410e'/></a>
+<a href='https://github.com/j03-dev/oxapy/#'><img src='https://img.shields.io/badge/version-0.6.4-%23b7410e'/></a>
 <a href="https://pepy.tech/projects/oxapy"><img src="https://static.pepy.tech/badge/oxapy" alt="PyPI Downloads"></a>
 
 <p>
@@ -55,6 +55,24 @@ app.attach(router)
 
 if __name__ == "__main__":
     app.run()
+```
+
+## Async Example
+
+```python
+from oxapy import HttpServer, Router
+
+router = Router()
+
+@router.get("/")
+async def home(request):
+    # Asynchronous operations are allowed here
+    data = await fetch_data_from_database()
+    return "Hello, World!"
+
+app = HttpServer(("127.0.0.1", 8000))
+app.attach(router)
+app.async_mode().run()
 ```
 
 ## Middleware Example
