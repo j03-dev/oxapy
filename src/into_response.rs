@@ -1,6 +1,8 @@
 use hyper::{body::Bytes, header::CONTENT_TYPE, HeaderMap};
 use pyo3::{prelude::*, types::PyAny, Py};
+use std::sync::Arc;
 
+use crate::response::Body;
 use crate::{cors::Cors, exceptions::*, json, status::Status, IntoPyException, Response};
 
 type Error = Box<dyn std::error::Error>;
@@ -14,7 +16,7 @@ impl TryFrom<String> for Response {
         Ok(Response {
             status: Status::OK,
             headers,
-            body: val.clone().into(),
+            body: Arc::new(Body::Full(val.clone().into())),
         })
     }
 }
@@ -28,7 +30,7 @@ impl TryFrom<Py<PyAny>> for Response {
         Ok(Response {
             status: Status::OK,
             headers,
-            body: json::dumps(&val)?.into(),
+            body: Arc::new(Body::Full(json::dumps(&val)?.into())),
         })
     }
 }
@@ -42,7 +44,7 @@ impl TryFrom<(String, Status)> for Response {
         Ok(Response {
             status: val.1,
             headers,
-            body: val.0.clone().into(),
+            body: Arc::new(Body::Full(val.0.clone().into())),
         })
     }
 }
@@ -56,7 +58,7 @@ impl TryFrom<(Py<PyAny>, Status)> for Response {
         Ok(Response {
             status: val.1,
             headers,
-            body: json::dumps(&val.0)?.into(),
+            body: Arc::new(Body::Full(json::dumps(&val.0)?.into())),
         })
     }
 }
@@ -68,7 +70,7 @@ impl From<Status> for Response {
         Response {
             status: val,
             headers,
-            body: Bytes::new(),
+            body: Arc::new(Body::Full(Bytes::new())),
         }
     }
 }

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use ahash::HashMap;
-use http_body_util::{BodyExt, Full};
+use http_body_util::BodyExt;
 use pyo3::{
     exceptions::{PyAttributeError, PyException},
     prelude::*,
@@ -9,10 +9,8 @@ use pyo3::{
 };
 
 use hyper::Uri;
-use multer::bytes::Bytes;
 use url::form_urlencoded;
 
-use crate::multipart::parse_multipart;
 use crate::response::Response;
 use crate::routing::MatchRoute;
 use crate::status::Status;
@@ -23,6 +21,7 @@ use crate::{
     templating::Template,
     IntoPyException, ProcessRequest, RequestContext,
 };
+use crate::{multipart::parse_multipart, response::Body};
 
 /// HTTP request object containing information about the incoming request.
 ///
@@ -258,7 +257,7 @@ impl Request {
             cors,
             catchers,
         }: RequestContext,
-    ) -> Result<hyper::Response<Full<Bytes>>, hyper::http::Error> {
+    ) -> Result<hyper::Response<Body>, hyper::http::Error> {
         for router in routers {
             if let Some(match_route) = router.find(&self.method, &self.uri) {
                 let (tx, mut rx) = tokio::sync::mpsc::channel(channel_capacity);

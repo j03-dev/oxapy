@@ -5,8 +5,13 @@ use pyo3::{
     types::{PyDict, PyModule, PyModuleMethods},
     Bound, PyResult,
 };
+use std::sync::Arc;
 
-use crate::{request::Request, response::Response, status::Status};
+use crate::{
+    request::Request,
+    response::{Body, Response},
+    status::Status,
+};
 
 mod minijinja;
 mod tera;
@@ -128,7 +133,7 @@ fn render(
     headers.insert(CONTENT_TYPE, "text/html".parse().unwrap());
     Ok(Response {
         status: Status::OK,
-        body: body.into(),
+        body: Arc::new(Body::Full(body.into())),
         headers,
     })
 }
