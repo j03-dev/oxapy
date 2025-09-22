@@ -1,3 +1,5 @@
+use crate::{request::Request, response::Response, status::Status};
+use http_body_util::{BodyExt, Full};
 use hyper::{header::CONTENT_TYPE, HeaderMap};
 use pyo3::{
     exceptions::{PyException, PyValueError},
@@ -6,12 +8,6 @@ use pyo3::{
     Bound, PyResult,
 };
 use std::sync::Arc;
-
-use crate::{
-    request::Request,
-    response::{Body, Response},
-    status::Status,
-};
 
 mod minijinja;
 mod tera;
@@ -133,7 +129,7 @@ fn render(
     headers.insert(CONTENT_TYPE, "text/html".parse().unwrap());
     Ok(Response {
         status: Status::OK,
-        body: Arc::new(Body::Full(body.into())),
+        body: Arc::new(Full::new(body.into()).boxed()),
         headers,
     })
 }

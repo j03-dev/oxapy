@@ -1,6 +1,5 @@
 use crate::{json, status::Status, IntoPyException};
-use futures_util::stream::{self, BoxStream};
-use futures_util::{io, StreamExt, TryStream};
+use futures_util::StreamExt;
 use hyper::body::Frame;
 use hyper::http::HeaderValue;
 use hyper::{
@@ -9,45 +8,18 @@ use hyper::{
     HeaderMap,
 };
 
+use futures_util::stream;
+use http_body_util::{BodyExt, Full, StreamBody};
+use hyper::header::CACHE_CONTROL;
 use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
-use pyo3::types::PyIterator;
-use std::pin::Pin;
+use pyo3::types::{PyBytes, PyIterator, PyString};
+use std::convert::Infallible;
 use std::str;
 use std::sync::Arc;
-use std::task::{Context, Poll};
 
-pub enum Body {
-    Full(Bytes),
-    Stream(BoxStream<'static, Result<Bytes, io::Error>>),
-}
+pub type Body = http_body_util::combinators::BoxBody<Bytes, Infallible>;
 
-unsafe impl Send for Body {}
-unsafe impl Sync for Body {}
-
-impl hyper::body::Body for Body {
-    type Data = Bytes;
-    type Error = io::Error;
-
-    fn poll_frame(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
-        match self.get_mut() {
-            Body::Full(bytes) => {
-                if bytes.is_empty() {
-                    Poll::Ready(None)
-                } else {
-                    let data = std::mem::replace(bytes, Bytes::new());
-                    Poll::Ready(Some(Ok(Frame::data(data))))
-                }
-            }
-            Body::Stream(stream) => Pin::new(stream)
-                .try_poll_next(cx)
-                .map(|opt| opt.map(|res| res.map(Frame::data))),
-        }
-    }
-}
 /// HTTP response object that is returned from request handlers.
 ///
 /// Args:
@@ -106,16 +78,16 @@ impl Response {
     pub fn new(body: Bound<PyAny>, status: Status, content_type: &str) -> PyResult<Self> {
         let content_type = HeaderValue::from_str(content_type).into_py_exception()?;
 
-        if let Ok(s) = body.extract::<String>() {
-            return Self::from_str(s, status, content_type);
-        }
-
-        if let Ok(b) = body.extract::<&[u8]>() {
-            return Self::from_bytes(b, status, content_type);
+        if body.is_instance_of::<PyString>() {
+            return Self::from_str(body.to_string(), status, content_type);
         }
 
         if content_type == "application/json" {
             return Self::from_json(body, status, content_type);
+        }
+
+        if body.is_instance_of::<PyBytes>() {
+            return Self::from_bytes(body.extract()?, status, content_type);
         }
 
         if body.is_instance_of::<PyIterator>() {
@@ -134,10 +106,7 @@ impl Response {
     ///     Exception: If the body cannot be converted to a valid UTF-8 string.
     #[getter]
     fn body(&self) -> PyResult<String> {
-        match self.body.as_ref() {
-            Body::Full(body) => Ok(str::from_utf8(body).into_py_exception()?.to_string()),
-            Body::Stream(_) => panic!("cannot convert streaming body to string"),
-        }
+        todo!()
     }
 
     /// Get the response headers as a list of key-value tuples.
@@ -215,7 +184,7 @@ impl Response {
 
 impl Response {
     pub fn set_body(mut self, body: String) -> Self {
-        self.body = Arc::new(Body::Full(Bytes::from(body)));
+        self.body = Arc::new(Full::new(body.into()).boxed());
         self
     }
 
@@ -229,7 +198,7 @@ impl Response {
 
     fn from_str(s: String, status: Status, content_type: HeaderValue) -> PyResult<Self> {
         Ok(Self {
-            body: Arc::new(Body::Full(s.into())),
+            body: Arc::new(Full::new(s.into()).boxed()),
             status,
             headers: HeaderMap::from_iter([(CONTENT_TYPE, content_type)]),
         })
@@ -238,7 +207,7 @@ impl Response {
     fn from_bytes(b: &[u8], status: Status, content_type: HeaderValue) -> PyResult<Self> {
         Ok(Self {
             status,
-            body: Arc::new(Body::Full(Bytes::copy_from_slice(b))),
+            body: Arc::new(Full::new(Bytes::copy_from_slice(b)).boxed()),
             headers: HeaderMap::from_iter([(CONTENT_TYPE, content_type)]),
         })
     }
@@ -247,7 +216,7 @@ impl Response {
         let json = json::dumps(&obj.into())?;
         Ok(Self {
             status,
-            body: Arc::new(Body::Full(json.into())),
+            body: Arc::new(Full::new(json.into()).boxed()),
             headers: HeaderMap::from_iter([(CONTENT_TYPE, content_type)]),
         })
     }
@@ -257,20 +226,24 @@ impl Response {
         status: Status,
         content_type: HeaderValue,
     ) -> PyResult<Response> {
-        // Extract all chunks
-        let mut chunks = Vec::new();
+        let mut chunks: Vec<Vec<u8>> = Vec::new();
 
         for item in obj.try_iter()? {
-            let bytes: Vec<u8> = item?.extract()?;
-            chunks.push(bytes);
+            chunks.push(item?.extract()?);
         }
 
-        let stream = stream::iter(chunks.into_iter().map(|chunk| Ok(Bytes::from(chunk)))).boxed();
+        let stream = stream::iter(chunks).map(|it| Ok(Frame::data(Bytes::from(it))));
+
+        let body = StreamBody::new(Box::pin(stream));
+
+        let mut headers = HeaderMap::default();
+        headers.insert(CONTENT_TYPE, content_type);
+        headers.insert(CACHE_CONTROL, HeaderValue::from_static("no-cache"));
 
         Ok(Response {
             status,
-            body: Arc::new(Body::Stream(stream)),
-            headers: HeaderMap::from_iter([(CONTENT_TYPE, content_type)]),
+            body: Arc::new(BodyExt::boxed(body)),
+            headers,
         })
     }
 }
@@ -323,7 +296,7 @@ impl Redirect {
             Self,
             Response {
                 status: Status::MOVED_PERMANENTLY,
-                body: Arc::new(Body::Full(Bytes::new())),
+                body: Arc::new(Full::new(Bytes::new()).boxed()),
                 headers,
             },
         )
