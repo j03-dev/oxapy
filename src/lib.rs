@@ -594,7 +594,6 @@ async fn call_python_handler<'l>(
     }
 }
 
-#[cfg(feature = "stub-gen")]
 pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
 
 #[pymodule]
