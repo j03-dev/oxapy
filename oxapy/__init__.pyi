@@ -1359,6 +1359,82 @@ class SessionStore:
     def expiry_seconds(self) -> typing.Optional[builtins.int]: ...
     @expiry_seconds.setter
     def expiry_seconds(self, value: typing.Optional[builtins.int]) -> None: ...
+    def __new__(cls, cookie_name:builtins.str='session', cookie_max_age:typing.Optional[builtins.int]=None, cookie_path:builtins.str='/', cookie_secure:builtins.bool=False, cookie_http_only:builtins.bool=True, cookie_same_site:builtins.str='Lax', expiry_seconds:typing.Optional[builtins.int]=86400) -> SessionStore:
+        r"""
+        Create a new SessionStore.
+        
+        Args:
+            cookie_name (str, optional): Name of the cookie used for session tracking (default: "session").
+            cookie_max_age (int, optional): Max age of the cookie in seconds (default: None).
+            cookie_path (str, optional): Path for the cookie (default: "/").
+            cookie_secure (bool, optional): Whether the cookie should only be sent over HTTPS (default: False).
+            cookie_http_only (bool, optional): Whether the cookie is inaccessible to JavaScript (default: True).
+            cookie_same_site (str, optional): SameSite cookie policy ("Lax", "Strict", or "None") (default: "Lax").
+            expiry_seconds (int, optional): How long sessions should last in seconds (default: 86400 - one day).
+        
+        Returns:
+            SessionStore: A new session store instance.
+        
+        Example:
+        ```python
+        # Create a session store with default settings
+        store = SessionStore()
+        
+        # Create a session store with custom settings
+        secure_store = SessionStore(
+            cookie_name="secure_session",
+            cookie_secure=True,
+            cookie_same_site="Strict"
+        )
+        ```
+        """
+    def get_session(self, session_id:typing.Optional[builtins.str]) -> Session:
+        r"""
+        Get a session by ID or create a new one if not found.
+        
+        Args:
+            session_id (str, optional): The session ID to look up.
+        
+        Returns:
+            Session: The existing session if found, or a new session otherwise.
+        
+        Note:
+            This method is primarily used internally by the framework.
+        """
+    def clear_session(self, session_id:builtins.str) -> builtins.bool:
+        r"""
+        Remove a session from the store.
+        
+        Args:
+            session_id (str): The ID of the session to remove.
+        
+        Returns:
+            bool: True if the session was found and removed, False otherwise.
+        
+        Example:
+        ```python
+        # Clear a specific session
+        session_store.clear_session("abcd1234")
+        ```
+        """
+    def session_count(self) -> builtins.int:
+        r"""
+        Get the total number of active sessions.
+        
+        Args:
+            None
+        
+        Returns:
+            int: The number of active sessions in the store.
+        
+        Example:
+        ```python
+        # Check how many active sessions exist
+        count = session_store.session_count()
+        print(f"Active sessions: {count}")
+        ```
+        """
+    def get_cookie_header(self, session:Session) -> builtins.str: ...
 
 class Status:
     r"""

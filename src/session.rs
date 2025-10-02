@@ -320,6 +320,7 @@ pub struct SessionStore {
     expiry_seconds: Option<u64>,
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl SessionStore {
     /// Create a new SessionStore.
