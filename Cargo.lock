@@ -1829,7 +1829,7 @@ dependencies = [
 [[package]]
 name = "pyo3-stub-gen"
 version = "0.14.1"
-source = "git+https://github.com/j03-dev/pyo3-stub-gen?branch=main#016e9393f0adc64d8544d5dfda9da1fed6f62167"
+source = "git+https://github.com/j03-dev/pyo3-stub-gen?branch=fix%2Fpep703-incompatibility-305#9eb3871e0d31ab19291d6c24a70e53954ac4b20a"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1851,7 +1851,7 @@ dependencies = [
 [[package]]
 name = "pyo3-stub-gen-derive"
 version = "0.14.1"
-source = "git+https://github.com/j03-dev/pyo3-stub-gen?branch=main#016e9393f0adc64d8544d5dfda9da1fed6f62167"
+source = "git+https://github.com/j03-dev/pyo3-stub-gen?branch=fix%2Fpep703-incompatibility-305#9eb3871e0d31ab19291d6c24a70e53954ac4b20a"
 dependencies = [
  "heck",
  "proc-macro2",

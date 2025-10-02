@@ -15,7 +15,7 @@ crate-type = ["cdylib", "rlib"]
 # Python bindings
 pyo3 = ">=0.26.0"
 pyo3-async-runtimes = { version = "0.26", features = ["tokio-runtime"] }
-pyo3-stub-gen = { git = "https://github.com/j03-dev/pyo3-stub-gen", branch = "main" }
+pyo3-stub-gen = { git = "https://github.com/j03-dev/pyo3-stub-gen", branch = "fix/pep703-incompatibility-305" }
 
 # Async / Futures
 futures-util = "0.3.31"
@@ -52,4 +52,4 @@ jsonwebtoken = { version = "10.0.0", features = ["rust_crypto"] }
 
 [features]
 default = []
-stub-gen = []
+stub-gen = ["pyo3-stub-gen/stub-gen"]
