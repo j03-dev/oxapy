@@ -5,6 +5,7 @@ mod into_response;
 mod json;
 #[cfg(not(target_arch = "aarch64"))]
 mod jwt;
+mod macros;
 mod middleware;
 mod multipart;
 mod request;
@@ -24,7 +25,7 @@ use crate::catcher::Catcher;
 use crate::cors::Cors;
 use crate::multipart::File;
 use crate::request::{Request, RequestBuilder};
-use crate::response::{Redirect, Response};
+use crate::response::{FileStreaming, Redirect, Response};
 use crate::routing::*;
 use crate::session::{Session, SessionStore};
 use crate::status::Status;
@@ -38,6 +39,7 @@ use middleware::MiddlewareChain;
 use pyo3::exceptions::PyValueError;
 use pyo3::types::{PyDict, PyInt, PyString};
 use pyo3_async_runtimes::tokio::{future_into_py, into_future};
+use pyo3_stub_gen::derive::*;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::Semaphore;
@@ -114,8 +116,9 @@ struct RequestContext {
 /// # Run the server
 /// app.run()
 ///     ```
-#[derive(Clone)]
+#[gen_stub_pyclass]
 #[pyclass]
+#[derive(Clone)]
 struct HttpServer {
     addr: SocketAddr,
     routers: Vec<Arc<Router>>,
@@ -129,6 +132,7 @@ struct HttpServer {
     is_async: bool,
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl HttpServer {
     /// Create a new instance of HttpServer.
@@ -590,6 +594,8 @@ async fn call_python_handler<'l>(
     }
 }
 
+pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
+
 #[pymodule]
 fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<HttpServer>()?;
@@ -602,6 +608,7 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<SessionStore>()?;
     m.add_class::<Redirect>()?;
     m.add_class::<File>()?;
+    m.add_class::<FileStreaming>()?;
     m.add_function(wrap_pyfunction!(get, m)?)?;
     m.add_function(wrap_pyfunction!(post, m)?)?;
     m.add_function(wrap_pyfunction!(delete, m)?)?;

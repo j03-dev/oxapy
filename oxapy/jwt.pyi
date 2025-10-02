@@ -2,6 +2,7 @@
 # ruff: noqa: E501, F401
 
 import builtins
+import typing
 
 class Jwt:
     r"""
@@ -23,7 +24,9 @@ class Jwt:
         
         Example:
         ```python
-        jwt = Jwt(secret="mysecret", algorithm="HS256")
+        from oxapy import jwt
+        
+        jwt_handler = jwt.Jwt(secret="mysecret", algorithm="HS256")
         ```
         """
     def generate_token(self, claims:dict) -> builtins.str:
@@ -41,14 +44,23 @@ class Jwt:
         
         Example:
         ```python
-        claims = {
-            "exp": 3600,  # seconds from now
-            "sub": "user123",  # subject (optional)
-            "iss": "myapp",    # issuer (optional)
-            "aud": "webapp",   # audience (optional)
-            "nbf": 1234567890  # not before timestamp (optional)
-        }
-        token = jwt.generate_token(claims)
+        from oxapy import jwt, Router
+        
+        jwt_handler = jwt.Jwt(secret="mysecret", algorithm="HS256")
+        router = Router()
+        
+        @router.post("/login")
+        def login(request):
+            # Authenticate user...
+            claims = {
+                "exp": 3600,  # seconds from now
+                "sub": "user123",  # subject (optional)
+                "iss": "myapp",    # issuer (optional)
+                "aud": "webapp",   # audience (optional)
+                "nbf": 1234567890  # not before timestamp (optional)
+            }
+            token = jwt_handler.generate_token(claims)
+            return {"token": token}
         ```
         """
     def verify_token(self, token:builtins.str) -> dict:
@@ -66,13 +78,49 @@ class Jwt:
         
         Example:
         ```python
-        jwt.verify_token("mytoken")
+        from oxapy import jwt, Router, exceptions
+        
+        jwt_handler = jwt.Jwt(secret="mysecret", algorithm="HS256")
+        router = Router()
+        
+        @router.get("/protected")
+        def protected_route(request):
+            token = request.headers.get("Authorization", "").replace("Bearer ", "")
+            try:
+                claims = jwt_handler.verify_token(token)
+                return {"user_id": claims["sub"], "message": "Access granted"}
+            except jwt.JwtDecodingError:
+                raise exceptions.UnauthorizedError("Invalid or expired token")
         ```
         """
 
+class JwtDecodingError(JwtError):
+    r"""
+    Occurs when there's an error during JWT decoding/verification.
+    """
+    def __new__(cls, e:typing.Any) -> tuple[JwtDecodingError, JwtError]: ...
 
-class JwtError(BaseException): ...
-class JwtEncodingError(JwtError): ...
-class JwtDecodingError(JwtError): ...
-class JwtInvalidAlgorithm(JwtError): ...
-class JwtInvalidClaim(JwtError): ...
+class JwtEncodingError(JwtError):
+    r"""
+    Occurs when there's an error during JWT encoding.
+    """
+    def __new__(cls, e:typing.Any) -> tuple[JwtEncodingError, JwtError]: ...
+
+class JwtError(builtins.Exception):
+    r"""
+    Base class for all JWT related exceptions.
+    """
+    def __new__(cls, e:typing.Any) -> JwtError: ...
+
+class JwtInvalidAlgorithm(JwtError):
+    r"""
+    Occurs when the JWT algorithm is invalid or not supported.
+    """
+    def __new__(cls, e:typing.Any) -> tuple[JwtInvalidAlgorithm, JwtError]: ...
+
+class JwtInvalidClaim(JwtError):
+    r"""
+    Occurs when a JWT claim is invalid (e.g., wrong format).
+    """
+    def __new__(cls, e:typing.Any) -> tuple[JwtInvalidClaim, JwtError]: ...
+

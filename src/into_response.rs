@@ -78,12 +78,11 @@ impl From<Status> for Response {
 impl From<PyErr> for Response {
     fn from(value: PyErr) -> Self {
         Python::attach(|py| {
-            let status = match value.is_instance_of::<BaseError>(py) {
+            let status = match value.is_instance_of::<ClientError>(py) {
                 true if value.is_instance_of::<UnauthorizedError>(py) => Status::UNAUTHORIZED,
                 true if value.is_instance_of::<ForbiddenError>(py) => Status::FORBIDDEN,
                 true if value.is_instance_of::<NotFoundError>(py) => Status::NOT_FOUND,
                 true if value.is_instance_of::<ConflictError>(py) => Status::CONFLICT,
-                true if value.is_instance_of::<InternalError>(py) => Status::INTERNAL_SERVER_ERROR,
                 true => Status::BAD_REQUEST,
                 false => {
                     value.display(py);

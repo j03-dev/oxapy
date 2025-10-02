@@ -9,6 +9,7 @@ use pyo3::{
 };
 
 use hyper::Uri;
+use pyo3_stub_gen::derive::*;
 use url::form_urlencoded;
 
 use crate::response::Response;
@@ -46,8 +47,9 @@ use crate::{multipart::parse_multipart, response::Body};
 ///     user_agent = request.headers.get("user-agent")
 ///     return f"Hello from {user_agent}"
 /// ```
-#[derive(Clone, Debug, Default)]
+#[gen_stub_pyclass]
 #[pyclass]
+#[derive(Clone, Debug, Default)]
 pub struct Request {
     /// The HTTP method of the request (e.g., GET, POST, PUT).
     #[pyo3(get)]
@@ -74,6 +76,7 @@ pub struct Request {
     pub session_store: Option<Arc<SessionStore>>,
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl Request {
     /// Create a new Request instance.

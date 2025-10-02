@@ -13,10 +13,12 @@ use http_body_util::{BodyExt, Full, StreamBody};
 use hyper::header::CACHE_CONTROL;
 use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyIterator, PyString};
+use pyo3::types::{PyBytes, PyString};
+use pyo3_stub_gen::derive::*;
 use std::convert::Infallible;
-use std::str;
+use std::io::Read;
 use std::sync::Arc;
+use std::{fs, str};
 
 pub type Body = http_body_util::combinators::BoxBody<Bytes, Infallible>;
 
@@ -41,6 +43,7 @@ pub type Body = http_body_util::combinators::BoxBody<Bytes, Infallible>;
 /// # HTML response with custom status
 /// response = Response("<h1>Not Found</h1>", Status.NOT_FOUND, "text/html")
 /// `
+#[gen_stub_pyclass]
 #[pyclass(subclass)]
 #[derive(Clone)]
 pub struct Response {
@@ -50,6 +53,7 @@ pub struct Response {
     pub headers: HeaderMap,
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl Response {
     /// Create a new Response instance.
@@ -88,10 +92,6 @@ impl Response {
 
         if body.is_instance_of::<PyBytes>() {
             return Self::from_bytes(body.extract()?, status, content_type);
-        }
-
-        if body.is_instance_of::<PyIterator>() {
-            return Self::from_stream(body, status, content_type);
         }
 
         Err(PyTypeError::new_err("Unsupported response type"))
@@ -220,32 +220,6 @@ impl Response {
             headers: HeaderMap::from_iter([(CONTENT_TYPE, content_type)]),
         })
     }
-
-    fn from_stream(
-        obj: Bound<PyAny>,
-        status: Status,
-        content_type: HeaderValue,
-    ) -> PyResult<Response> {
-        let mut chunks: Vec<Vec<u8>> = Vec::new();
-
-        for item in obj.try_iter()? {
-            chunks.push(item?.extract()?);
-        }
-
-        let stream = stream::iter(chunks).map(|it| Ok(Frame::data(Bytes::from(it))));
-
-        let body = StreamBody::new(Box::pin(stream));
-
-        let mut headers = HeaderMap::default();
-        headers.insert(CONTENT_TYPE, content_type);
-        headers.insert(CACHE_CONTROL, HeaderValue::from_static("no-cache"));
-
-        Ok(Response {
-            status,
-            body: Arc::new(BodyExt::boxed(body)),
-            headers,
-        })
-    }
 }
 
 /// HTTP redirect response.
@@ -266,9 +240,11 @@ impl Response {
 /// # Redirect to an external site
 /// return Redirect("https://example.com")
 /// ```
+#[gen_stub_pyclass]
 #[pyclass(subclass, extends=Response)]
 pub struct Redirect;
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl Redirect {
     /// Create a new HTTP redirect response.
@@ -300,6 +276,153 @@ impl Redirect {
                 headers,
             },
         )
+    }
+}
+
+struct ChunkIter {
+    file: std::fs::File,
+    buf_size: usize,
+}
+
+impl Iterator for ChunkIter {
+    type Item = Bytes;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut buf = vec![0; self.buf_size];
+        match self.file.read(&mut buf) {
+            Ok(0) => None,
+            Ok(n) => {
+                buf.truncate(n);
+                Some(Bytes::from(buf))
+            }
+            Err(_) => None,
+        }
+    }
+}
+
+/// HTTP file streaming response for efficiently serving large files.
+///
+/// FileStreaming provides an efficient way to serve files by streaming them in chunks
+/// rather than loading the entire file into memory. This is particularly useful for
+/// large files like videos, images, or documents.
+///
+/// The file is read in configurable buffer chunks and streamed to the client,
+/// allowing for low memory usage regardless of file size.
+///
+/// Args:
+///     path (str): The file system path to the file to be streamed.
+///     buf_size (int, optional): The buffer size in bytes for reading chunks. Defaults to 8192.
+///     status (Status, optional): HTTP status code. Defaults to Status.OK.
+///     content_type (str, optional): MIME type of the file. Defaults to "application/octet-stream".
+///
+/// Returns:
+///     tuple[FileStreaming, Response]: A tuple containing the FileStreaming instance and Response.
+///
+/// Raises:
+///     OSError: If the file cannot be opened or read.
+///     ValueError: If the path is invalid or inaccessible.
+///
+/// Example:
+/// ```python
+/// from oxapy import Router, FileStreaming, Status
+///
+/// router = Router()
+///
+/// # Stream a video file
+/// @router.get("/videos/{*path}")
+/// def serve_video(request, path):
+///     return FileStreaming(
+///         f"./media/videos/{path}",
+///         buf_size=16384,  # 16KB chunks
+///         content_type="video/mp4"
+///     )
+///
+/// # Stream static files
+/// @router.get("/static/{*path}")
+/// def serve_static(request, path):
+///     return FileStreaming(
+///         f"./static/{path}",
+///         buf_size=32768,  # 32KB chunks for better performance
+///         content_type="application/octet-stream"
+///     )
+///
+/// # Stream with custom status for partial content
+/// @router.get("/downloads/{filename}")
+/// def serve_download(request, filename):
+///     return FileStreaming(
+///         f"./downloads/{filename}",
+///         status=Status.PARTIAL_CONTENT,
+///         content_type="application/pdf"
+///     )
+/// ```
+#[gen_stub_pyclass]
+#[pyclass(subclass, extends=Response)]
+pub struct FileStreaming;
+
+#[gen_stub_pymethods]
+#[pymethods]
+impl FileStreaming {
+    /// Create a new FileStreaming response.
+    ///
+    /// Opens the specified file and prepares it for streaming to the client.
+    /// The file is read in chunks of the specified buffer size, which helps
+    /// control memory usage and allows for efficient streaming of large files.
+    ///
+    /// Args:
+    ///     path (str): Path to the file to stream. Must be accessible and readable.
+    ///     buf_size (int, optional): Buffer size in bytes for reading file chunks.
+    ///                              Larger values may improve performance for large files
+    ///                              but use more memory. Defaults to 8192 bytes (8KB).
+    ///     status (Status, optional): HTTP status code for the response. Defaults to Status.OK.
+    ///     content_type (str, optional): MIME type of the file content.
+    ///                                  Defaults to "application/octet-stream".
+    ///
+    /// Returns:
+    ///     FileStreaming: A FileStreaming instance.
+    ///
+    /// Raises:
+    ///     OSError: If the file at the specified path cannot be opened or read.
+    ///     PermissionError: If the process lacks permission to read the file.
+    ///
+    /// Note:
+    ///     The response automatically includes "Cache-Control: no-cache" header
+    ///     to prevent caching of streamed content.
+    ///
+    /// Example:
+    /// ```python
+    /// # Basic file streaming
+    /// streaming_response = FileStreaming("./files/document.pdf")
+    ///
+    /// # Custom buffer size for better performance
+    /// streaming_response = FileStreaming(
+    ///     "./media/large-video.mp4",
+    ///     buf_size=65536,  # 64KB chunks
+    ///     content_type="video/mp4"
+    /// )
+    /// ```
+    #[new]
+    #[pyo3(signature=(path, buf_size=8192, status=Status::OK, content_type="application/octet-stream"))]
+    fn new(
+        path: &str,
+        buf_size: usize,
+        status: Status,
+        content_type: &str,
+    ) -> PyResult<(FileStreaming, Response)> {
+        let file = fs::File::open(path)?;
+        let chunk_iter = ChunkIter { file, buf_size };
+        let stream = stream::iter(chunk_iter).map(|bytes| Ok(Frame::data(bytes)));
+        let body = StreamBody::new(Box::pin(stream));
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, HeaderValue::from_str(content_type).unwrap());
+        headers.insert(CACHE_CONTROL, HeaderValue::from_static("no-cache"));
+        Ok((
+            Self,
+            Response {
+                status,
+                body: Arc::new(BodyExt::boxed(body)),
+                headers,
+            },
+        ))
     }
 }
 
