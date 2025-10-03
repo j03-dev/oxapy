@@ -458,5 +458,5 @@ class ValidationException(ClientError):
     This includes missing required fields, invalid field values, type mismatches,
     and schema constraint violations.
     """
-    def __new__(cls, e:typing.Any) -> tuple[ValidationException, ClientError]: ...
+    def __new__(cls, e:typing.Any) -> ValidationException: ...
 
