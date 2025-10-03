@@ -11,6 +11,7 @@ __all__ = (
     "Session",
     "SessionStore",
     "Redirect",
+    "FileStreaming",
     "File",
     "get",
     "post",

@@ -2,17 +2,20 @@ use ahash::HashMap;
 
 use minijinja::Environment;
 use pyo3::{prelude::*, types::PyDict};
+use pyo3_stub_gen::derive::*;
 use std::sync::Arc;
 
 use crate::json;
 use crate::IntoPyException;
 
+#[gen_stub_pyclass]
+#[pyclass(module = "oxapy.templating")]
 #[derive(Debug, Clone)]
-#[pyclass]
 pub struct Jinja {
     engine: Arc<Environment<'static>>,
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl Jinja {
     #[new]

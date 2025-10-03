@@ -1,3 +1,5 @@
+use crate::{request::Request, response::Response, status::Status};
+use http_body_util::{BodyExt, Full};
 use hyper::{header::CONTENT_TYPE, HeaderMap};
 use pyo3::{
     exceptions::{PyException, PyValueError},
@@ -5,8 +7,8 @@ use pyo3::{
     types::{PyDict, PyModule, PyModuleMethods},
     Bound, PyResult,
 };
-
-use crate::{request::Request, response::Response, status::Status};
+use pyo3_stub_gen::derive::*;
+use std::sync::Arc;
 
 mod minijinja;
 mod tera;
@@ -39,13 +41,15 @@ mod tera;
 /// # Or use Tera with custom template directory
 /// app.template(Template("./views/**/*.html", "tera"))
 /// ```
-#[derive(Clone, Debug)]
+#[gen_stub_pyclass_enum]
 #[pyclass(module = "oxapy.templating")]
+#[derive(Clone, Debug)]
 pub enum Template {
     Jinja(minijinja::Jinja),
     Tera(tera::Tera),
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl Template {
     /// Create a new Template instance.
@@ -107,6 +111,7 @@ impl Template {
 /// def index(request):
 ///     return templating.render(request, "index.html", {"title": "Home Page"})
 /// ```
+#[gen_stub_pyfunction]
 #[pyfunction]
 #[pyo3(signature=(request, name, context=None))]
 fn render(
@@ -128,7 +133,7 @@ fn render(
     headers.insert(CONTENT_TYPE, "text/html".parse().unwrap());
     Ok(Response {
         status: Status::OK,
-        body: body.into(),
+        body: Arc::new(Full::new(body.into()).boxed()),
         headers,
     })
 }

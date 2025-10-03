@@ -1,23 +1,64 @@
 use crate::json::Wrap;
-use crate::IntoPyException;
+use crate::{extend_exception, IntoPyException};
 use jsonwebtoken::errors::ErrorKind;
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation};
-use pyo3::create_exception;
 use pyo3::exceptions::PyException;
 use pyo3::types::PyDict;
-use pyo3::{exceptions::PyValueError, prelude::*};
+use pyo3::{exceptions::PyValueError, impl_exception_boilerplate, prelude::*};
+use pyo3_stub_gen::derive::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::str::FromStr;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-create_exception!(jwt, JwtError, PyException);
-create_exception!(jwt, JwtEncodingError, JwtError);
-create_exception!(jwt, JwtDecodingError, JwtError);
-create_exception!(jwt, JwtInvalidAlgorithm, JwtError);
-create_exception!(jwt, JwtInvalidClaim, JwtError);
+#[gen_stub_pyclass]
+#[pyclass(subclass, extends=PyException, module="oxapy.jwt")]
+#[repr(transparent)]
+/// Base class for all JWT related exceptions.
+pub struct JwtError(Py<PyAny>);
 
-#[derive(Debug, Serialize, Deserialize)]
+impl_exception_boilerplate!(JwtError);
+
+#[gen_stub_pymethods]
+#[pymethods]
+impl JwtError {
+    #[new]
+    fn new(e: Py<PyAny>) -> JwtError {
+        Self(e)
+    }
+}
+
+#[gen_stub_pyclass]
+#[pyclass(extends=JwtError, module="oxapy.jwt")]
+/// Occurs when there's an error during JWT encoding.
+pub struct JwtEncodingError;
+
+impl_exception_boilerplate!(JwtEncodingError);
+extend_exception!(JwtEncodingError, JwtError);
+
+#[gen_stub_pyclass]
+#[pyclass(extends=JwtError, module="oxapy.jwt")]
+/// Occurs when there's an error during JWT decoding/verification.
+pub struct JwtDecodingError;
+
+impl_exception_boilerplate!(JwtDecodingError);
+extend_exception!(JwtDecodingError, JwtError);
+
+#[gen_stub_pyclass]
+#[pyclass(extends=JwtError, module="oxapy.jwt")]
+/// Occurs when the JWT algorithm is invalid or not supported.
+pub struct JwtInvalidAlgorithm;
+impl_exception_boilerplate!(JwtInvalidAlgorithm);
+extend_exception!(JwtInvalidAlgorithm, JwtError);
+
+#[gen_stub_pyclass]
+#[pyclass(extends=JwtError, module="oxapy.jwt")]
+/// Occurs when a JWT claim is invalid (e.g., wrong format).
+pub struct JwtInvalidClaim;
+impl_exception_boilerplate!(JwtInvalidClaim);
+extend_exception!(JwtInvalidClaim, JwtError);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Claims {
     exp: u64,
     sub: Option<String>,
@@ -30,13 +71,15 @@ struct Claims {
 }
 
 /// Python class for generating and verifying JWT tokens
-#[derive(Clone)]
+#[gen_stub_pyclass]
 #[pyclass(module = "oxapy.jwt")]
+#[derive(Clone)]
 pub struct Jwt {
     secret: String,
     algorithm: Algorithm,
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl Jwt {
     /// Create a new JWT
@@ -53,7 +96,9 @@ impl Jwt {
     ///
     /// Example:
     /// ```python
-    /// jwt = Jwt(secret="mysecret", algorithm="HS256")
+    /// from oxapy import jwt
+    ///
+    /// jwt_handler = jwt.Jwt(secret="mysecret", algorithm="HS256")
     /// ```
     #[new]
     #[pyo3(signature = (secret, algorithm="HS256"))]
@@ -80,14 +125,23 @@ impl Jwt {
     ///
     /// Example:
     /// ```python
-    /// claims = {
-    ///     "exp": 3600,  # seconds from now
-    ///     "sub": "user123",  # subject (optional)
-    ///     "iss": "myapp",    # issuer (optional)
-    ///     "aud": "webapp",   # audience (optional)
-    ///     "nbf": 1234567890  # not before timestamp (optional)
-    /// }
-    /// token = jwt.generate_token(claims)
+    /// from oxapy import jwt, Router
+    ///
+    /// jwt_handler = jwt.Jwt(secret="mysecret", algorithm="HS256")
+    /// router = Router()
+    ///
+    /// @router.post("/login")
+    /// def login(request):
+    ///     # Authenticate user...
+    ///     claims = {
+    ///         "exp": 3600,  # seconds from now
+    ///         "sub": "user123",  # subject (optional)
+    ///         "iss": "myapp",    # issuer (optional)
+    ///         "aud": "webapp",   # audience (optional)
+    ///         "nbf": 1234567890  # not before timestamp (optional)
+    ///     }
+    ///     token = jwt_handler.generate_token(claims)
+    ///     return {"token": token}
     /// ```
     pub fn generate_token(&self, claims: Bound<'_, PyDict>) -> PyResult<String> {
         let expiration = claims
@@ -133,7 +187,19 @@ impl Jwt {
     ///
     /// Example:
     /// ```python
-    /// jwt.verify_token("mytoken")
+    /// from oxapy import jwt, Router, exceptions
+    ///
+    /// jwt_handler = jwt.Jwt(secret="mysecret", algorithm="HS256")
+    /// router = Router()
+    ///
+    /// @router.get("/protected")
+    /// def protected_route(request):
+    ///     token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    ///     try:
+    ///         claims = jwt_handler.verify_token(token)
+    ///         return {"user_id": claims["sub"], "message": "Access granted"}
+    ///     except jwt.JwtDecodingError:
+    ///         raise exceptions.UnauthorizedError("Invalid or expired token")
     /// ```
     pub fn verify_token(&self, token: &str) -> PyResult<Py<PyDict>> {
         let token_data = jsonwebtoken::decode::<Claims>(

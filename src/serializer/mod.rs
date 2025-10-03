@@ -1,10 +1,11 @@
 use pyo3::{
-    create_exception,
     exceptions::PyException,
+    impl_exception_boilerplate,
     prelude::*,
     types::{PyDict, PyList, PyType},
     IntoPyObjectExt,
 };
+use pyo3_stub_gen::derive::*;
 use serde_json::Value;
 
 use once_cell::sync::{Lazy, OnceCell};
@@ -14,7 +15,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::{exceptions::BaseError, json, IntoPyException};
+use crate::{exceptions::ClientError, extend_exception, json, IntoPyException};
 
 use fields::{
     BooleanField, CharField, DateField, DateTimeField, EmailField, EnumField, Field, IntegerField,
@@ -23,6 +24,7 @@ use fields::{
 
 mod fields;
 
+#[gen_stub_pyclass]
 #[pyclass(module="oxapy.serializer", subclass, extends=Field)]
 #[derive(Debug)]
 struct Serializer {
@@ -36,6 +38,7 @@ struct Serializer {
     context: Option<Py<PyDict>>,
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl Serializer {
     /// Create a new `Serializer` instance.
@@ -462,7 +465,17 @@ impl Serializer {
 
 static INSPECT: OnceCell<Py<PyAny>> = OnceCell::new();
 
-create_exception!(exceptions, ValidationException, BaseError);
+/// Serializer validation exception.
+///
+/// Raised when data validation fails during serialization or deserialization.
+/// This includes missing required fields, invalid field values, type mismatches,
+/// and schema constraint violations.
+#[gen_stub_pyclass]
+#[pyclass(module = "oxapy.serializer", extends=ClientError)]
+pub struct ValidationException;
+
+impl_exception_boilerplate!(ValidationException);
+extend_exception!(ValidationException, ClientError);
 
 pub fn serializer_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let py = m.py();

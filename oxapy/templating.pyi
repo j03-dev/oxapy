@@ -3,9 +3,17 @@
 
 import builtins
 import typing
-import oxapy
+from enum import Enum
 
-class Template:
+class Jinja:
+    def __new__(cls, dir:builtins.str) -> Jinja: ...
+    def render(self, template_name:builtins.str, context:typing.Optional[dict]=None) -> builtins.str: ...
+
+class Tera:
+    def __new__(cls, dir:builtins.str) -> Tera: ...
+    def render(self, template_name:builtins.str, context:typing.Optional[dict]=None) -> builtins.str: ...
+
+class Template(Enum):
     r"""
     Template engine for rendering HTML templates.
     
@@ -36,6 +44,9 @@ class Template:
     app.template(Template("./views/**/*.html", "tera"))
     ```
     """
+    Jinja = ...
+    Tera = ...
+
     def __new__(cls, dir:builtins.str='./templates/**/*.html', engine:builtins.str='jinja') -> Template:
         r"""
         Create a new Template instance.
@@ -59,20 +70,4 @@ class Template:
         template = Template("./views/**/*.html", "tera")
         ```
         """
-    class Jinja(Template):
-        __match_args__ = ("_0",)
-        @property
-        def _0(self) -> Jinja: ...
-        def __new__(cls, _0:Jinja) -> Template.Jinja: ...
-        def __len__(self) -> builtins.int: ...
-        def __getitem__(self, key:builtins.int) -> typing.Any: ...
-    
-    class Tera(Template):
-        __match_args__ = ("_0",)
-        @property
-        def _0(self) -> Tera: ...
-        def __new__(cls, _0:Tera) -> Template.Tera: ...
-        def __len__(self) -> builtins.int: ...
-        def __getitem__(self, key:builtins.int) -> typing.Any: ...
-    
 
