@@ -1,5 +1,6 @@
 use crate::{json, status::Status, IntoPyException};
 use futures_util::StreamExt;
+use http_body_util::combinators::BoxBody;
 use hyper::body::Frame;
 use hyper::http::HeaderValue;
 use hyper::{
@@ -8,7 +9,7 @@ use hyper::{
     HeaderMap,
 };
 
-use futures_util::stream;
+use futures_util::stream::{self};
 use http_body_util::{BodyExt, Full, StreamBody};
 use hyper::header::CACHE_CONTROL;
 use pyo3::exceptions::PyTypeError;
@@ -20,7 +21,13 @@ use std::io::Read;
 use std::sync::Arc;
 use std::{fs, str};
 
-pub type Body = http_body_util::combinators::BoxBody<Bytes, Infallible>;
+pub type Body = BoxBody<Bytes, Infallible>;
+
+#[derive(Clone)]
+pub enum ResponseBody {
+    Bytes(Bytes),
+    Stream(Arc<Body>),
+}
 
 /// HTTP response object that is returned from request handlers.
 ///
@@ -49,7 +56,7 @@ pub type Body = http_body_util::combinators::BoxBody<Bytes, Infallible>;
 pub struct Response {
     #[pyo3(get, set)]
     pub status: Status,
-    pub body: Arc<Body>,
+    pub body: ResponseBody,
     pub headers: HeaderMap,
 }
 
@@ -106,7 +113,16 @@ impl Response {
     ///     Exception: If the body cannot be converted to a valid UTF-8 string.
     #[getter]
     fn body(&self) -> PyResult<String> {
-        todo!()
+        match &self.body {
+            ResponseBody::Bytes(b) => {
+                let s = str::from_utf8(b.as_ref()).into_py_exception()?;
+                Ok(s.to_string())
+            }
+            _ => {
+                let message = "response body is streaming and cannot be extracted as a string";
+                Err(PyTypeError::new_err(message))
+            }
+        }
     }
 
     /// Get the response headers as a list of key-value tuples.
@@ -184,7 +200,7 @@ impl Response {
 
 impl Response {
     pub fn set_body(mut self, body: String) -> Self {
-        self.body = Arc::new(Full::new(body.into()).boxed());
+        self.body = ResponseBody::Bytes(Bytes::from(body.clone()));
         self
     }
 
@@ -198,7 +214,7 @@ impl Response {
 
     fn from_str(s: String, status: Status, content_type: HeaderValue) -> PyResult<Self> {
         Ok(Self {
-            body: Arc::new(Full::new(s.into()).boxed()),
+            body: ResponseBody::Bytes(Bytes::from(s.clone())),
             status,
             headers: HeaderMap::from_iter([(CONTENT_TYPE, content_type)]),
         })
@@ -207,7 +223,7 @@ impl Response {
     fn from_bytes(b: &[u8], status: Status, content_type: HeaderValue) -> PyResult<Self> {
         Ok(Self {
             status,
-            body: Arc::new(Full::new(Bytes::copy_from_slice(b)).boxed()),
+            body: ResponseBody::Bytes(Bytes::copy_from_slice(b)),
             headers: HeaderMap::from_iter([(CONTENT_TYPE, content_type)]),
         })
     }
@@ -216,7 +232,7 @@ impl Response {
         let json = json::dumps(&obj.into())?;
         Ok(Self {
             status,
-            body: Arc::new(Full::new(json.into()).boxed()),
+            body: ResponseBody::Bytes(Bytes::from(json.clone())),
             headers: HeaderMap::from_iter([(CONTENT_TYPE, content_type)]),
         })
     }
@@ -272,7 +288,7 @@ impl Redirect {
             Self,
             Response {
                 status: Status::MOVED_PERMANENTLY,
-                body: Arc::new(Full::new(Bytes::new()).boxed()),
+                body: ResponseBody::Bytes(Bytes::new()),
                 headers,
             },
         )
@@ -419,7 +435,7 @@ impl FileStreaming {
             Self,
             Response {
                 status,
-                body: Arc::new(BodyExt::boxed(body)),
+                body: ResponseBody::Stream(Arc::new(BodyExt::boxed(body))),
                 headers,
             },
         ))
@@ -435,11 +451,9 @@ impl TryFrom<Response> for hyper::Response<Body> {
             builder = builder.header(name, value);
         }
 
-        let body = match Arc::try_unwrap(response.body) {
-            Ok(b) => b,
-            Err(_) => panic!("failed to unwrap arc"),
-        };
-
-        builder.body(body)
+        match response.body {
+            ResponseBody::Bytes(b) => builder.body(Full::new(b).boxed()),
+            ResponseBody::Stream(s) => builder.body(Arc::try_unwrap(s).unwrap()),
+        }
     }
 }
