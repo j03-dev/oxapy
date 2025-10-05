@@ -26,7 +26,7 @@ use pyo3_stub_gen::derive::*;
 ///         return Status.NOT_FOUND
 ///     return resource
 /// ```
-#[gen_stub_pyclass_complex_enum]
+#[gen_stub_pyclass_enum]
 #[pyclass]
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]

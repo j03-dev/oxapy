@@ -8,6 +8,7 @@ from . import exceptions
 from . import jwt
 from . import serializer
 from . import templating
+from enum import Enum
 
 class Catcher:
     r"""
@@ -182,9 +183,9 @@ class File:
     ```
     """
     @property
-    def name(self) -> builtins.str: ...
+    def name(self) -> typing.Optional[builtins.str]: ...
     @property
-    def content_type(self) -> builtins.str: ...
+    def content_type(self) -> typing.Optional[builtins.str]: ...
     @content_type.setter
     def content_type(self, value: typing.Optional[builtins.str]) -> None: ...
     def content(self) -> bytes:
@@ -283,7 +284,7 @@ class FileStreaming(Response):
         )
     ```
     """
-    def __new__(cls, path:builtins.str, buf_size:builtins.int=8192, status:Status=Status.OK, content_type:builtins.str='application/octet-stream') -> tuple[FileStreaming, Response]:
+    def __new__(cls, path:builtins.str, buf_size:builtins.int=8192, status:Status=Status.OK, content_type:builtins.str='application/octet-stream') -> FileStreaming:
         r"""
         Create a new FileStreaming response.
         
@@ -629,7 +630,7 @@ class Redirect(Response):
     return Redirect("https://example.com")
     ```
     """
-    def __new__(cls, location:builtins.str) -> tuple[Redirect, Response]:
+    def __new__(cls, location:builtins.str) -> Redirect:
         r"""
         Create a new HTTP redirect response.
         
@@ -845,7 +846,7 @@ class Response:
     @status.setter
     def status(self, value: Status) -> None: ...
     @property
-    def body(self) -> builtins.str:
+    def body(self) -> bytes:
         r"""
         Get the response body as a string.
         
@@ -1336,7 +1337,7 @@ class SessionStore:
     @cookie_name.setter
     def cookie_name(self, value: builtins.str) -> None: ...
     @property
-    def cookie_max_age(self) -> builtins.int: ...
+    def cookie_max_age(self) -> typing.Optional[builtins.int]: ...
     @cookie_max_age.setter
     def cookie_max_age(self, value: typing.Optional[builtins.int]) -> None: ...
     @property
@@ -1356,7 +1357,7 @@ class SessionStore:
     @cookie_same_site.setter
     def cookie_same_site(self, value: builtins.str) -> None: ...
     @property
-    def expiry_seconds(self) -> builtins.int: ...
+    def expiry_seconds(self) -> typing.Optional[builtins.int]: ...
     @expiry_seconds.setter
     def expiry_seconds(self, value: typing.Optional[builtins.int]) -> None: ...
     def __new__(cls, cookie_name:builtins.str='session', cookie_max_age:typing.Optional[builtins.int]=None, cookie_path:builtins.str='/', cookie_secure:builtins.bool=False, cookie_http_only:builtins.bool=True, cookie_same_site:builtins.str='Lax', expiry_seconds:typing.Optional[builtins.int]=86400) -> SessionStore:
@@ -1436,7 +1437,7 @@ class SessionStore:
         """
     def get_cookie_header(self, session:Session) -> builtins.str: ...
 
-class Status:
+class Status(Enum):
     r"""
     HTTP status codes enumeration.
     
@@ -1464,6 +1465,247 @@ class Status:
         return resource
     ```
     """
+    CONTINUE = ...
+    r"""
+    100 Continue - Server has received the request headers and client should proceed to send the request body
+    """
+    SWITCHING_PROTOCOLS = ...
+    r"""
+    101 Switching Protocols - Server is switching protocols as requested by the client
+    """
+    PROCESSING = ...
+    r"""
+    102 Processing - Server has received and is processing the request, but no response is available yet
+    """
+    OK = ...
+    r"""
+    200 OK - Request has succeeded
+    """
+    CREATED = ...
+    r"""
+    201 Created - Request has succeeded and a new resource has been created
+    """
+    ACCEPTED = ...
+    r"""
+    202 Accepted - Request has been accepted for processing, but processing has not been completed
+    """
+    NON_AUTHORITATIVE_INFORMATION = ...
+    r"""
+    203 Non-Authoritative Information - Request was successful but returned metadata from another source
+    """
+    NO_CONTENT = ...
+    r"""
+    204 No Content - Request succeeded but returns no message body
+    """
+    RESET_CONTENT = ...
+    r"""
+    205 Reset Content - Request succeeded, and the user agent should reset the document view
+    """
+    PARTIAL_CONTENT = ...
+    r"""
+    206 Partial Content - Server is delivering only part of the resource due to a range header in the request
+    """
+    MULTI_STATUS = ...
+    r"""
+    207 Multi-Status - Provides status for multiple independent operations (WebDAV)
+    """
+    ALREADY_REPORTED = ...
+    r"""
+    208 Already Reported - Used in a DAV response to avoid enumerating members of multiple bindings to the same collection
+    """
+    IM_USED = ...
+    r"""
+    226 IM Used - The server has fulfilled a request for the resource, and the response is a representation of the instance-manipulation result
+    """
+    MULTIPLE_CHOICES = ...
+    r"""
+    300 Multiple Choices - The request has more than one possible response
+    """
+    MOVED_PERMANENTLY = ...
+    r"""
+    301 Moved Permanently - The URI of the requested resource has been changed permanently
+    """
+    FOUND = ...
+    r"""
+    302 Found - The URI of the requested resource has been changed temporarily
+    """
+    SEE_OTHER = ...
+    r"""
+    303 See Other - The response to the request can be found at another URI
+    """
+    NOT_MODIFIED = ...
+    r"""
+    304 Not Modified - Resource hasn't been modified since last request
+    """
+    USE_PROXY = ...
+    r"""
+    305 Use Proxy - The requested resource must be accessed through the proxy given by the location field
+    """
+    TEMPORARY_REDIRECT = ...
+    r"""
+    307 Temporary Redirect - The request should be repeated with another URI, but future requests can still use the original URI
+    """
+    PERMANENT_REDIRECT = ...
+    r"""
+    308 Permanent Redirect - All future requests should use another URI
+    """
+    BAD_REQUEST = ...
+    r"""
+    400 Bad Request - The server cannot or will not process the request due to client error
+    """
+    UNAUTHORIZED = ...
+    r"""
+    401 Unauthorized - Authentication is required and has failed or not been provided
+    """
+    PAYMENT_REQUIRED = ...
+    r"""
+    402 Payment Required - Reserved for future use
+    """
+    FORBIDDEN = ...
+    r"""
+    403 Forbidden - Server understood the request but refuses to authorize it
+    """
+    NOT_FOUND = ...
+    r"""
+    404 Not Found - The requested resource could not be found on the server
+    """
+    METHOD_NOT_ALLOWED = ...
+    r"""
+    405 Method Not Allowed - The request method is not supported for the requested resource
+    """
+    NOT_ACCEPTABLE = ...
+    r"""
+    406 Not Acceptable - The requested resource is capable of generating only content not acceptable according to the Accept headers
+    """
+    PROXY_AUTHENTICATION_REQUIRED = ...
+    r"""
+    407 Proxy Authentication Required - Authentication with the proxy is required
+    """
+    REQUEST_TIMEOUT = ...
+    r"""
+    408 Request Timeout - The server timed out waiting for the request
+    """
+    CONFLICT = ...
+    r"""
+    409 Conflict - The request could not be completed due to a conflict with the current state of the resource
+    """
+    GONE = ...
+    r"""
+    410 Gone - The requested resource is no longer available and will not be available again
+    """
+    LENGTH_REQUIRED = ...
+    r"""
+    411 Length Required - The request did not specify the length of its content, which is required
+    """
+    PRECONDITION_FAILED = ...
+    r"""
+    412 Precondition Failed - Server does not meet one of the preconditions in the request
+    """
+    PAYLOAD_TOO_LARGE = ...
+    r"""
+    413 Payload Too Large - The request is larger than the server is willing or able to process
+    """
+    URI_TOO_LONG = ...
+    r"""
+    414 URI Too Long - The URI provided was too long for the server to process
+    """
+    UNSUPPORTED_MEDIA_TYPE = ...
+    r"""
+    415 Unsupported Media Type - The request entity has a media type which the server does not support
+    """
+    RANGE_NOT_SATISFIABLE = ...
+    r"""
+    416 Range Not Satisfiable - The client has asked for a portion of the file, but the server cannot supply that portion
+    """
+    EXPECTATION_FAILED = ...
+    r"""
+    417 Expectation Failed - The server cannot meet the requirements of the Expect request-header field
+    """
+    IM_A_TEAPOT = ...
+    r"""
+    418 I'm a Teapot - The server refuses the attempt to brew coffee with a teapot (April Fools' joke)
+    """
+    MISDIRECTED_REQUEST = ...
+    r"""
+    421 Misdirected Request - The request was directed at a server that is not able to produce a response
+    """
+    UNPROCESSABLE_ENTITY = ...
+    r"""
+    422 Unprocessable Entity - The request was well-formed but was unable to be followed due to semantic errors
+    """
+    LOCKED = ...
+    r"""
+    423 Locked - The resource that is being accessed is locked (WebDAV)
+    """
+    FAILED_DEPENDENCY = ...
+    r"""
+    424 Failed Dependency - The request failed due to failure of a previous request (WebDAV)
+    """
+    UPGRADE_REQUIRED = ...
+    r"""
+    426 Upgrade Required - The client should switch to a different protocol
+    """
+    PRECONDITION_REQUIRED = ...
+    r"""
+    428 Precondition Required - The origin server requires the request to be conditional
+    """
+    TOO_MANY_REQUESTS = ...
+    r"""
+    429 Too Many Requests - The user has sent too many requests in a given amount of time
+    """
+    REQUEST_HEADER_FIELDS_TOO_LARGE = ...
+    r"""
+    431 Request Header Fields Too Large - The server is unwilling to process the request because its header fields are too large
+    """
+    UNAVAILABLE_FOR_LEGAL_REASONS = ...
+    r"""
+    451 Unavailable For Legal Reasons - The server is denying access to the resource as a consequence of a legal demand
+    """
+    INTERNAL_SERVER_ERROR = ...
+    r"""
+    500 Internal Server Error - The server has encountered a situation it doesn't know how to handle
+    """
+    NOT_IMPLEMENTED = ...
+    r"""
+    501 Not Implemented - The server does not support the functionality required to fulfill the request
+    """
+    BAD_GATEWAY = ...
+    r"""
+    502 Bad Gateway - The server was acting as a gateway or proxy and received an invalid response from the upstream server
+    """
+    SERVICE_UNAVAILABLE = ...
+    r"""
+    503 Service Unavailable - The server is not ready to handle the request, often due to maintenance or overloading
+    """
+    GATEWAY_TIMEOUT = ...
+    r"""
+    504 Gateway Timeout - The server was acting as a gateway or proxy and did not receive a timely response from the upstream server
+    """
+    HTTP_VERSION_NOT_SUPPORTED = ...
+    r"""
+    505 HTTP Version Not Supported - The server does not support the HTTP protocol version used in the request
+    """
+    VARIANT_ALSO_NEGOTIATES = ...
+    r"""
+    506 Variant Also Negotiates - The server has an internal configuration error: the chosen variant resource is configured to engage in transparent content negotiation itself
+    """
+    INSUFFICIENT_STORAGE = ...
+    r"""
+    507 Insufficient Storage - The server is unable to store the representation needed to complete the request (WebDAV)
+    """
+    LOOP_DETECTED = ...
+    r"""
+    508 Loop Detected - The server detected an infinite loop while processing the request (WebDAV)
+    """
+    NOT_EXTENDED = ...
+    r"""
+    510 Not Extended - Further extensions to the request are required for the server to fulfill it
+    """
+    NETWORK_AUTHENTICATION_REQUIRED = ...
+    r"""
+    511 Network Authentication Required - The client needs to authenticate to gain network access
+    """
+
     def __richcmp__(self, other:Status, op:int) -> builtins.bool:
         r"""
         Compare two Status objects.
@@ -1495,426 +1737,6 @@ class Status:
         Returns:
             int: The status code
         """
-    class CONTINUE(Status):
-        r"""
-        100 Continue - Server has received the request headers and client should proceed to send the request body
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.CONTINUE: ...
-    
-    class SWITCHING_PROTOCOLS(Status):
-        r"""
-        101 Switching Protocols - Server is switching protocols as requested by the client
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.SWITCHING_PROTOCOLS: ...
-    
-    class PROCESSING(Status):
-        r"""
-        102 Processing - Server has received and is processing the request, but no response is available yet
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.PROCESSING: ...
-    
-    class OK(Status):
-        r"""
-        200 OK - Request has succeeded
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.OK: ...
-    
-    class CREATED(Status):
-        r"""
-        201 Created - Request has succeeded and a new resource has been created
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.CREATED: ...
-    
-    class ACCEPTED(Status):
-        r"""
-        202 Accepted - Request has been accepted for processing, but processing has not been completed
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.ACCEPTED: ...
-    
-    class NON_AUTHORITATIVE_INFORMATION(Status):
-        r"""
-        203 Non-Authoritative Information - Request was successful but returned metadata from another source
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.NON_AUTHORITATIVE_INFORMATION: ...
-    
-    class NO_CONTENT(Status):
-        r"""
-        204 No Content - Request succeeded but returns no message body
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.NO_CONTENT: ...
-    
-    class RESET_CONTENT(Status):
-        r"""
-        205 Reset Content - Request succeeded, and the user agent should reset the document view
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.RESET_CONTENT: ...
-    
-    class PARTIAL_CONTENT(Status):
-        r"""
-        206 Partial Content - Server is delivering only part of the resource due to a range header in the request
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.PARTIAL_CONTENT: ...
-    
-    class MULTI_STATUS(Status):
-        r"""
-        207 Multi-Status - Provides status for multiple independent operations (WebDAV)
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.MULTI_STATUS: ...
-    
-    class ALREADY_REPORTED(Status):
-        r"""
-        208 Already Reported - Used in a DAV response to avoid enumerating members of multiple bindings to the same collection
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.ALREADY_REPORTED: ...
-    
-    class IM_USED(Status):
-        r"""
-        226 IM Used - The server has fulfilled a request for the resource, and the response is a representation of the instance-manipulation result
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.IM_USED: ...
-    
-    class MULTIPLE_CHOICES(Status):
-        r"""
-        300 Multiple Choices - The request has more than one possible response
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.MULTIPLE_CHOICES: ...
-    
-    class MOVED_PERMANENTLY(Status):
-        r"""
-        301 Moved Permanently - The URI of the requested resource has been changed permanently
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.MOVED_PERMANENTLY: ...
-    
-    class FOUND(Status):
-        r"""
-        302 Found - The URI of the requested resource has been changed temporarily
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.FOUND: ...
-    
-    class SEE_OTHER(Status):
-        r"""
-        303 See Other - The response to the request can be found at another URI
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.SEE_OTHER: ...
-    
-    class NOT_MODIFIED(Status):
-        r"""
-        304 Not Modified - Resource hasn't been modified since last request
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.NOT_MODIFIED: ...
-    
-    class USE_PROXY(Status):
-        r"""
-        305 Use Proxy - The requested resource must be accessed through the proxy given by the location field
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.USE_PROXY: ...
-    
-    class TEMPORARY_REDIRECT(Status):
-        r"""
-        307 Temporary Redirect - The request should be repeated with another URI, but future requests can still use the original URI
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.TEMPORARY_REDIRECT: ...
-    
-    class PERMANENT_REDIRECT(Status):
-        r"""
-        308 Permanent Redirect - All future requests should use another URI
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.PERMANENT_REDIRECT: ...
-    
-    class BAD_REQUEST(Status):
-        r"""
-        400 Bad Request - The server cannot or will not process the request due to client error
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.BAD_REQUEST: ...
-    
-    class UNAUTHORIZED(Status):
-        r"""
-        401 Unauthorized - Authentication is required and has failed or not been provided
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.UNAUTHORIZED: ...
-    
-    class PAYMENT_REQUIRED(Status):
-        r"""
-        402 Payment Required - Reserved for future use
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.PAYMENT_REQUIRED: ...
-    
-    class FORBIDDEN(Status):
-        r"""
-        403 Forbidden - Server understood the request but refuses to authorize it
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.FORBIDDEN: ...
-    
-    class NOT_FOUND(Status):
-        r"""
-        404 Not Found - The requested resource could not be found on the server
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.NOT_FOUND: ...
-    
-    class METHOD_NOT_ALLOWED(Status):
-        r"""
-        405 Method Not Allowed - The request method is not supported for the requested resource
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.METHOD_NOT_ALLOWED: ...
-    
-    class NOT_ACCEPTABLE(Status):
-        r"""
-        406 Not Acceptable - The requested resource is capable of generating only content not acceptable according to the Accept headers
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.NOT_ACCEPTABLE: ...
-    
-    class PROXY_AUTHENTICATION_REQUIRED(Status):
-        r"""
-        407 Proxy Authentication Required - Authentication with the proxy is required
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.PROXY_AUTHENTICATION_REQUIRED: ...
-    
-    class REQUEST_TIMEOUT(Status):
-        r"""
-        408 Request Timeout - The server timed out waiting for the request
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.REQUEST_TIMEOUT: ...
-    
-    class CONFLICT(Status):
-        r"""
-        409 Conflict - The request could not be completed due to a conflict with the current state of the resource
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.CONFLICT: ...
-    
-    class GONE(Status):
-        r"""
-        410 Gone - The requested resource is no longer available and will not be available again
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.GONE: ...
-    
-    class LENGTH_REQUIRED(Status):
-        r"""
-        411 Length Required - The request did not specify the length of its content, which is required
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.LENGTH_REQUIRED: ...
-    
-    class PRECONDITION_FAILED(Status):
-        r"""
-        412 Precondition Failed - Server does not meet one of the preconditions in the request
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.PRECONDITION_FAILED: ...
-    
-    class PAYLOAD_TOO_LARGE(Status):
-        r"""
-        413 Payload Too Large - The request is larger than the server is willing or able to process
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.PAYLOAD_TOO_LARGE: ...
-    
-    class URI_TOO_LONG(Status):
-        r"""
-        414 URI Too Long - The URI provided was too long for the server to process
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.URI_TOO_LONG: ...
-    
-    class UNSUPPORTED_MEDIA_TYPE(Status):
-        r"""
-        415 Unsupported Media Type - The request entity has a media type which the server does not support
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.UNSUPPORTED_MEDIA_TYPE: ...
-    
-    class RANGE_NOT_SATISFIABLE(Status):
-        r"""
-        416 Range Not Satisfiable - The client has asked for a portion of the file, but the server cannot supply that portion
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.RANGE_NOT_SATISFIABLE: ...
-    
-    class EXPECTATION_FAILED(Status):
-        r"""
-        417 Expectation Failed - The server cannot meet the requirements of the Expect request-header field
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.EXPECTATION_FAILED: ...
-    
-    class IM_A_TEAPOT(Status):
-        r"""
-        418 I'm a Teapot - The server refuses the attempt to brew coffee with a teapot (April Fools' joke)
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.IM_A_TEAPOT: ...
-    
-    class MISDIRECTED_REQUEST(Status):
-        r"""
-        421 Misdirected Request - The request was directed at a server that is not able to produce a response
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.MISDIRECTED_REQUEST: ...
-    
-    class UNPROCESSABLE_ENTITY(Status):
-        r"""
-        422 Unprocessable Entity - The request was well-formed but was unable to be followed due to semantic errors
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.UNPROCESSABLE_ENTITY: ...
-    
-    class LOCKED(Status):
-        r"""
-        423 Locked - The resource that is being accessed is locked (WebDAV)
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.LOCKED: ...
-    
-    class FAILED_DEPENDENCY(Status):
-        r"""
-        424 Failed Dependency - The request failed due to failure of a previous request (WebDAV)
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.FAILED_DEPENDENCY: ...
-    
-    class UPGRADE_REQUIRED(Status):
-        r"""
-        426 Upgrade Required - The client should switch to a different protocol
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.UPGRADE_REQUIRED: ...
-    
-    class PRECONDITION_REQUIRED(Status):
-        r"""
-        428 Precondition Required - The origin server requires the request to be conditional
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.PRECONDITION_REQUIRED: ...
-    
-    class TOO_MANY_REQUESTS(Status):
-        r"""
-        429 Too Many Requests - The user has sent too many requests in a given amount of time
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.TOO_MANY_REQUESTS: ...
-    
-    class REQUEST_HEADER_FIELDS_TOO_LARGE(Status):
-        r"""
-        431 Request Header Fields Too Large - The server is unwilling to process the request because its header fields are too large
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.REQUEST_HEADER_FIELDS_TOO_LARGE: ...
-    
-    class UNAVAILABLE_FOR_LEGAL_REASONS(Status):
-        r"""
-        451 Unavailable For Legal Reasons - The server is denying access to the resource as a consequence of a legal demand
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.UNAVAILABLE_FOR_LEGAL_REASONS: ...
-    
-    class INTERNAL_SERVER_ERROR(Status):
-        r"""
-        500 Internal Server Error - The server has encountered a situation it doesn't know how to handle
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.INTERNAL_SERVER_ERROR: ...
-    
-    class NOT_IMPLEMENTED(Status):
-        r"""
-        501 Not Implemented - The server does not support the functionality required to fulfill the request
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.NOT_IMPLEMENTED: ...
-    
-    class BAD_GATEWAY(Status):
-        r"""
-        502 Bad Gateway - The server was acting as a gateway or proxy and received an invalid response from the upstream server
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.BAD_GATEWAY: ...
-    
-    class SERVICE_UNAVAILABLE(Status):
-        r"""
-        503 Service Unavailable - The server is not ready to handle the request, often due to maintenance or overloading
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.SERVICE_UNAVAILABLE: ...
-    
-    class GATEWAY_TIMEOUT(Status):
-        r"""
-        504 Gateway Timeout - The server was acting as a gateway or proxy and did not receive a timely response from the upstream server
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.GATEWAY_TIMEOUT: ...
-    
-    class HTTP_VERSION_NOT_SUPPORTED(Status):
-        r"""
-        505 HTTP Version Not Supported - The server does not support the HTTP protocol version used in the request
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.HTTP_VERSION_NOT_SUPPORTED: ...
-    
-    class VARIANT_ALSO_NEGOTIATES(Status):
-        r"""
-        506 Variant Also Negotiates - The server has an internal configuration error: the chosen variant resource is configured to engage in transparent content negotiation itself
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.VARIANT_ALSO_NEGOTIATES: ...
-    
-    class INSUFFICIENT_STORAGE(Status):
-        r"""
-        507 Insufficient Storage - The server is unable to store the representation needed to complete the request (WebDAV)
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.INSUFFICIENT_STORAGE: ...
-    
-    class LOOP_DETECTED(Status):
-        r"""
-        508 Loop Detected - The server detected an infinite loop while processing the request (WebDAV)
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.LOOP_DETECTED: ...
-    
-    class NOT_EXTENDED(Status):
-        r"""
-        510 Not Extended - Further extensions to the request are required for the server to fulfill it
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.NOT_EXTENDED: ...
-    
-    class NETWORK_AUTHENTICATION_REQUIRED(Status):
-        r"""
-        511 Network Authentication Required - The client needs to authenticate to gain network access
-        """
-        __match_args__ = ((),)
-        def __new__(cls) -> Status.NETWORK_AUTHENTICATION_REQUIRED: ...
-    
 
 def delete(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
     r"""
