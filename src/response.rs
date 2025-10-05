@@ -429,7 +429,10 @@ impl FileStreaming {
         let stream = stream::iter(chunk_iter).map(|bytes| Ok(Frame::data(bytes)));
         let body = StreamBody::new(Box::pin(stream));
         let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_str(content_type).unwrap());
+        headers.insert(
+            CONTENT_TYPE,
+            HeaderValue::from_str(content_type).into_py_exception()?,
+        );
         headers.insert(CACHE_CONTROL, HeaderValue::from_static("no-cache"));
         Ok((
             Self,
