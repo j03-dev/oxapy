@@ -1,4 +1,5 @@
 use pyo3::{basic::CompareOp, prelude::*};
+use pyo3_stub_gen::derive::*;
 
 /// HTTP status codes enumeration.
 ///
@@ -25,9 +26,10 @@ use pyo3::{basic::CompareOp, prelude::*};
 ///         return Status.NOT_FOUND
 ///     return resource
 /// ```
-#[allow(non_camel_case_types, clippy::upper_case_acronyms)]
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[gen_stub_pyclass_enum]
 #[pyclass]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 pub enum Status {
     /// 100 Continue - Server has received the request headers and client should proceed to send the request body
     CONTINUE = 100,
@@ -160,6 +162,7 @@ pub enum Status {
     NETWORK_AUTHENTICATION_REQUIRED = 511,
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl Status {
     /// Compare two Status objects.

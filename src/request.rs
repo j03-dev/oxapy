@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use ahash::HashMap;
-use http_body_util::{BodyExt, Full};
+use http_body_util::BodyExt;
 use pyo3::{
     exceptions::{PyAttributeError, PyException},
     prelude::*,
@@ -9,10 +9,9 @@ use pyo3::{
 };
 
 use hyper::Uri;
-use multer::bytes::Bytes;
+use pyo3_stub_gen::derive::*;
 use url::form_urlencoded;
 
-use crate::multipart::parse_multipart;
 use crate::response::Response;
 use crate::routing::MatchRoute;
 use crate::status::Status;
@@ -23,6 +22,7 @@ use crate::{
     templating::Template,
     IntoPyException, ProcessRequest, RequestContext,
 };
+use crate::{multipart::parse_multipart, response::Body};
 
 /// HTTP request object containing information about the incoming request.
 ///
@@ -47,8 +47,9 @@ use crate::{
 ///     user_agent = request.headers.get("user-agent")
 ///     return f"Hello from {user_agent}"
 /// ```
-#[derive(Clone, Debug, Default)]
+#[gen_stub_pyclass]
 #[pyclass]
+#[derive(Clone, Debug, Default)]
 pub struct Request {
     /// The HTTP method of the request (e.g., GET, POST, PUT).
     #[pyo3(get)]
@@ -75,6 +76,7 @@ pub struct Request {
     pub session_store: Option<Arc<SessionStore>>,
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl Request {
     /// Create a new Request instance.
@@ -258,7 +260,7 @@ impl Request {
             cors,
             catchers,
         }: RequestContext,
-    ) -> Result<hyper::Response<Full<Bytes>>, hyper::http::Error> {
+    ) -> Result<hyper::Response<Body>, hyper::http::Error> {
         for router in routers {
             if let Some(match_route) = router.find(&self.method, &self.uri) {
                 let (tx, mut rx) = tokio::sync::mpsc::channel(channel_capacity);

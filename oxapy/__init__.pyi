@@ -2,8 +2,9 @@
 # ruff: noqa: E501, F401
 
 import builtins
-import oxapy.templating
 import typing
+from oxapy.templating import Template
+from . import exceptions
 from . import jwt
 from . import serializer
 from . import templating
@@ -12,18 +13,18 @@ from enum import Enum
 class Catcher:
     r"""
     A catcher for handling specific HTTP status codes.
-
+    
     Catchers allow you to provide custom responses for specific HTTP status codes.
     They are typically created using the `catcher` decorator function.
-
+    
     Args:
         status (Status): The HTTP status code this catcher will handle.
         handler (callable): The handler function that will be called when this status occurs.
-
+    
     Example:
     ```python
     from oxapy import catcher, Status
-
+    
     @catcher(Status.NOT_FOUND)
     def handle_not_found(request, response):
         return Response("<h1>Custom 404 Page</h1>", content_type="text/html")
@@ -34,17 +35,17 @@ class Catcher:
 class CatcherBuilder:
     r"""
     Internal builder class for creating catchers.
-
+    
     This class is returned by the `catcher` function and is used to create
     a Catcher when called with a handler function.
     """
     def __call__(self, handler:typing.Any) -> Catcher:
         r"""
         Create a Catcher when called with a handler function.
-
+        
         Args:
             handler (callable): The handler function to call when the status occurs.
-
+        
         Returns:
             Catcher: A new catcher for the specified status.
         """
@@ -52,43 +53,93 @@ class CatcherBuilder:
 class Cors:
     r"""
     Cross-Origin Resource Sharing (CORS) configuration.
-
+    
     This class allows you to configure CORS headers for your server to control
     which domains can access your API and what methods they can use.
-
+    
     Args:
         None
-
+    
     Returns:
         Cors: A new CORS configuration with default settings.
-
+    
     Example:
     ```python
     from oxapy import HttpServer, Cors
-
+    
     app = HttpServer(("127.0.0.1", 8000))
-
+    
     # Set up CORS with custom configuration
     cors = Cors()
     cors.origins = ["https://example.com", "https://app.example.com"]
     cors.methods = ["GET", "POST", "OPTIONS"]
     cors.headers = ["Content-Type", "Authorization"]
-
+    
     app.cors(cors)
     ```
     """
+    @property
+    def origins(self) -> builtins.list[builtins.str]:
+        r"""
+        List of allowed origins, default is ["*"] (all origins)
+        """
+    @origins.setter
+    def origins(self, value: builtins.list[builtins.str]) -> None:
+        r"""
+        List of allowed origins, default is ["*"] (all origins)
+        """
+    @property
+    def methods(self) -> builtins.list[builtins.str]:
+        r"""
+        List of allowed HTTP methods, default includes common methods
+        """
+    @methods.setter
+    def methods(self, value: builtins.list[builtins.str]) -> None:
+        r"""
+        List of allowed HTTP methods, default includes common methods
+        """
+    @property
+    def headers(self) -> builtins.list[builtins.str]:
+        r"""
+        List of allowed HTTP headers, default includes common headers
+        """
+    @headers.setter
+    def headers(self, value: builtins.list[builtins.str]) -> None:
+        r"""
+        List of allowed HTTP headers, default includes common headers
+        """
+    @property
+    def allow_credentials(self) -> builtins.bool:
+        r"""
+        Whether to allow credentials (cookies, authorization headers), default is true
+        """
+    @allow_credentials.setter
+    def allow_credentials(self, value: builtins.bool) -> None:
+        r"""
+        Whether to allow credentials (cookies, authorization headers), default is true
+        """
+    @property
+    def max_age(self) -> builtins.int:
+        r"""
+        Maximum age of preflight requests in seconds, default is 86400 (1 day)
+        """
+    @max_age.setter
+    def max_age(self, value: builtins.int) -> None:
+        r"""
+        Maximum age of preflight requests in seconds, default is 86400 (1 day)
+        """
     def __new__(cls) -> Cors:
         r"""
         Create a new CORS configuration with default settings.
-
+        
         Returns:
             Cors: A new CORS configuration with default values.
-
+        
         Example:
         ```python
         # Create CORS with default configuration (allows all origins)
         cors = Cors()
-
+        
         # Customize CORS settings
         cors.origins = ["https://example.com"]
         cors.allow_credentials = False
@@ -97,7 +148,7 @@ class Cors:
     def __repr__(self) -> builtins.str:
         r"""
         Return a string representation of the CORS configuration.
-
+        
         Returns:
             str: A debug string showing the CORS configuration.
         """
@@ -105,16 +156,16 @@ class Cors:
 class File:
     r"""
     Represents an uploaded file in a multipart/form-data request.
-
+    
     The File class provides access to uploaded file data, including the file name,
     content type, and binary content. It also allows saving the file to disk.
-
+    
     Args:
         None (Files are created internally by the framework)
-
+    
     Returns:
         File: A file object containing the uploaded data.
-
+    
     Example:
     ```python
     @router.post("/upload")
@@ -140,13 +191,13 @@ class File:
     def content(self) -> bytes:
         r"""
         Get the file content as bytes.
-
+        
         Args:
             None
-
+        
         Returns:
             bytes: The file content as a Python bytes object.
-
+        
         Example:
         ```python
         file_bytes = uploaded_file.content()
@@ -156,16 +207,16 @@ class File:
     def save(self, path:builtins.str) -> None:
         r"""
         Save the file content to disk.
-
+        
         Args:
             path (str): The path where the file should be saved.
-
+        
         Returns:
             None
-
+        
         Raises:
             Exception: If the file cannot be written to disk.
-
+        
         Example:
         ```python
         # Save the uploaded file
@@ -175,47 +226,147 @@ class File:
         ```
         """
 
+class FileStreaming(Response):
+    r"""
+    HTTP file streaming response for efficiently serving large files.
+    
+    FileStreaming provides an efficient way to serve files by streaming them in chunks
+    rather than loading the entire file into memory. This is particularly useful for
+    large files like videos, images, or documents.
+    
+    The file is read in configurable buffer chunks and streamed to the client,
+    allowing for low memory usage regardless of file size.
+    
+    Args:
+        path (str): The file system path to the file to be streamed.
+        buf_size (int, optional): The buffer size in bytes for reading chunks. Defaults to 8192.
+        status (Status, optional): HTTP status code. Defaults to Status.OK.
+        content_type (str, optional): MIME type of the file. Defaults to "application/octet-stream".
+    
+    Returns:
+        tuple[FileStreaming, Response]: A tuple containing the FileStreaming instance and Response.
+    
+    Raises:
+        OSError: If the file cannot be opened or read.
+        ValueError: If the path is invalid or inaccessible.
+    
+    Example:
+    ```python
+    from oxapy import Router, FileStreaming, Status
+    
+    router = Router()
+    
+    # Stream a video file
+    @router.get("/videos/{*path}")
+    def serve_video(request, path):
+        return FileStreaming(
+            f"./media/videos/{path}",
+            buf_size=16384,  # 16KB chunks
+            content_type="video/mp4"
+        )
+    
+    # Stream static files
+    @router.get("/static/{*path}")
+    def serve_static(request, path):
+        return FileStreaming(
+            f"./static/{path}",
+            buf_size=32768,  # 32KB chunks for better performance
+            content_type="application/octet-stream"
+        )
+    
+    # Stream with custom status for partial content
+    @router.get("/downloads/{filename}")
+    def serve_download(request, filename):
+        return FileStreaming(
+            f"./downloads/{filename}",
+            status=Status.PARTIAL_CONTENT,
+            content_type="application/pdf"
+        )
+    ```
+    """
+    def __new__(cls, path:builtins.str, buf_size:builtins.int=8192, status:Status=Status.OK, content_type:builtins.str='application/octet-stream') -> FileStreaming:
+        r"""
+        Create a new FileStreaming response.
+        
+        Opens the specified file and prepares it for streaming to the client.
+        The file is read in chunks of the specified buffer size, which helps
+        control memory usage and allows for efficient streaming of large files.
+        
+        Args:
+            path (str): Path to the file to stream. Must be accessible and readable.
+            buf_size (int, optional): Buffer size in bytes for reading file chunks.
+                                     Larger values may improve performance for large files
+                                     but use more memory. Defaults to 8192 bytes (8KB).
+            status (Status, optional): HTTP status code for the response. Defaults to Status.OK.
+            content_type (str, optional): MIME type of the file content.
+                                         Defaults to "application/octet-stream".
+        
+        Returns:
+            FileStreaming: A FileStreaming instance.
+        
+        Raises:
+            OSError: If the file at the specified path cannot be opened or read.
+            PermissionError: If the process lacks permission to read the file.
+        
+        Note:
+            The response automatically includes "Cache-Control: no-cache" header
+            to prevent caching of streamed content.
+        
+        Example:
+        ```python
+        # Basic file streaming
+        streaming_response = FileStreaming("./files/document.pdf")
+        
+        # Custom buffer size for better performance
+        streaming_response = FileStreaming(
+            "./media/large-video.mp4",
+            buf_size=65536,  # 64KB chunks
+            content_type="video/mp4"
+        )
+        ```
+        """
+
 class HttpServer:
     r"""
     HTTP Server for handling web requests.
-
+    
     The HttpServer is the main entry point for creating web applications with OxAPY.
     It manages routers, middleware, templates, sessions, and other components.
-
+    
     Args:
         addr (tuple): A tuple containing the IP address and port to bind to.
-
+    
     Returns:
         HttpServer: A new server instance.
-
+    
     Example:
     ```python
     from oxapy import HttpServer, Router
-
+    
     # Create a server on localhost port 8000
     app = HttpServer(("127.0.0.1", 8000))
-
+    
     # Create a router
     router = Router()
-
+    
     # Define route handlers
     @router.get("/")
     def home(request):
         return "Hello, World!"
-
+    
     @router.get("/users/{user_id}")
     def get_user(request, user_id: int):
         return {"user_id": user_id, "name": f"User {user_id}"}
-
+    
     @router.post("/api/data")
     def create_data(request):
         # Access JSON data from the request
         data = request.json()
         return {"status": "success", "received": data}
-
+    
     # Attach the router to the server
     app.attach(router)
-
+    
     # Run the server
     app.run()
         ```
@@ -223,13 +374,13 @@ class HttpServer:
     def __new__(cls, addr:tuple[builtins.str, builtins.int]) -> HttpServer:
         r"""
         Create a new instance of HttpServer.
-
+        
         Args:
             addr (tuple): A tuple containing (ip_address: str, port: int)
-
+        
         Returns:
             HttpServer: A new server instance ready to be configured.
-
+        
         Example:
         ```python
         server = HttpServer(("127.0.0.1", 5555))
@@ -238,16 +389,16 @@ class HttpServer:
     def app_data(self, app_data:typing.Any) -> None:
         r"""
         Set application-wide data that will be available to all request handlers.
-
+        
         This is the perfect place to store shared resources like database connection pools,
         counters, or any other data that needs to be accessible across your application.
-
+        
         Args:
             app_data (any): Any Python object to be stored as application data.
-
+        
         Returns:
             None
-
+        
         Example:
         ```python
         class AppState:
@@ -255,10 +406,10 @@ class HttpServer:
                 self.counter = 0
                 # You can store database connection pools here
                 self.db_pool = create_database_pool()
-
+        
         app = HttpServer(("127.0.0.1", 5555))
         app.app_data(AppState())
-
+        
         # Example of a handler that increments the counter
         @router.get("/counter")
         def increment_counter(request):
@@ -270,32 +421,32 @@ class HttpServer:
     def attach(self, router:Router) -> None:
         r"""
         Attach a router to the server.
-
+        
         Args:
             router (Router): The router instance to attach.
-
+        
         Returns:
             None
-
+        
         Example:
         ```python
         router = Router()
-
+        
         # Define a simple hello world handler
         @router.get("/")
         def hello(request):
             return "Hello, World!"
-
+        
         # Handler with path parameters
         @router.get("/users/{user_id}")
         def get_user(request, user_id: int):
             return f"User ID: {user_id}"
-
+        
         # Handler that returns JSON
         @router.get("/api/data")
         def get_data(request):
             return {"message": "Success", "data": [1, 2, 3]}
-
+        
         # Attach the router to the server
         server.attach(router)
         ```
@@ -303,47 +454,47 @@ class HttpServer:
     def session_store(self, session_store:SessionStore) -> None:
         r"""
         Set up a session store for managing user sessions.
-
+        
         When configured, session data will be available in request handlers.
-
+        
         Args:
             session_store (SessionStore): The session store instance to use.
-
+        
         Returns:
             None
-
+        
         Example:
         ```python
         server.session_store(SessionStore())
         ```
         """
-    def template(self, template:templating.Template) -> None:
+    def template(self, template:Template) -> None:
         r"""
         Enable template rendering for the server.
-
+        
         Args:
             template (Template): An instance of Template for rendering HTML.
-
+        
         Returns:
             None
-
+        
         Example:
         ```python
         from oxapy import templating
-
+        
         server.template(templating.Template())
         ```
         """
     def cors(self, cors:Cors) -> None:
         r"""
         Set up Cross-Origin Resource Sharing (CORS) for the server.
-
+        
         Args:
             cors (Cors): An instance of Cors with your desired CORS configuration.
-
+        
         Returns:
             None
-
+        
         Example:
         ```python
         cors = Cors()
@@ -354,13 +505,13 @@ class HttpServer:
     def max_connections(self, max_connections:builtins.int) -> None:
         r"""
         Set the maximum number of concurrent connections the server will handle.
-
+        
         Args:
             max_connections (int): Maximum number of concurrent connections.
-
+        
         Returns:
             None
-
+        
         Example:
         ```python
         server.max_connections(1000)
@@ -369,16 +520,16 @@ class HttpServer:
     def channel_capacity(self, channel_capacity:builtins.int) -> None:
         r"""
         Set the internal channel capacity for handling requests.
-
+        
         This is an advanced setting that controls how many pending requests
         can be buffered internally.
-
+        
         Args:
             channel_capacity (int): The channel capacity.
-
+        
         Returns:
             None
-
+        
         Example:
         ```python
         server.channel_capacity(200)
@@ -387,70 +538,70 @@ class HttpServer:
     def catchers(self, catchers:typing.Sequence[Catcher]) -> None:
         r"""
         Add status code catchers to the server.
-
+        
         Args:
             catchers (list): A list of Catcher handlers for specific status codes.
-
+        
         Returns:
             None
-
+        
         Example:
         ```python
         @catcher(Status.NOT_FOUND)
         def not_found(request, response):
             return Response("<h1>Page Not Found</h1>", content_type="text/html")
-
+        
         server.catchers([not_found])
         ```
         """
     def async_mode(self) -> HttpServer:
         r"""
         Enable asynchronous mode for the server.
-
+        
         In asynchronous mode, request handlers can be asynchronous Python functions
         (i.e., defined with `async def`). This allows you to perform non-blocking
         I/O operations within your handlers.
-
+        
         Returns:
             HttpServer: A new HttpServer instance configured for asynchronous operation.
-
+        
         Example:
         ```python
         import asyncio
         app = HttpServer(("127.0.0.1", 8000))
-
+        
         @router.get("/")
         async def home(request):
             # Asynchronous operations are allowed here
             data = await fetch_data_from_database()
             return "Hello, World!"
-
+        
         app.attach(router)
-
+        
         await def main():
             await app.async_mode().run()
-
+        
         asyncio.run(main())
         ```
         """
     def run(self, workers:typing.Optional[builtins.int]=None) -> typing.Any:
         r"""
         Run the HTTP server.
-
+        
         This starts the server and blocks until interrupted (e.g., with Ctrl+C).
-
+        
         Args:
             workers (int, optional): Number of worker threads to use. If not specified,
                                      the Tokio runtime will decide automatically.
-
+        
         Returns:
             None
-
+        
         Example:
         ```python
         # Run with default number of workers
         server.run()
-
+        
         # Or specify number of workers based on CPU count
         import multiprocessing
         workers = multiprocessing.cpu_count()
@@ -458,41 +609,37 @@ class HttpServer:
         ```
         """
 
-class Jinja:
-    def __new__(cls, dir:builtins.str) -> Jinja: ...
-    def render(self, template_name:builtins.str, context:typing.Optional[dict]=None) -> builtins.str: ...
-
 class Redirect(Response):
     r"""
     HTTP redirect response.
-
+    
     A specialized response type that redirects the client to a different URL.
-
+    
     Args:
         location (str): The URL to redirect to.
-
+    
     Returns:
         Redirect: A redirect response.
-
+    
     Example:
     ```python
     # Redirect to the home page
     return Redirect("/home")
-
+    
     # Redirect to an external site
     return Redirect("https://example.com")
     ```
     """
-    def new(self, location:builtins.str) -> Redirect:
+    def __new__(cls, location:builtins.str) -> Redirect:
         r"""
         Create a new HTTP redirect response.
-
+        
         Args:
             location (str): The URL to redirect to.
-
+        
         Returns:
             Redirect: A redirect response with status 301 (Moved Permanently).
-
+        
         Example:
         ```python
         # Redirect user after form submission
@@ -506,23 +653,23 @@ class Redirect(Response):
 class Request:
     r"""
     HTTP request object containing information about the incoming request.
-
+    
     This class provides access to request details such as method, URI, headers,
     body content, form data, uploaded files, and session information.
-
+    
     Args:
         method (str): The HTTP method of the request (GET, POST, etc.)
         uri (str): The URI of the request
         headers (dict): HTTP headers as key-value pairs
-
+    
     Returns:
         Request: A new request object
-
+    
     Example:
     ```python
     # Request objects are typically created by the framework and
     # passed to your handler functions:
-
+    
     @router.get("/hello")
     def handler(request):
         user_agent = request.headers.get("user-agent")
@@ -563,13 +710,13 @@ class Request:
     def app_data(self) -> typing.Optional[typing.Any]:
         r"""
         Get application-wide data that was set with HttpServer.app_data.
-
+        
         Args:
             None
-
+        
         Returns:
             any: The application data object, or None if no app_data was set
-
+        
         Example:
         ```python
         @router.get("/counter")
@@ -582,31 +729,31 @@ class Request:
     def __new__(cls, method:builtins.str, uri:builtins.str, headers:typing.Mapping[builtins.str, builtins.str]) -> Request:
         r"""
         Create a new Request instance.
-
+        
         Note: This is primarily for internal use. Request objects are typically created
         by the framework and passed to your handler functions.
-
+        
         Args:
             method (str): The HTTP method of the request (GET, POST, etc.)
             uri (str): The URI of the request
             headers (dict): HTTP headers as key-value pairs
-
+        
         Returns:
             Request: A new request object
         """
     def json(self) -> dict:
         r"""
         Parse the request body as JSON and return it as a dictionary.
-
+        
         Args:
             None
-
+        
         Returns:
             dict: The parsed JSON data as a Python dictionary
-
+        
         Raises:
             Exception: If the body is not present or cannot be parsed as JSON
-
+        
         Example:
         ```python
         @router.post("/api/data")
@@ -619,16 +766,16 @@ class Request:
     def query(self) -> typing.Optional[builtins.dict[builtins.str, builtins.str]]:
         r"""
         Parse and return the query parameters from the request URI.
-
+        
         Args:
             None
-
+        
         Returns:
             dict or None: Dictionary of query parameters, or None if no query string exists
-
+        
         Raises:
             Exception: If the URI cannot be parsed
-
+        
         Example:
         ```python
         # For a request to /api?name=John&age=30
@@ -643,18 +790,18 @@ class Request:
     def session(self) -> Session:
         r"""
         Get the session object for the current request.
-
+        
         Use this to access or modify session data that persists across requests.
-
+        
         Args:
             None
-
+        
         Returns:
             Session: The session instance for this request
-
+        
         Raises:
             AttributeError: If session store is not configured on the server
-
+        
         Example:
         ```python
         @router.get("/login")
@@ -673,37 +820,39 @@ class Request:
 class Response:
     r"""
     HTTP response object that is returned from request handlers.
-
+    
     Args:
         body (any): The response body, can be a string, bytes, or JSON-serializable object.
         status (Status, optional): The HTTP status code (defaults to Status.OK).
         content_type (str, optional): The content type header (defaults to "application/json").
-
+    
     Returns:
         Response: A new HTTP response.
-
+    
     Example:
     ```python
     # JSON response
     response = Response({"message": "Success"})
-
+    
     # Plain text response
     response = Response("Hello, World!", content_type="text/plain")
-
+    
     # HTML response with custom status
     response = Response("<h1>Not Found</h1>", Status.NOT_FOUND, "text/html")
-    ```
+    `
     """
     @property
     def status(self) -> Status: ...
+    @status.setter
+    def status(self, value: Status) -> None: ...
     @property
     def body(self) -> builtins.str:
         r"""
         Get the response body as a string.
-
+        
         Returns:
             str: The response body as a UTF-8 string.
-
+        
         Raises:
             Exception: If the body cannot be converted to a valid UTF-8 string.
         """
@@ -711,15 +860,15 @@ class Response:
     def headers(self) -> builtins.list[tuple[builtins.str, builtins.str]]:
         r"""
         Get the response headers as a list of key-value tuples.
-
+        
         Returns:
-
+        
             list[tuple[str, str]]: The list of headers in the response.
-
+        
         Raises:
-
+        
             Exception: If a header value cannot be converted to a valid UTF-8 string.
-
+        
         Example:
         ```python
         response = Response("Hello")
@@ -728,28 +877,26 @@ class Response:
             print(f"{name}: {value}")
         ```
         """
-    @status.setter
-    def status(self, value: Status) -> None: ...
     def __new__(cls, body:typing.Any, status:Status=Status.OK, content_type:builtins.str='application/json') -> Response:
         r"""
         Create a new Response instance.
-
+        
         Args:
             body (any): The response body content (string, bytes, or JSON-serializable object).
             status (Status, optional): HTTP status code, defaults to Status.OK.
             content_type (str, optional): Content-Type header, defaults to "application/json".
-
+        
         Returns:
             Response: A new response object.
-
+        
         Example:
         ```python
         # Return JSON
         response = Response({"message": "Hello"})
-
+        
         # Return plain text
         response = Response("Hello", content_type="text/plain")
-
+        
         # Return error
         response = Response("Not authorized", status=Status.UNAUTHORIZED)
         ```
@@ -757,14 +904,14 @@ class Response:
     def insert_header(self, key:builtins.str, value:builtins.str) -> None:
         r"""
         Add or update a header in the response.
-
+        
         Args:
             key (str): The header name.
             value (str): The header value.
-
+        
         Returns:
             Response: The response instance (for method chaining).
-
+        
         Example:
         ```python
         response = Response("Hello")
@@ -774,18 +921,18 @@ class Response:
     def append_header(self, key:builtins.str, value:builtins.str) -> None:
         r"""
         Append a header to the response.
-
+        
         This is useful for headers that can appear multiple times, such as `Set-Cookie`.
-
+        
         Args:
-
+        
             key (str): The header name.
             value (str): The header value.
-
+        
         Returns:
-
+        
             None
-
+        
         Example:
         ```python
         response = Response("Hello")
@@ -797,21 +944,21 @@ class Response:
 class Route:
     r"""
     A route definition that maps a URL path to a handler function.
-
+    
     Args:
         path (str): The URL path pattern.
         method (str, optional): The HTTP method (defaults to "GET").
-
+    
     Returns:
         Route: A route object that can be registered with a router.
-
+    
     Example:
     ```python
     from oxapy import Route
-
+    
     def handler(request):
         return "Hello, World!"
-
+    
     route = Route("/hello", "GET")
     route = route(handler)  # Attach the handler
     ```
@@ -826,19 +973,19 @@ class RouteBuilder:
 class Router:
     r"""
     A router for handling HTTP routes.
-
+    
     The Router is responsible for registering routes and handling HTTP requests.
     It supports path parameters, middleware, and different HTTP methods.
-
+    
     Returns:
         Router: A new router instance.
-
+    
     Example:
     ```python
     from oxapy import Router, get
-
+    
     router = Router()
-
+    
     @router.get("/hello/{name}")
     def hello(request, name):
         return f"Hello, {name}!"
@@ -847,10 +994,10 @@ class Router:
     def __new__(cls) -> Router:
         r"""
         Create a new Router instance.
-
+        
         Returns:
             Router: A new router with no routes or middleware.
-
+        
         Example:
         ```python
         router = Router()
@@ -859,46 +1006,46 @@ class Router:
     def middleware(self, middleware:typing.Any) -> None:
         r"""
         Add middleware to the router.
-
+        
         Middleware functions are executed in the order they are added,
         before the route handler.
-
+        
         Args:
             middleware (callable): A function that will process requests before route handlers.
-
+        
         Returns:
             None
-
+        
         Example:
         ```python
         def auth_middleware(request, next, **kwargs):
             if "authorization" not in request.headers:
                 return Status.UNAUTHORIZED
             return next(request, **kwargs)
-
+        
         router.middleware(auth_middleware)
         ```
         """
     def route(self, route:Route) -> None:
         r"""
         Register a route with the router.
-
+        
         Args:
             route (Route): The route to register.
-
+        
         Returns:
             None
-
+        
         Raises:
             Exception: If the route cannot be added.
-
+        
         Example:
         ```python
         from oxapy import get
-
+        
         def hello_handler(request):
             return "Hello World!"
-
+        
         route = get("/hello", hello_handler)
         router.route(route)
         ```
@@ -906,26 +1053,26 @@ class Router:
     def routes(self, routes:typing.Sequence[Route]) -> None:
         r"""
         Register multiple routes with the router.
-
+        
         Args:
             routes (list): A list of Route objects to register.
-
+        
         Returns:
             None
-
+        
         Raises:
             Exception: If any route cannot be added.
-
+        
         Example:
         ```python
         from oxapy import get, post
-
+        
         def hello_handler(request):
             return "Hello World!"
-
+        
         def submit_handler(request):
             return "Form submitted!"
-
+        
         routes = [
             get("/hello", hello_handler),
             post("/submit", submit_handler)
@@ -936,7 +1083,7 @@ class Router:
     def get(self, path:builtins.str) -> RouteBuilder:
         r"""
         Register a GET route using the decorator `@router.get(path)`.
-
+        
         Example:
         ```python
         @router.get("/hello")
@@ -947,7 +1094,7 @@ class Router:
     def post(self, path:builtins.str) -> RouteBuilder:
         r"""
         Register a POST route using the decorator `@router.post(path)`.
-
+        
         Example:
         ```python
         @router.post("/submit")
@@ -958,7 +1105,7 @@ class Router:
     def put(self, path:builtins.str) -> RouteBuilder:
         r"""
         Register a PUT route using the decorator `@router.put(path)`.
-
+        
         Example:
         ```python
         @router.put("/items/{id}")
@@ -969,7 +1116,7 @@ class Router:
     def patch(self, path:builtins.str) -> RouteBuilder:
         r"""
         Register a PATCH route using the decorator `@router.patch(path)`.
-
+        
         Example:
         ```python
         @router.patch("/items/{id}")
@@ -980,7 +1127,7 @@ class Router:
     def delete(self, path:builtins.str) -> RouteBuilder:
         r"""
         Register a DELETE route using the decorator `@router.delete(path)`.
-
+        
         Example:
         ```python
         @router.delete("/items/{id}")
@@ -991,7 +1138,7 @@ class Router:
     def head(self, path:builtins.str) -> RouteBuilder:
         r"""
         Register a HEAD route using the decorator `@router.head(path)`.
-
+        
         Example:
         ```python
         @router.head("/ping")
@@ -1002,7 +1149,7 @@ class Router:
     def options(self, path:builtins.str) -> RouteBuilder:
         r"""
         Register an OPTIONS route using the decorator `@router.options(path)`.
-
+        
         Example:
         ```python
         @router.options("/data")
@@ -1015,16 +1162,16 @@ class Router:
 class Session:
     r"""
     Session storage for maintaining state between requests.
-
+    
     The Session class provides a dictionary-like interface for storing data
     that persists across multiple requests from the same client.
-
+    
     Args:
         id (str, optional): Custom session ID. If not provided, a random ID will be generated.
-
+    
     Returns:
         Session: A new session instance.
-
+    
     Example:
     ```python
     # Sessions are typically accessed from the request object:
@@ -1042,13 +1189,13 @@ class Session:
     def __new__(cls, id:typing.Optional[builtins.str]) -> Session:
         r"""
         Create a new Session instance.
-
+        
         Args:
             id (str, optional): Custom session ID. If not provided, a random ID will be generated.
-
+        
         Returns:
             Session: A new session instance.
-
+        
         Example:
         ```python
         # Manual session creation (normally handled by the framework)
@@ -1058,13 +1205,13 @@ class Session:
     def get(self, key:builtins.str) -> typing.Any:
         r"""
         Get a value from the session by key.
-
+        
         Args:
             key (str): The key to look up in the session.
-
+        
         Returns:
             any: The value associated with the key, or None if the key doesn't exist.
-
+        
         Example:
         ```python
         user_id = session.get("user_id")
@@ -1075,14 +1222,14 @@ class Session:
     def set(self, key:builtins.str, value:typing.Any) -> None:
         r"""
         Set a value in the session.
-
+        
         Args:
             key (str): The key to store the value under.
             value (any): The value to store in the session.
-
+        
         Returns:
             None
-
+        
         Example:
         ```python
         # Store user information in the session
@@ -1093,13 +1240,13 @@ class Session:
     def remove(self, key:builtins.str) -> None:
         r"""
         Remove a key-value pair from the session.
-
+        
         Args:
             key (str): The key to remove.
-
+        
         Returns:
             None
-
+        
         Example:
         ```python
         # Log user out by removing their session data
@@ -1110,13 +1257,13 @@ class Session:
     def clear(self) -> None:
         r"""
         Remove all data from the session.
-
+        
         Args:
             None
-
+        
         Returns:
             None
-
+        
         Example:
         ```python
         # Clear all session data (e.g., during logout)
@@ -1126,13 +1273,13 @@ class Session:
     def keys(self) -> typing.Any:
         r"""
         Get all keys in the session.
-
+        
         Args:
             None
-
+        
         Returns:
             list: A list of all keys in the session.
-
+        
         Example:
         ```python
         # Check what data is stored in the session
@@ -1154,10 +1301,10 @@ class Session:
 class SessionStore:
     r"""
     Manages sessions for the application.
-
+    
     The SessionStore maintains all active sessions and handles their serialization
     and deserialization via cookies.
-
+    
     Args:
         cookie_name (str, optional): Name of the cookie used for session tracking (default: "session").
         cookie_max_age (int, optional): Max age of the cookie in seconds (default: None).
@@ -1166,16 +1313,16 @@ class SessionStore:
         cookie_http_only (bool, optional): Whether the cookie is inaccessible to JavaScript (default: True).
         cookie_same_site (str, optional): SameSite cookie policy ("Lax", "Strict", or "None") (default: "Lax").
         expiry_seconds (int, optional): How long sessions should last in seconds (default: 86400 - one day).
-
+    
     Returns:
         SessionStore: A new session store instance.
-
+    
     Example:
     ```python
     from oxapy import HttpServer, SessionStore
-
+    
     app = HttpServer(("127.0.0.1", 8000))
-
+    
     # Configure sessions with custom settings
     store = SessionStore(
         cookie_name="my_app_session",
@@ -1187,36 +1334,36 @@ class SessionStore:
     """
     @property
     def cookie_name(self) -> builtins.str: ...
-    @property
-    def cookie_max_age(self) -> typing.Optional[builtins.int]: ...
-    @property
-    def cookie_path(self) -> builtins.str: ...
-    @property
-    def cookie_secure(self) -> builtins.bool: ...
-    @property
-    def cookie_http_only(self) -> builtins.bool: ...
-    @property
-    def cookie_same_site(self) -> builtins.str: ...
-    @property
-    def expiry_seconds(self) -> typing.Optional[builtins.int]: ...
     @cookie_name.setter
     def cookie_name(self, value: builtins.str) -> None: ...
+    @property
+    def cookie_max_age(self) -> typing.Optional[builtins.int]: ...
     @cookie_max_age.setter
     def cookie_max_age(self, value: typing.Optional[builtins.int]) -> None: ...
+    @property
+    def cookie_path(self) -> builtins.str: ...
     @cookie_path.setter
     def cookie_path(self, value: builtins.str) -> None: ...
+    @property
+    def cookie_secure(self) -> builtins.bool: ...
     @cookie_secure.setter
     def cookie_secure(self, value: builtins.bool) -> None: ...
+    @property
+    def cookie_http_only(self) -> builtins.bool: ...
     @cookie_http_only.setter
     def cookie_http_only(self, value: builtins.bool) -> None: ...
+    @property
+    def cookie_same_site(self) -> builtins.str: ...
     @cookie_same_site.setter
     def cookie_same_site(self, value: builtins.str) -> None: ...
+    @property
+    def expiry_seconds(self) -> typing.Optional[builtins.int]: ...
     @expiry_seconds.setter
     def expiry_seconds(self, value: typing.Optional[builtins.int]) -> None: ...
     def __new__(cls, cookie_name:builtins.str='session', cookie_max_age:typing.Optional[builtins.int]=None, cookie_path:builtins.str='/', cookie_secure:builtins.bool=False, cookie_http_only:builtins.bool=True, cookie_same_site:builtins.str='Lax', expiry_seconds:typing.Optional[builtins.int]=86400) -> SessionStore:
         r"""
         Create a new SessionStore.
-
+        
         Args:
             cookie_name (str, optional): Name of the cookie used for session tracking (default: "session").
             cookie_max_age (int, optional): Max age of the cookie in seconds (default: None).
@@ -1225,15 +1372,15 @@ class SessionStore:
             cookie_http_only (bool, optional): Whether the cookie is inaccessible to JavaScript (default: True).
             cookie_same_site (str, optional): SameSite cookie policy ("Lax", "Strict", or "None") (default: "Lax").
             expiry_seconds (int, optional): How long sessions should last in seconds (default: 86400 - one day).
-
+        
         Returns:
             SessionStore: A new session store instance.
-
+        
         Example:
         ```python
         # Create a session store with default settings
         store = SessionStore()
-
+        
         # Create a session store with custom settings
         secure_store = SessionStore(
             cookie_name="secure_session",
@@ -1245,26 +1392,26 @@ class SessionStore:
     def get_session(self, session_id:typing.Optional[builtins.str]) -> Session:
         r"""
         Get a session by ID or create a new one if not found.
-
+        
         Args:
             session_id (str, optional): The session ID to look up.
-
+        
         Returns:
             Session: The existing session if found, or a new session otherwise.
-
+        
         Note:
             This method is primarily used internally by the framework.
         """
     def clear_session(self, session_id:builtins.str) -> builtins.bool:
         r"""
         Remove a session from the store.
-
+        
         Args:
             session_id (str): The ID of the session to remove.
-
+        
         Returns:
             bool: True if the session was found and removed, False otherwise.
-
+        
         Example:
         ```python
         # Clear a specific session
@@ -1274,13 +1421,13 @@ class SessionStore:
     def session_count(self) -> builtins.int:
         r"""
         Get the total number of active sessions.
-
+        
         Args:
             None
-
+        
         Returns:
             int: The number of active sessions in the store.
-
+        
         Example:
         ```python
         # Check how many active sessions exist
@@ -1290,14 +1437,10 @@ class SessionStore:
         """
     def get_cookie_header(self, session:Session) -> builtins.str: ...
 
-class Tera:
-    def __new__(cls, dir:builtins.str) -> Tera: ...
-    def render(self, template_name:builtins.str, context:typing.Optional[dict]=None) -> builtins.str: ...
-
 class Status(Enum):
     r"""
     HTTP status codes enumeration.
-
+    
     This enum contains standard HTTP status codes as defined in RFC 7231 and other RFCs.
     Status codes are grouped by their first digit:
     - 1xx: Informational responses
@@ -1305,14 +1448,14 @@ class Status(Enum):
     - 3xx: Redirection messages
     - 4xx: Client error responses
     - 5xx: Server error responses
-
+    
     Example:
     ```python
     from oxapy import Status, Response
-
+    
     # Create a not found response
     response = Response("Not found", status=Status.NOT_FOUND)
-
+    
     # Check status in a handler
     @router.get("/resource/{id}")
     def get_resource(request, id):
@@ -1566,17 +1709,17 @@ class Status(Enum):
     def __richcmp__(self, other:Status, op:int) -> builtins.bool:
         r"""
         Compare two Status objects.
-
+        
         This method allows Python code to use comparison operators (==, !=, <, <=, >, >=)
         between Status enum values.
-
+        
         Args:
             other (Status): The status to compare with.
             op (CompareOp): The comparison operation to perform.
-
+        
         Returns:
             bool: The result of the comparison.
-
+        
         Example:
         ```python
         # Check if a status code is a success code (2xx)
@@ -1587,50 +1730,25 @@ class Status(Enum):
     def code(self) -> builtins.int:
         r"""
         Return the status code
-
+        
         Args:
             None
-
+        
         Returns:
             int: The status code
         """
 
-def catcher(status:Status) -> CatcherBuilder:
-    r"""
-    Decorator for creating status code catchers.
-
-    A catcher allows you to provide custom responses for specific HTTP status codes.
-
-    Args:
-        status (Status): The HTTP status code to catch.
-
-    Returns:
-        CatcherBuilder: A builder that creates a Catcher when called with a handler function.
-
-    Example:
-    ```python
-    from oxapy import catcher, Status, Response
-
-    @catcher(Status.NOT_FOUND)
-    def handle_404(request, response):
-        return Response("<h1>Page Not Found</h1>", content_type="text/html")
-
-    # Add the catcher to your server
-    app.catchers([handle_404])
-    ```
-    """
-
 def delete(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
     r"""
     Registers an HTTP DELETE route.
-
+    
     Parameters:
         path (str): The DELETE route path.
         handler (callable | None): Optional Python function that handles the request.
-
+    
     Returns:
         Route: A DELETE Route instance.
-
+    
     Example:
     ```python
     delete("/items/{id}", lambda req, id: f"Deleted {id}")
@@ -1640,14 +1758,14 @@ def delete(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route
 def get(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
     r"""
     Registers an HTTP GET route.
-
+    
     Parameters:
         path (str): The route path, which may include parameters (e.g. `/items/{id}`).
         handler (callable | None): Optional Python function that handles the request.
-
+    
     Returns:
         Route: A GET Route instance.
-
+    
     Example:
     ```python
     get("/hello/{name}", lambda req, name: f"Hello, {name}!")
@@ -1657,14 +1775,14 @@ def get(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
 def head(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
     r"""
     Registers an HTTP HEAD route.
-
+    
     Parameters:
         path (str): The HEAD route path.
         handler (callable | None): Optional function for returning headers only.
-
+    
     Returns:
         Route: A HEAD Route instance.
-
+    
     Example:
     ```python
     head("/status", lambda req: None)
@@ -1674,14 +1792,14 @@ def head(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
 def options(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
     r"""
     Registers an HTTP OPTIONS route.
-
+    
     Parameters:
         path (str): The OPTIONS route path.
         handler (callable | None): Optional handler that returns allowed methods.
-
+    
     Returns:
         Route: An OPTIONS Route instance.
-
+    
     Example:
     ```python
     options("/users", lambda req: {"Allow": "GET, POST"})
@@ -1691,14 +1809,14 @@ def options(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Rout
 def patch(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
     r"""
     Registers an HTTP PATCH route.
-
+    
     Parameters:
         path (str): The PATCH route path.
         handler (callable | None): Optional Python function for partial updates.
-
+    
     Returns:
         Route: A PATCH Route instance.
-
+    
     Example:
     ```python
     patch("/users/{id}", lambda req, id: req.json())
@@ -1708,14 +1826,14 @@ def patch(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
 def post(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
     r"""
     Registers an HTTP POST route.
-
+    
     Parameters:
         path (str): The POST route path.
         handler (callable | None): Optional Python function that handles the request.
-
+    
     Returns:
         Route: A POST Route instance.
-
+    
     Example:
     ```python
     post("/users", lambda req: {"id": 1, "name": req.json()["name"]})
@@ -1725,14 +1843,14 @@ def post(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
 def put(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
     r"""
     Registers an HTTP PUT route.
-
+    
     Parameters:
         path (str): The PUT route path.
         handler (callable | None): Optional Python function for full replacement.
-
+    
     Returns:
         Route: A PUT Route instance.
-
+    
     Example:
     ```python
     put("/users/{id}", lambda req, id: req.json())
@@ -1742,27 +1860,27 @@ def put(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
 def render(request:Request, name:builtins.str, context:typing.Optional[dict]=None) -> Response:
     r"""
     Render a template and return the result as an HTTP response.
-
+    
     This function renders a template using the template engine configured for the request.
-
+    
     Args:
         request (Request): The HTTP request object containing template configuration.
         name (str): The name of the template to render.
         context (dict, optional): Template variables to use during rendering.
-
+    
     Returns:
         Response: An HTTP response with the rendered template as HTML.
-
+    
     Raises:
         PyValueError: If no template engine is configured for the request.
-
+    
     Example:
     ```python
     from oxapy import Router
     from oxapy import templating
-
+    
     router = Router()
-
+    
     @router.get("/")
     def index(request):
         return templating.render(request, "index.html", {"title": "Home Page"})
@@ -1772,20 +1890,21 @@ def render(request:Request, name:builtins.str, context:typing.Optional[dict]=Non
 def static_file(directory:builtins.str, path:builtins.str) -> Route:
     r"""
     Create a route for serving static files.
-
+    
     Args:
         directory (str): The directory containing static files.
         path (str): The URL path at which to serve the files.
-
+    
     Returns:
         Route: A route configured to serve static files.
-
+    
     Example:
     ```python
     from oxapy import Router, static_file
-
+    
     router = Router()
     router.route(static_file("./static", "static"))
     # This will serve files from ./static directory at /static URL path
     ```
     """
+

@@ -1,5 +1,6 @@
 use crate::response::Response;
 use pyo3::prelude::*;
+use pyo3_stub_gen::derive::*;
 
 /// Cross-Origin Resource Sharing (CORS) configuration.
 ///
@@ -26,8 +27,9 @@ use pyo3::prelude::*;
 ///
 /// app.cors(cors)
 /// ```
-#[derive(Clone, Debug)]
+#[gen_stub_pyclass]
 #[pyclass]
+#[derive(Clone, Debug)]
 pub struct Cors {
     /// List of allowed origins, default is ["*"] (all origins)
     #[pyo3(get, set)]
@@ -58,6 +60,7 @@ impl Default for Cors {
     }
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl Cors {
     /// Create a new CORS configuration with default settings.

@@ -1,7 +1,10 @@
 use hyper::{body::Bytes, header::CONTENT_TYPE, HeaderMap};
 use pyo3::{prelude::*, types::PyAny, Py};
 
-use crate::{cors::Cors, exceptions::*, json, status::Status, IntoPyException, Response};
+use crate::{
+    cors::Cors, exceptions::*, json, response::ResponseBody, status::Status, IntoPyException,
+    Response,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -14,7 +17,7 @@ impl TryFrom<String> for Response {
         Ok(Response {
             status: Status::OK,
             headers,
-            body: val.clone().into(),
+            body: ResponseBody::Bytes(val.into()),
         })
     }
 }
@@ -28,7 +31,7 @@ impl TryFrom<Py<PyAny>> for Response {
         Ok(Response {
             status: Status::OK,
             headers,
-            body: json::dumps(&val)?.into(),
+            body: ResponseBody::Bytes(json::dumps(&val)?.into()),
         })
     }
 }
@@ -42,7 +45,7 @@ impl TryFrom<(String, Status)> for Response {
         Ok(Response {
             status: val.1,
             headers,
-            body: val.0.clone().into(),
+            body: ResponseBody::Bytes(val.0.clone().into()),
         })
     }
 }
@@ -56,7 +59,7 @@ impl TryFrom<(Py<PyAny>, Status)> for Response {
         Ok(Response {
             status: val.1,
             headers,
-            body: json::dumps(&val.0)?.into(),
+            body: ResponseBody::Bytes(json::dumps(&val.0)?.into()),
         })
     }
 }
@@ -68,7 +71,7 @@ impl From<Status> for Response {
         Response {
             status: val,
             headers,
-            body: Bytes::new(),
+            body: ResponseBody::Bytes(Bytes::new()),
         }
     }
 }
@@ -76,12 +79,11 @@ impl From<Status> for Response {
 impl From<PyErr> for Response {
     fn from(value: PyErr) -> Self {
         Python::attach(|py| {
-            let status = match value.is_instance_of::<BaseError>(py) {
+            let status = match value.is_instance_of::<ClientError>(py) {
                 true if value.is_instance_of::<UnauthorizedError>(py) => Status::UNAUTHORIZED,
                 true if value.is_instance_of::<ForbiddenError>(py) => Status::FORBIDDEN,
                 true if value.is_instance_of::<NotFoundError>(py) => Status::NOT_FOUND,
                 true if value.is_instance_of::<ConflictError>(py) => Status::CONFLICT,
-                true if value.is_instance_of::<InternalError>(py) => Status::INTERNAL_SERVER_ERROR,
                 true => Status::BAD_REQUEST,
                 false => {
                     value.display(py);
