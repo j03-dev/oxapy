@@ -846,7 +846,7 @@ class Response:
     @status.setter
     def status(self, value: Status) -> None: ...
     @property
-    def body(self) -> bytes:
+    def body(self) -> builtins.str:
         r"""
         Get the response body as a string.
         
