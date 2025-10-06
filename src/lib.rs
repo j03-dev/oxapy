@@ -574,13 +574,13 @@ async fn call_python_handler<'l>(
                     }
                 }
 
-                Python::attach(|py| match router.middlewares.is_empty() {
+                 match router.middlewares.is_empty() {
                     true => route.handler.call(py, (request,), Some(&kwargs)),
                     false => {
                         let chain = MiddlewareChain::new(router.middlewares.clone());
                         chain.execute(py, route.handler.deref(), (request,), kwargs.clone())
                     }
-                })
+                }
             })?;
 
             let response = match is_async {

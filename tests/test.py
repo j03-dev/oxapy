@@ -68,7 +68,6 @@ def test_nested_serializer():
         dog = Dog(nullable=True)  # type: ignore
 
     nested_serializer = User(
-        # type: ignore
         '{"email": "test@gmail.com", "password": "password", "dog" :{"name": "boby", "toys": null}}'
     )
 
