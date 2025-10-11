@@ -408,11 +408,7 @@ impl HttpServer {
             }
             false => {
                 let mut runtime = tokio::runtime::Builder::new_multi_thread();
-
-                if let Some(workers) = workers {
-                    runtime.worker_threads(workers);
-                }
-
+                workers.map(|w| runtime.worker_threads(w));
                 runtime
                     .enable_all()
                     .build()?
