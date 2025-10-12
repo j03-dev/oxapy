@@ -407,13 +407,16 @@ impl HttpServer {
                 future_into_py(py, async move { server.run_server().await })
             }
             false => {
-                let mut runtime = tokio::runtime::Builder::new_multi_thread();
-                workers.map(|w| runtime.worker_threads(w));
-                runtime
-                    .enable_all()
-                    .build()?
-                    .block_on(async move { self.run_server().await })?;
-
+                py.detach(move || {
+                    let mut runtime = tokio::runtime::Builder::new_multi_thread();
+                    workers.map(|w| runtime.worker_threads(w));
+                    runtime
+                        .enable_all()
+                        .build()
+                        .unwrap()
+                        .block_on(async move { self.run_server().await })
+                        .unwrap();
+                });
                 Ok(py.None().into_bound(py))
             }
         }
