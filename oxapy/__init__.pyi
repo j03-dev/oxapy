@@ -1762,7 +1762,6 @@ def convert_to_response(result:typing.Any) -> Response:
     
     Args:
         result (Any): The Python object returned by a route handler or middleware.
-        py (Python): The Python interpreter context.
     
     Returns:
         Response: A valid OxAPY `Response` object.
@@ -1779,17 +1778,17 @@ def convert_to_response(result:typing.Any) -> Response:
     from oxapy import Response, Status, convert_to_response
     
     # From string
-    convert_to_response("Hello World", None)
+    convert_to_response("Hello World")
     
     # From dictionary (converted to JSON)
-    convert_to_response({"message": "success"}, None)
+    convert_to_response({"message": "success"})
     
     # From tuple (content + status)
-    convert_to_response(("Not Found", Status.NOT_FOUND), None)
+    convert_to_response(("Not Found", Status.NOT_FOUND))
     
     # From Response instance
     response = Response("OK", status=Status.OK)
-    convert_to_response(response, None)
+    convert_to_response(response)
     ```
     
     Notes:
