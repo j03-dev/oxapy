@@ -283,14 +283,12 @@ impl Serializer {
     #[pyo3(signature=(session))]
     fn save(slf: Bound<'_, Self>, session: Py<PyAny>) -> PyResult<Py<PyAny>> {
         let validated_data: Bound<PyDict> = slf.getattr("validated_data")?.extract()?;
-        if validated_data.is_empty() {
-            return Err(PyException::new_err(
-                "call `is_valid()` before `save()` before ",
-            ));
+        match !validated_data.is_empty() {
+            true => Ok(slf
+                .call_method1("create", (session, validated_data))?
+                .into()),
+            false => Err(PyException::new_err("call `is_valid()` before `save()`")),
         }
-        Ok(slf
-            .call_method1("create", (session, validated_data))?
-            .into())
     }
 
     /// Update an existing instance with validated data.
