@@ -541,7 +541,7 @@ async fn call_python_handler<'l>(
             let params = route.params;
             let route = route.value;
 
-            let result = Python::attach(|py| {
+            let mut result = Python::attach(|py| {
                 let kwargs = PyDict::new(py);
 
                 for (key, value) in params.iter() {
@@ -561,21 +561,21 @@ async fn call_python_handler<'l>(
                     }
                 }
 
-                Python::attach(|py| match router.middlewares.is_empty() {
-                    true => route.handler.call(py, (request,), Some(&kwargs)),
-                    false => {
+                Python::attach(|py| {
+                    if router.middlewares.is_empty() {
+                        route.handler.call(py, (request,), Some(&kwargs))
+                    } else {
                         let chain = MiddlewareChain::new(router.middlewares.clone());
                         chain.execute(py, route.handler.deref(), (request,), kwargs.clone())
                     }
                 })
             })?;
 
-            let response = match is_async {
-                true => Python::attach(|py| into_future(result.into_bound(py)))?.await?,
-                false => result,
-            };
+            if is_async {
+                result = Python::attach(|py| into_future(result.into_bound(py)))?.await?
+            }
 
-            Python::attach(|py| into_response::convert_to_response(response, py))
+            Python::attach(|py| into_response::convert_to_response(result, py))
         }
         _ => Ok(Status::NOT_FOUND.into()),
     }
