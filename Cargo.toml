@@ -52,4 +52,4 @@ jsonwebtoken = { version = "10.0.0", features = ["rust_crypto"] }
 
 [features]
 default = []
-stub-gen = ["pyo3-stub-gen/stub-gen"]
+stub-gen = ["pyo3-stub-gen/manual-python-init"]
