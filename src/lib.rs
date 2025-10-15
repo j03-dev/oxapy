@@ -401,24 +401,13 @@ impl HttpServer {
     /// ```
     #[pyo3(signature=(workers=None))]
     fn run<'l>(&'l self, workers: Option<usize>, py: Python<'l>) -> PyResult<Bound<'l, PyAny>> {
-        match self.is_async {
-            true => {
-                let server = self.clone();
-                future_into_py(py, async move { server.run_server().await })
-            }
-            false => {
-                py.detach(move || {
-                    let mut runtime = tokio::runtime::Builder::new_multi_thread();
-                    workers.map(|w| runtime.worker_threads(w));
-                    runtime
-                        .enable_all()
-                        .build()
-                        .unwrap()
-                        .block_on(async move { self.run_server().await })
-                        .unwrap();
-                });
-                Ok(py.None().into_bound(py))
-            }
+        let server = self.clone();
+
+        if self.is_async {
+            future_into_py(py, async move { server.run_server().await })
+        } else {
+            py.detach(move || block_on(server.run_server(), workers));
+            Ok(py.None().into_bound(py))
         }
     }
 }
@@ -436,8 +425,7 @@ impl HttpServer {
         ctrlc::set_handler(move || {
             println!("\nReceived Ctrl+C! Shutting Down...");
             r.store(false, Ordering::SeqCst);
-            let runtime = tokio::runtime::Runtime::new().unwrap();
-            runtime.block_on(kill_tx.send(())).unwrap();
+            block_on(kill_tx.send(()), None);
         })
         .into_py_exception()?;
 
@@ -591,6 +579,12 @@ async fn call_python_handler<'l>(
         }
         _ => Ok(Status::NOT_FOUND.into()),
     }
+}
+
+fn block_on<F: std::future::Future>(future: F, workers: Option<usize>) {
+    let mut runtime = tokio::runtime::Builder::new_multi_thread();
+    workers.map(|w| runtime.worker_threads(w));
+    runtime.enable_all().build().unwrap().block_on(future);
 }
 
 pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
