@@ -450,6 +450,7 @@ class UUIDField(Field):
             write_only (bool, optional): If `True`, the field will be excluded when serializing.
         """
 
+@typing.final
 class ValidationException(ClientError):
     r"""
     Serializer validation exception.

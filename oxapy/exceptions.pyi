@@ -4,6 +4,7 @@
 import builtins
 import typing
 
+@typing.final
 class BadRequestError(ClientError):
     r"""
     HTTP 400 Bad Request error exception.
@@ -29,6 +30,7 @@ class ClientError(builtins.Exception):
     """
     def __new__(cls, e:typing.Any) -> ClientError: ...
 
+@typing.final
 class ConflictError(ClientError):
     r"""
     HTTP 409 Conflict error exception.
@@ -42,6 +44,7 @@ class ConflictError(ClientError):
     """
     def __new__(cls, e:typing.Any) -> ConflictError: ...
 
+@typing.final
 class ForbiddenError(ClientError):
     r"""
     HTTP 403 Forbidden error exception.
@@ -54,6 +57,7 @@ class ForbiddenError(ClientError):
     """
     def __new__(cls, e:typing.Any) -> ForbiddenError: ...
 
+@typing.final
 class InternalError(builtins.Exception):
     r"""
     HTTP 500 Internal Server Error exception.
@@ -66,6 +70,7 @@ class InternalError(builtins.Exception):
     """
     def __new__(cls, e:typing.Any) -> InternalError: ...
 
+@typing.final
 class NotFoundError(ClientError):
     r"""
     HTTP 404 Not Found error exception.
@@ -78,6 +83,7 @@ class NotFoundError(ClientError):
     """
     def __new__(cls, e:typing.Any) -> NotFoundError: ...
 
+@typing.final
 class UnauthorizedError(ClientError):
     r"""
     HTTP 401 Unauthorized error exception.

@@ -2,14 +2,15 @@
 # ruff: noqa: E501, F401
 
 import builtins
+import enum
 import typing
 from oxapy.templating import Template
 from . import exceptions
 from . import jwt
 from . import serializer
 from . import templating
-from enum import Enum
 
+@typing.final
 class Catcher:
     r"""
     A catcher for handling specific HTTP status codes.
@@ -32,6 +33,7 @@ class Catcher:
     """
     ...
 
+@typing.final
 class CatcherBuilder:
     r"""
     Internal builder class for creating catchers.
@@ -50,6 +52,7 @@ class CatcherBuilder:
             Catcher: A new catcher for the specified status.
         """
 
+@typing.final
 class Cors:
     r"""
     Cross-Origin Resource Sharing (CORS) configuration.
@@ -153,6 +156,7 @@ class Cors:
             str: A debug string showing the CORS configuration.
         """
 
+@typing.final
 class File:
     r"""
     Represents an uploaded file in a multipart/form-data request.
@@ -326,6 +330,7 @@ class FileStreaming(Response):
         ```
         """
 
+@typing.final
 class HttpServer:
     r"""
     HTTP Server for handling web requests.
@@ -650,6 +655,7 @@ class Redirect(Response):
         ```
         """
 
+@typing.final
 class Request:
     r"""
     HTTP request object containing information about the incoming request.
@@ -941,6 +947,7 @@ class Response:
         ```
         """
 
+@typing.final
 class Route:
     r"""
     A route definition that maps a URL path to a handler function.
@@ -967,9 +974,11 @@ class Route:
     def __call__(self, handler:typing.Any) -> Route: ...
     def __repr__(self) -> builtins.str: ...
 
+@typing.final
 class RouteBuilder:
     def __call__(self, handler:typing.Any) -> Route: ...
 
+@typing.final
 class Router:
     r"""
     A router for handling HTTP routes.
@@ -1159,6 +1168,7 @@ class Router:
         """
     def __repr__(self) -> builtins.str: ...
 
+@typing.final
 class Session:
     r"""
     Session storage for maintaining state between requests.
@@ -1298,6 +1308,7 @@ class Session:
     def __repr__(self) -> builtins.str: ...
     def __str__(self) -> builtins.str: ...
 
+@typing.final
 class SessionStore:
     r"""
     Manages sessions for the application.
@@ -1437,7 +1448,8 @@ class SessionStore:
         """
     def get_cookie_header(self, session:Session) -> builtins.str: ...
 
-class Status(Enum):
+@typing.final
+class Status(enum.Enum):
     r"""
     HTTP status codes enumeration.
     

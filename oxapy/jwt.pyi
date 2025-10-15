@@ -4,6 +4,7 @@
 import builtins
 import typing
 
+@typing.final
 class Jwt:
     r"""
     Python class for generating and verifying JWT tokens
@@ -94,12 +95,14 @@ class Jwt:
         ```
         """
 
+@typing.final
 class JwtDecodingError(JwtError):
     r"""
     Occurs when there's an error during JWT decoding/verification.
     """
     def __new__(cls, e:typing.Any) -> JwtDecodingError: ...
 
+@typing.final
 class JwtEncodingError(JwtError):
     r"""
     Occurs when there's an error during JWT encoding.
@@ -112,12 +115,14 @@ class JwtError(builtins.Exception):
     """
     def __new__(cls, e:typing.Any) -> JwtError: ...
 
+@typing.final
 class JwtInvalidAlgorithm(JwtError):
     r"""
     Occurs when the JWT algorithm is invalid or not supported.
     """
     def __new__(cls, e:typing.Any) -> JwtInvalidAlgorithm: ...
 
+@typing.final
 class JwtInvalidClaim(JwtError):
     r"""
     Occurs when a JWT claim is invalid (e.g., wrong format).
