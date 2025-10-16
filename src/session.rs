@@ -390,11 +390,11 @@ impl SessionStore {
     ///
     /// Note:
     ///     This method is primarily used internally by the framework.
-    pub fn get_session(&self, session_id: Option<String>) -> PyResult<Session> {
+    pub fn get_session(&self, session_id: Option<&str>) -> PyResult<Session> {
         let mut sessions = self.sessions.write().into_py_exception()?;
 
         if let Some(id) = session_id {
-            if let Some(session) = sessions.get(&id) {
+            if let Some(session) = sessions.get(id) {
                 *session.last_accessed.lock().unwrap() = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .into_py_exception()?
