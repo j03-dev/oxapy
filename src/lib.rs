@@ -401,25 +401,12 @@ impl HttpServer {
     /// ```
     #[pyo3(signature=(workers=None))]
     fn run<'l>(&'l self, workers: Option<usize>, py: Python<'l>) -> PyResult<Bound<'l, PyAny>> {
-        match self.is_async {
-            true => {
-                let server = self.clone();
-                future_into_py(py, async move { server.run_server().await })
-            }
-            false => {
-                let mut runtime = tokio::runtime::Builder::new_multi_thread();
-
-                if let Some(workers) = workers {
-                    runtime.worker_threads(workers);
-                }
-
-                runtime
-                    .enable_all()
-                    .build()?
-                    .block_on(async move { self.run_server().await })?;
-
-                Ok(py.None().into_bound(py))
-            }
+        let server = self.clone();
+        if self.is_async {
+            future_into_py(py, async move { server.run_server().await })
+        } else {
+            py.detach(move || block_on(server.run_server(), workers));
+            Ok(py.None().into_bound(py))
         }
     }
 }
@@ -437,8 +424,7 @@ impl HttpServer {
         ctrlc::set_handler(move || {
             println!("\nReceived Ctrl+C! Shutting Down...");
             r.store(false, Ordering::SeqCst);
-            let runtime = tokio::runtime::Runtime::new().unwrap();
-            runtime.block_on(kill_tx.send(())).unwrap();
+            block_on(kill_tx.send(()), None);
         })
         .into_py_exception()?;
 
@@ -554,7 +540,7 @@ async fn call_python_handler<'l>(
             let params = route.params;
             let route = route.value;
 
-            let result = Python::attach(|py| {
+            let mut result = Python::attach(|py| {
                 let kwargs = PyDict::new(py);
 
                 for (key, value) in params.iter() {
@@ -574,24 +560,30 @@ async fn call_python_handler<'l>(
                     }
                 }
 
-                 match router.middlewares.is_empty() {
-                    true => route.handler.call(py, (request,), Some(&kwargs)),
-                    false => {
+                Python::attach(|py| {
+                    if router.middlewares.is_empty() {
+                        route.handler.call(py, (request,), Some(&kwargs))
+                    } else {
                         let chain = MiddlewareChain::new(router.middlewares.clone());
                         chain.execute(py, route.handler.deref(), (request,), kwargs.clone())
                     }
-                }
+                })
             })?;
 
-            let response = match is_async {
-                true => Python::attach(|py| into_future(result.into_bound(py)))?.await?,
-                false => result,
-            };
+            if is_async {
+                result = Python::attach(|py| into_future(result.into_bound(py)))?.await?
+            }
 
-            Python::attach(|py| into_response::convert_to_response(response, py))
+            Python::attach(|py| into_response::convert_to_response(result, py))
         }
         _ => Ok(Status::NOT_FOUND.into()),
     }
+}
+
+fn block_on<F: std::future::Future>(future: F, workers: Option<usize>) {
+    let mut runtime = tokio::runtime::Builder::new_multi_thread();
+    workers.map(|w| runtime.worker_threads(w));
+    runtime.enable_all().build().unwrap().block_on(future);
 }
 
 pyo3_stub_gen::define_stub_info_gatherer!(stub_info);

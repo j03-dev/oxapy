@@ -2,18 +2,21 @@
 # ruff: noqa: E501, F401
 
 import builtins
+import enum
 import typing
-from enum import Enum
 
+@typing.final
 class Jinja:
     def __new__(cls, dir:builtins.str) -> Jinja: ...
     def render(self, template_name:builtins.str, context:typing.Optional[dict]=None) -> builtins.str: ...
 
+@typing.final
 class Tera:
     def __new__(cls, dir:builtins.str) -> Tera: ...
     def render(self, template_name:builtins.str, context:typing.Optional[dict]=None) -> builtins.str: ...
 
-class Template(Enum):
+@typing.final
+class Template(enum.Enum):
     r"""
     Template engine for rendering HTML templates.
     

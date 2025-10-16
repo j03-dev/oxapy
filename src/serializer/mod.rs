@@ -31,7 +31,7 @@ struct Serializer {
     #[pyo3(get, set)]
     instance: Option<Py<PyAny>>,
     #[pyo3(get, set)]
-    validated_data: Option<Py<PyDict>>,
+    validated_data: Py<PyDict>,
     #[pyo3(get, set)]
     raw_data: Option<String>,
     #[pyo3(get, set)]
@@ -87,10 +87,11 @@ impl Serializer {
         context: Option<Py<PyDict>>,
         read_only: Option<bool>,
         write_only: Option<bool>,
+        py: Python<'_>,
     ) -> (Serializer, Field) {
         (
             Self {
-                validated_data: None,
+                validated_data: PyDict::new(py).into(),
                 raw_data: data,
                 instance,
                 context,
@@ -146,8 +147,7 @@ impl Serializer {
 
         let attr = json::loads(&raw_data)?;
 
-        let validated_data: Option<Bound<PyDict>> =
-            slf.call_method1("validate", (attr,))?.extract()?;
+        let validated_data: Bound<PyDict> = slf.call_method1("validate", (attr,))?.extract()?;
 
         slf.setattr("validated_data", validated_data)?;
         Ok(())
@@ -282,13 +282,13 @@ impl Serializer {
     /// ```
     #[pyo3(signature=(session))]
     fn save(slf: Bound<'_, Self>, session: Py<PyAny>) -> PyResult<Py<PyAny>> {
-        let validated_data: Bound<PyDict> = slf
-            .getattr("validated_data")?
-            .extract::<Option<Bound<PyDict>>>()?
-            .ok_or_else(|| PyException::new_err("call `is_valid()` before `save()`"))?;
-        Ok(slf
-            .call_method1("create", (session, validated_data))?
-            .into())
+        let validated_data: Bound<PyDict> = slf.getattr("validated_data")?.extract()?;
+        match !validated_data.is_empty() {
+            true => Ok(slf
+                .call_method1("create", (session, validated_data))?
+                .into()),
+            false => Err(PyException::new_err("call `is_valid()` before `save()`")),
+        }
     }
 
     /// Update an existing instance with validated data.

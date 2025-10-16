@@ -259,9 +259,9 @@ class Serializer(Field):
     @instance.setter
     def instance(self, value: typing.Optional[typing.Any]) -> None: ...
     @property
-    def validated_data(self) -> typing.Optional[dict]: ...
+    def validated_data(self) -> dict: ...
     @validated_data.setter
-    def validated_data(self, value: typing.Optional[dict]) -> None: ...
+    def validated_data(self, value: dict) -> None: ...
     @property
     def raw_data(self) -> typing.Optional[builtins.str]: ...
     @raw_data.setter
@@ -450,6 +450,7 @@ class UUIDField(Field):
             write_only (bool, optional): If `True`, the field will be excluded when serializing.
         """
 
+@typing.final
 class ValidationException(ClientError):
     r"""
     Serializer validation exception.

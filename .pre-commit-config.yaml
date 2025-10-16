@@ -20,6 +20,6 @@ repos:
       # Run pytest
       - id: pytest
         name: Run pytest
-        entry: .venv/bin/pytest -vv tests/test.py
+        entry: .venv/bin/pytest -vv tests
         language: system
         pass_filenames: false

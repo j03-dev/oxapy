@@ -368,14 +368,10 @@ impl RequestBuilder {
         }
 
         if let Some(store) = self.session_store {
-            if let Some(session_id) =
-                get_session_id(request.headers.get("cookie"), &store.cookie_name)
-            {
-                if let Ok(session) = store.get_session(Some(session_id)) {
-                    request.session = Some(Arc::new(session));
-                    request.session_store = Some(store.clone());
-                }
-            }
+            let session_id = request.get_cookie(&store.cookie_name);
+            let session = store.get_session(session_id)?;
+            request.session = Some(Arc::new(session));
+            request.session_store = Some(store.clone());
         }
 
         request.app_data = self.app_data;
@@ -383,25 +379,4 @@ impl RequestBuilder {
 
         Ok(request)
     }
-}
-
-fn get_session_id(cookie_header: Option<&String>, cookie_name: &str) -> Option<String> {
-    cookie_header.and_then(|cookies| {
-        cookies
-            .split(';')
-            .filter_map(|cookie| {
-                let cookie = cookie.trim();
-                let mut parts = cookie.splitn(2, '=');
-                if let (Some(name), Some(value)) = (
-                    parts.next().map(|s| s.trim()),
-                    parts.next().map(|s| s.trim()),
-                ) {
-                    if name == cookie_name {
-                        return Some(value.to_string());
-                    }
-                }
-                None
-            })
-            .next()
-    })
 }

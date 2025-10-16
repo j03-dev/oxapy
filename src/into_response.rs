@@ -121,6 +121,49 @@ macro_rules! to_response {
     }};
 }
 
+/// Convert a Python object into an OxAPY `Response`.
+///
+/// This function normalizes the output of Python route handlers into a `Response` object
+/// that can be sent back to the client. It supports multiple return types such as strings,
+/// dictionaries, tuples, or even existing `Response` objects.
+///
+/// If a handler returns an unsupported type, a `PyValueError` will be raised.
+///
+/// Args:
+///     result (Any): The Python object returned by a route handler or middleware.
+///
+/// Returns:
+///     Response: A valid OxAPY `Response` object.
+///
+/// Supported return types:
+///     - `Response`: Returned directly without modification.
+///     - `str`: Converted into a text/plain `Response`.
+///     - `dict` / Python object: Serialized into JSON automatically.
+///     - `(str, Status)`: Returns a text response with the given status code.
+///     - `(Response, Status)`: Returns the provided `Response` but updates the status code.
+///
+/// Example:
+/// ```python
+/// from oxapy import Response, Status, convert_to_response
+///
+/// # From string
+/// convert_to_response("Hello World")
+///
+/// # From dictionary (converted to JSON)
+/// convert_to_response({"message": "success"})
+///
+/// # From tuple (content + status)
+/// convert_to_response(("Not Found", Status.NOT_FOUND))
+///
+/// # From Response instance
+/// response = Response("OK", status=Status.OK)
+/// convert_to_response(response)
+/// ```
+///
+/// Notes:
+///     This function is mainly used internally by the framework to unify handler return types,
+///     but it can also be used manually if you’re building custom middlewares or decorators.
+#[pyo3_stub_gen::derive::gen_stub_pyfunction]
 #[pyfunction]
 #[inline]
 pub fn convert_to_response(result: Py<PyAny>, py: Python<'_>) -> PyResult<Response> {
