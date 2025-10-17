@@ -3,7 +3,6 @@ mod cors;
 mod exceptions;
 mod into_response;
 mod json;
-#[cfg(not(target_arch = "aarch64"))]
 mod jwt;
 mod macros;
 mod middleware;
