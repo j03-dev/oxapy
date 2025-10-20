@@ -11,10 +11,10 @@ use serde_json::Value;
 use std::str::FromStr;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+/// Base class for all JWT related exceptions.
 #[gen_stub_pyclass]
 #[pyclass(subclass, extends=PyException, module="oxapy.jwt")]
 #[repr(transparent)]
-/// Base class for all JWT related exceptions.
 pub struct JwtError(Py<PyAny>);
 
 impl_exception_boilerplate!(JwtError);
@@ -28,32 +28,32 @@ impl JwtError {
     }
 }
 
+/// Occurs when there's an error during JWT encoding.
 #[gen_stub_pyclass]
 #[pyclass(extends=JwtError, module="oxapy.jwt")]
-/// Occurs when there's an error during JWT encoding.
 pub struct JwtEncodingError;
 
 impl_exception_boilerplate!(JwtEncodingError);
 extend_exception!(JwtEncodingError, JwtError);
 
+/// Occurs when there's an error during JWT decoding/verification.
 #[gen_stub_pyclass]
 #[pyclass(extends=JwtError, module="oxapy.jwt")]
-/// Occurs when there's an error during JWT decoding/verification.
 pub struct JwtDecodingError;
 
 impl_exception_boilerplate!(JwtDecodingError);
 extend_exception!(JwtDecodingError, JwtError);
 
+/// Occurs when the JWT algorithm is invalid or not supported.
 #[gen_stub_pyclass]
 #[pyclass(extends=JwtError, module="oxapy.jwt")]
-/// Occurs when the JWT algorithm is invalid or not supported.
 pub struct JwtInvalidAlgorithm;
 impl_exception_boilerplate!(JwtInvalidAlgorithm);
 extend_exception!(JwtInvalidAlgorithm, JwtError);
 
+/// Occurs when a JWT claim is invalid (e.g., wrong format).
 #[gen_stub_pyclass]
 #[pyclass(extends=JwtError, module="oxapy.jwt")]
-/// Occurs when a JWT claim is invalid (e.g., wrong format).
 pub struct JwtInvalidClaim;
 impl_exception_boilerplate!(JwtInvalidClaim);
 extend_exception!(JwtInvalidClaim, JwtError);
