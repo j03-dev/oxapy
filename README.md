@@ -41,9 +41,11 @@ from oxapy import HttpServer, Router, Status, Response
 
 router = Router()
 
+
 @router.get("/")
 def welcome(request):
     return Response("Welcome to OxAPY!", content_type="text/plain")
+
 
 @router.get("/hello/{name}")
 def hello(request, name):
@@ -64,27 +66,32 @@ from oxapy import HttpServer, Router
 
 router = Router()
 
+
 @router.get("/")
 async def home(request):
     # Asynchronous operations are allowed here
-    data = await fetch_data_from_database()
+    data = await fetch_data_from_database()  # type: ignore
     return "Hello, World!"
 
-app = HttpServer(("127.0.0.1", 8000))
-app.attach(router)
-app.async_mode().run()
+
+HttpServer(("127.0.0.1", 8000)).attach(router).async_mode().run()
 ```
 
 ## Middleware Example
 
 ```python
+from oxapy import Status, Router
+
+
 def auth_middleware(request, next, **kwargs):
     if "authorization" not in request.headers:
         return Status.UNAUTHORIZED
     return next(request, **kwargs)
 
+
 router = Router()
 router.middleware(auth_middleware)
+
 
 @router.get("/protected")
 def protected(request):
@@ -94,6 +101,8 @@ def protected(request):
 ## Static Files
 
 ```python
+from oxapy import Router, static_file
+
 router = Router()
 router.route(static_file("./static", "static"))
 # Serves files from ./static directory at /static URL path
@@ -102,14 +111,16 @@ router.route(static_file("./static", "static"))
 ## Application State
 
 ```python
+from oxapy import HttpServer, Router
+
+
 class AppState:
     def __init__(self):
         self.counter = 0
 
-app = HttpServer(("127.0.0.1", 5555))
-app.app_data(AppState())
 
 router = Router()
+
 
 @router.get("/count")
 def handler(request):
@@ -117,6 +128,8 @@ def handler(request):
     app_data.counter += 1
     return {"count": app_data.counter}
 
+
+HttpServer(("127.0.0.1", 5555)).app_data(AppState()).attach(router).run()
 ```
 
 Todo:
@@ -132,6 +145,6 @@ Todo:
 - [x] templating
 - [x] query uri
 - [ ] security submodule
-  - [x] jwt
-  - [ ] bcrypt
+    - [x] jwt
+    - [ ] bcrypt
 - [ ] websocket
