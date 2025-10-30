@@ -192,8 +192,10 @@ impl HttpServer {
     ///     state.counter += 1
     ///     return {"count": state.counter}
     /// ```
-    fn app_data(&mut self, app_data: Py<PyAny>) {
-        self.app_data = Some(Arc::new(app_data))
+    fn app_data(&mut self, app_data: Py<PyAny>) -> Self {
+        self.app_data = Some(Arc::new(app_data));
+        self.clone()
+
     }
 
     /// Attach a router to the server.
@@ -226,8 +228,9 @@ impl HttpServer {
     /// # Attach the router to the server
     /// server.attach(router)
     /// ```
-    fn attach(&mut self, router: Router) {
+    fn attach(&mut self, router: Router) -> Self {
         self.routers.push(Arc::new(router));
+        self.clone()
     }
 
     /// Set up a session store for managing user sessions.
@@ -244,8 +247,9 @@ impl HttpServer {
     /// ```python
     /// server.session_store(SessionStore())
     /// ```
-    fn session_store(&mut self, session_store: SessionStore) {
+    fn session_store(&mut self, session_store: SessionStore) -> Self {
         self.session_store = Some(Arc::new(session_store));
+        self.clone()
     }
 
     /// Enable template rendering for the server.
@@ -262,8 +266,9 @@ impl HttpServer {
     ///
     /// server.template(templating.Template())
     /// ```
-    fn template(&mut self, template: Template) {
-        self.template = Some(Arc::new(template))
+    fn template(&mut self, template: Template) -> Self {
+        self.template = Some(Arc::new(template));
+        self.clone()
     }
 
     /// Set up Cross-Origin Resource Sharing (CORS) for the server.
@@ -280,8 +285,9 @@ impl HttpServer {
     /// cors.origins = ["https://example.com"]
     /// server.cors(cors)
     /// ```
-    fn cors(&mut self, cors: Cors) {
+    fn cors(&mut self, cors: Cors) -> Self {
         self.cors = Some(Arc::new(cors));
+        self.clone()
     }
 
     /// Set the maximum number of concurrent connections the server will handle.
@@ -296,8 +302,9 @@ impl HttpServer {
     /// ```python
     /// server.max_connections(1000)
     /// ```
-    fn max_connections(&mut self, max_connections: usize) {
+    fn max_connections(&mut self, max_connections: usize) -> Self {
         self.max_connections = Arc::new(Semaphore::new(max_connections));
+        self.clone()
     }
 
     /// Set the internal channel capacity for handling requests.
@@ -315,8 +322,9 @@ impl HttpServer {
     /// ```python
     /// server.channel_capacity(200)
     /// ```
-    fn channel_capacity(&mut self, channel_capacity: usize) {
+    fn channel_capacity(&mut self, channel_capacity: usize) -> Self {
         self.channel_capacity = channel_capacity;
+        self.clone()
     }
 
     /// Add status code catchers to the server.
@@ -335,14 +343,15 @@ impl HttpServer {
     ///
     /// server.catchers([not_found])
     /// ```
-    fn catchers(&mut self, catchers: Vec<PyRef<Catcher>>, py: Python<'_>) {
+    fn catchers(&mut self, catchers: Vec<PyRef<Catcher>>, py: Python<'_>) -> Self {
         let mut map = HashMap::default();
 
         for catcher in catchers {
             map.insert(catcher.status, catcher.handler.clone_ref(py));
         }
 
-        self.catchers = Some(Arc::new(map))
+        self.catchers = Some(Arc::new(map));
+        self.clone()
     }
 
     /// Enable asynchronous mode for the server.

@@ -391,7 +391,7 @@ class HttpServer:
         server = HttpServer(("127.0.0.1", 5555))
         ```
         """
-    def app_data(self, app_data:typing.Any) -> None:
+    def app_data(self, app_data:typing.Any) -> HttpServer:
         r"""
         Set application-wide data that will be available to all request handlers.
         
@@ -423,7 +423,7 @@ class HttpServer:
             return {"count": state.counter}
         ```
         """
-    def attach(self, router:Router) -> None:
+    def attach(self, router:Router) -> HttpServer:
         r"""
         Attach a router to the server.
         
@@ -456,7 +456,7 @@ class HttpServer:
         server.attach(router)
         ```
         """
-    def session_store(self, session_store:SessionStore) -> None:
+    def session_store(self, session_store:SessionStore) -> HttpServer:
         r"""
         Set up a session store for managing user sessions.
         
@@ -473,7 +473,7 @@ class HttpServer:
         server.session_store(SessionStore())
         ```
         """
-    def template(self, template:Template) -> None:
+    def template(self, template:Template) -> HttpServer:
         r"""
         Enable template rendering for the server.
         
@@ -490,7 +490,7 @@ class HttpServer:
         server.template(templating.Template())
         ```
         """
-    def cors(self, cors:Cors) -> None:
+    def cors(self, cors:Cors) -> HttpServer:
         r"""
         Set up Cross-Origin Resource Sharing (CORS) for the server.
         
@@ -507,7 +507,7 @@ class HttpServer:
         server.cors(cors)
         ```
         """
-    def max_connections(self, max_connections:builtins.int) -> None:
+    def max_connections(self, max_connections:builtins.int) -> HttpServer:
         r"""
         Set the maximum number of concurrent connections the server will handle.
         
@@ -522,7 +522,7 @@ class HttpServer:
         server.max_connections(1000)
         ```
         """
-    def channel_capacity(self, channel_capacity:builtins.int) -> None:
+    def channel_capacity(self, channel_capacity:builtins.int) -> HttpServer:
         r"""
         Set the internal channel capacity for handling requests.
         
@@ -540,7 +540,7 @@ class HttpServer:
         server.channel_capacity(200)
         ```
         """
-    def catchers(self, catchers:typing.Sequence[Catcher]) -> None:
+    def catchers(self, catchers:typing.Sequence[Catcher]) -> HttpServer:
         r"""
         Add status code catchers to the server.
         
