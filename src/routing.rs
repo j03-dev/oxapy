@@ -299,9 +299,10 @@ macro_rules! impl_router {
             ///
             /// router.middleware(auth_middleware)
             /// ```
-            fn middleware(&mut self, middleware: Py<PyAny>) {
+            fn middleware(&mut self, middleware: Py<PyAny>) -> Self {
                 let middleware = Middleware::new(middleware);
                 self.middlewares.push(middleware);
+                self.clone()
             }
 
             /// Register a route with the router.
@@ -325,13 +326,13 @@ macro_rules! impl_router {
             /// route = get("/hello", hello_handler)
             /// router.route(route)
             /// ```
-            fn route(&mut self, route: &Route) -> PyResult<()> {
+            fn route(&mut self, route: &Route) -> PyResult<Self> {
                 let mut ptr_mr = self.routes.write().unwrap();
                 let method_router = ptr_mr.entry(route.method.clone()).or_default();
                 method_router
                     .insert(&route.path, route.clone())
                     .into_py_exception()?;
-                Ok(())
+                Ok(self.clone())
             }
 
             /// Register multiple routes with the router.
@@ -361,11 +362,11 @@ macro_rules! impl_router {
             /// ]
             /// router.routes(routes)
             /// ```
-            fn routes(&mut self, routes: Vec<Route>) -> PyResult<()> {
+            fn routes(&mut self, routes: Vec<Route>) -> PyResult<Self> {
                 for ref route in routes {
                     self.route(route)?;
                 }
-                Ok(())
+                Ok(self.clone())
             }
 
             $(

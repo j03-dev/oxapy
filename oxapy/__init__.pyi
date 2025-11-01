@@ -1012,7 +1012,7 @@ class Router:
         router = Router()
         ```
         """
-    def middleware(self, middleware:typing.Any) -> None:
+    def middleware(self, middleware:typing.Any) -> Router:
         r"""
         Add middleware to the router.
         
@@ -1035,7 +1035,7 @@ class Router:
         router.middleware(auth_middleware)
         ```
         """
-    def route(self, route:Route) -> None:
+    def route(self, route:Route) -> Router:
         r"""
         Register a route with the router.
         
@@ -1059,7 +1059,7 @@ class Router:
         router.route(route)
         ```
         """
-    def routes(self, routes:typing.Sequence[Route]) -> None:
+    def routes(self, routes:typing.Sequence[Route]) -> Router:
         r"""
         Register multiple routes with the router.
         

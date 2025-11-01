@@ -195,7 +195,6 @@ impl HttpServer {
     fn app_data(&mut self, app_data: Py<PyAny>) -> Self {
         self.app_data = Some(Arc::new(app_data));
         self.clone()
-
     }
 
     /// Attach a router to the server.
