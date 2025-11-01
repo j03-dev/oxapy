@@ -484,12 +484,13 @@ impl Router {
 /// from oxapy import Router, static_file
 ///
 /// router = Router()
-/// router.route(static_file("./static", "static"))
+/// router.route(static_file("/static", "./static"))
 /// # This will serve files from ./static directory at /static URL path
 /// ```
 #[gen_stub_pyfunction]
 #[pyfunction]
-pub fn static_file(directory: String, path: String, py: Python<'_>) -> PyResult<Route> {
+#[pyo3(signature=(path="/static", directory="./static"))]
+pub fn static_file(path: &str, directory: &str, py: Python<'_>) -> PyResult<Route> {
     let pathlib = py.import("pathlib")?;
     let oxapy = py.import("oxapy")?;
     let mimetypes = py.import("mimetypes")?;
@@ -521,7 +522,7 @@ def static_file(request, path):
     let handler = globals.get_item("static_file")?.unwrap();
 
     let route = Route {
-        path: format!("/{path}/{{*path}}"),
+        path: format!("{path}/{{*path}}"),
         handler: Arc::new(handler.into()),
         ..Default::default()
     };
