@@ -1898,7 +1898,7 @@ dependencies = [
 [[package]]
 name = "pyo3-stub-gen"
 version = "0.15.1"
-source = "git+https://github.com/j03-dev/pyo3-stub-gen?branch=fix%2Fpep703-incompatibility-305#6cab5f86dd74d5e4c2c1d81b54af5f9ef027391b"
+source = "git+https://github.com/j03-dev/pyo3-stub-gen?rev=6cab5f86#6cab5f86dd74d5e4c2c1d81b54af5f9ef027391b"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1920,7 +1920,7 @@ dependencies = [
 [[package]]
 name = "pyo3-stub-gen-derive"
 version = "0.15.1"
-source = "git+https://github.com/j03-dev/pyo3-stub-gen?branch=fix%2Fpep703-incompatibility-305#6cab5f86dd74d5e4c2c1d81b54af5f9ef027391b"
+source = "git+https://github.com/j03-dev/pyo3-stub-gen?rev=6cab5f86#6cab5f86dd74d5e4c2c1d81b54af5f9ef027391b"
 dependencies = [
  "heck",
  "indexmap",
