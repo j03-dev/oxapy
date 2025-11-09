@@ -15,6 +15,7 @@ mod session;
 mod status;
 mod templating;
 
+use std::future::Future;
 use std::net::SocketAddr;
 use std::ops::Deref;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -195,7 +196,6 @@ impl HttpServer {
     fn app_data(&mut self, app_data: Py<PyAny>) -> Self {
         self.app_data = Some(Arc::new(app_data));
         self.clone()
-
     }
 
     /// Attach a router to the server.
@@ -413,7 +413,7 @@ impl HttpServer {
         if self.is_async {
             future_into_py(py, async move { server.run_server().await })
         } else {
-            py.detach(move || block_on(server.run_server(), workers));
+            py.detach(move || block_on(server.run_server(), workers))?;
             Ok(py.None().into_bound(py))
         }
     }
@@ -432,7 +432,7 @@ impl HttpServer {
         ctrlc::set_handler(move || {
             println!("\nReceived Ctrl+C! Shutting Down...");
             r.store(false, Ordering::SeqCst);
-            block_on(kill_tx.send(()), None);
+            block_on(kill_tx.send(()), None).unwrap();
         })
         .into_py_exception()?;
 
@@ -588,10 +588,10 @@ async fn call_python_handler<'l>(
     }
 }
 
-fn block_on<F: std::future::Future>(future: F, workers: Option<usize>) {
+fn block_on<F: Future>(future: F, workers: Option<usize>) -> <F as Future>::Output {
     let mut runtime = tokio::runtime::Builder::new_multi_thread();
     workers.map(|w| runtime.worker_threads(w));
-    runtime.enable_all().build().unwrap().block_on(future);
+    runtime.enable_all().build().unwrap().block_on(future)
 }
 
 pyo3_stub_gen::define_stub_info_gatherer!(stub_info);

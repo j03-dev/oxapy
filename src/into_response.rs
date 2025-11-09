@@ -86,7 +86,11 @@ impl From<PyErr> for Response {
                 true if value.is_instance_of::<ConflictError>(py) => Status::CONFLICT,
                 true => Status::BAD_REQUEST,
                 false => {
-                    value.display(py);
+                    if let Some(v) = std::env::var("DEBUG").ok() {
+                        if v.parse::<bool>().expect("DEBUG should be a bool") {
+                            value.display(py);
+                        }
+                    };
                     Status::INTERNAL_SERVER_ERROR
                 }
             };
