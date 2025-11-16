@@ -234,23 +234,29 @@ impl RouteBuilder {
 /// The Router is responsible for registering routes and handling HTTP requests.
 /// It supports path parameters, middleware, and different HTTP methods.
 ///
+/// A `base_path` can be provided to prepend a path to all routes.
+///
 /// Returns:
 ///     Router: A new router instance.
 ///
 /// Example:
 /// ```python
-/// from oxapy import Router, get
+/// from oxapy import Router
 ///
-/// router = Router()
+/// # Router with a base path
+/// router = Router("/api/v1")
 ///
 /// @router.get("/hello/{name}")
 /// def hello(request, name):
 ///     return f"Hello, {name}!"
+///
+/// # The route will be /api/v1/hello/{name}
 /// ```
 #[gen_stub_pyclass]
 #[pyclass]
 #[derive(Default, Clone, Debug)]
 pub struct Router {
+    pub base_path: Option<String>,
     pub routes: Arc<RwLock<HashMap<String, matchit::Router<Route>>>>,
     pub middlewares: Vec<Middleware>,
 }
@@ -275,8 +281,12 @@ macro_rules! impl_router {
             /// router = Router()
             /// ```
             #[new]
-            pub fn new() -> Self {
-                Router::default()
+            #[pyo3(signature=(base_path = None))]
+            pub fn new(base_path: Option<String>) -> Self {
+                Router {
+                    base_path,
+                    ..Default::default()
+                }
             }
 
             /// Add middleware to the router.
@@ -328,9 +338,15 @@ macro_rules! impl_router {
             fn route(&mut self, route: &Route) -> PyResult<()> {
                 let mut ptr_mr = self.routes.write().unwrap();
                 let method_router = ptr_mr.entry(route.method.clone()).or_default();
-                method_router
-                    .insert(&route.path, route.clone())
-                    .into_py_exception()?;
+                let full_path = match self.base_path {
+                    Some(ref base_path) => {
+                        let combined = format!("{base_path}/{}", route.path);
+                        let segments: Vec<&str> = combined.split("/").filter(|s| !s.is_empty()).collect();
+                        format!("/{}", segments.join("/"))
+                    },
+                    None => route.path.clone(),
+                };
+                method_router.insert(full_path, route.clone()).into_py_exception()?;
                 Ok(())
             }
 

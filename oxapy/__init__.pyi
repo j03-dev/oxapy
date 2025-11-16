@@ -986,21 +986,26 @@ class Router:
     The Router is responsible for registering routes and handling HTTP requests.
     It supports path parameters, middleware, and different HTTP methods.
     
+    A `base_path` can be provided to prepend a path to all routes.
+    
     Returns:
         Router: A new router instance.
     
     Example:
     ```python
-    from oxapy import Router, get
+    from oxapy import Router
     
-    router = Router()
+    # Router with a base path
+    router = Router("/api/v1")
     
     @router.get("/hello/{name}")
     def hello(request, name):
         return f"Hello, {name}!"
+    
+    # The route will be /api/v1/hello/{name}
     ```
     """
-    def __new__(cls) -> Router:
+    def __new__(cls, base_path:typing.Optional[builtins.str]=None) -> Router:
         r"""
         Create a new Router instance.
         
