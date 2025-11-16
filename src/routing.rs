@@ -334,7 +334,11 @@ macro_rules! impl_router {
                 let mut ptr_mr = self.routes.write().unwrap();
                 let method_router = ptr_mr.entry(route.method.clone()).or_default();
                 let full_path = match self.base_path {
-                    Some(ref base_path) => format!("{base_path}{}", route.path),
+                    Some(ref base_path) => {
+                        let combined = format!("{base_path}/{}", route.path);
+                        let segments: Vec<&str> = combined.split("/").filter(|s| !s.is_empty()).collect();
+                        format!("/{}", segments.join("/"))
+                    },
                     None => route.path.clone(),
                 };
                 method_router.insert(full_path, route.clone()).into_py_exception()?;
