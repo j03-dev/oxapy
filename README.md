@@ -33,6 +33,7 @@
 - Application state management
 - Request/Response handling
 - Query string parsing
+- Router base path prefixing
 
 ## Basic Example
 
@@ -130,6 +131,29 @@ def handler(request):
 
 
 HttpServer(("127.0.0.1", 5555)).app_data(AppState()).attach(router).run()
+```
+
+## Router with Base Path
+
+You can set a base path for a router, which will be prepended to all routes defined in it. This is useful for versioning APIs.
+
+```python
+from oxapy import HttpServer, Router
+
+# All routes in this router will be prefixed with /api/v1
+router = Router("/api/v1")
+
+@router.get("/users")
+def get_users(request):
+    return [{"id": 1, "name": "user1"}]
+
+app = HttpServer(("127.0.0.1", 5555))
+app.attach(router)
+
+if __name__ == "__main__":
+    app.run()
+
+# You can now access the endpoint at http://127.0.0.1:5555/api/v1/users
 ```
 
 Todo:
