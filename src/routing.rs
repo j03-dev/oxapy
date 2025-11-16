@@ -337,7 +337,7 @@ macro_rules! impl_router {
                     Some(ref base_path) => format!("{base_path}{}", route.path),
                     None => route.path.clone(),
                 };
-                method_router.insert(&full_path, route.clone()).into_py_exception()?;
+                method_router.insert(full_path, route.clone()).into_py_exception()?;
                 Ok(())
             }
 
