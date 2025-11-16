@@ -3,7 +3,7 @@ import time
 import pytest
 from oxapy import HttpServer, Router, Request
 
-router = Router()
+router = Router("/api/v1")
 
 
 @router.get("/ping")

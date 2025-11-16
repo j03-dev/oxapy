@@ -251,6 +251,7 @@ impl RouteBuilder {
 #[pyclass]
 #[derive(Default, Clone, Debug)]
 pub struct Router {
+    pub base_path: Option<String>,
     pub routes: Arc<RwLock<HashMap<String, matchit::Router<Route>>>>,
     pub middlewares: Vec<Middleware>,
 }
@@ -275,8 +276,12 @@ macro_rules! impl_router {
             /// router = Router()
             /// ```
             #[new]
-            pub fn new() -> Self {
-                Router::default()
+            #[pyo3(signature=(base_path = None))]
+            pub fn new(base_path: Option<String>) -> Self {
+                Router {
+                    base_path,
+                    ..Default::default()
+                }
             }
 
             /// Add middleware to the router.
@@ -328,9 +333,11 @@ macro_rules! impl_router {
             fn route(&mut self, route: &Route) -> PyResult<()> {
                 let mut ptr_mr = self.routes.write().unwrap();
                 let method_router = ptr_mr.entry(route.method.clone()).or_default();
-                method_router
-                    .insert(&route.path, route.clone())
-                    .into_py_exception()?;
+                let full_path = match self.base_path {
+                    Some(ref base_path) => format!("{base_path}{}", route.path),
+                    None => route.path.clone(),
+                };
+                method_router.insert(&full_path, route.clone()).into_py_exception()?;
                 Ok(())
             }
 

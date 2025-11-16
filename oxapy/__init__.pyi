@@ -1000,7 +1000,7 @@ class Router:
         return f"Hello, {name}!"
     ```
     """
-    def __new__(cls) -> Router:
+    def __new__(cls, base_path:typing.Optional[builtins.str]=None) -> Router:
         r"""
         Create a new Router instance.
         
