@@ -105,7 +105,7 @@ def protected(request):
 from oxapy import Router, static_file
 
 router = Router()
-router.route(static_file("./static", "static"))
+router.route(static_file("/static", "./static"))
 # Serves files from ./static directory at /static URL path
 ```
 
@@ -172,3 +172,14 @@ Todo:
     - [x] jwt
     - [ ] bcrypt
 - [ ] websocket
+
+
+Router()
+    .middleware(somefunction)
+    .route(get("/", lambda r: "Hello World"))
+    .route(get("/echo", lambda r: {"echo": r.json()}))
+    .service()
+    .middleware(anonther_middleware)
+    .route(get("/greet", lambda r: "Hello World"))
+    .service()
+

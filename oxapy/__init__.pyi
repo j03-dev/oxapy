@@ -1950,7 +1950,7 @@ def render(request:Request, name:builtins.str, context:typing.Optional[dict]=Non
     ```
     """
 
-def static_file(directory:builtins.str, path:builtins.str) -> Route:
+def static_file(path:builtins.str='/static', directory:builtins.str='./static') -> Route:
     r"""
     Create a route for serving static files.
     
@@ -1966,7 +1966,7 @@ def static_file(directory:builtins.str, path:builtins.str) -> Route:
     from oxapy import Router, static_file
     
     router = Router()
-    router.route(static_file("./static", "static"))
+    router.route(static_file("/static", "./static"))
     # This will serve files from ./static directory at /static URL path
     ```
     """
