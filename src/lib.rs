@@ -229,7 +229,7 @@ impl HttpServer {
     /// server.attach(router)
     /// ```
     fn attach(&mut self, router: Router) -> Self {
-        self.routers.push(Arc::new(router));
+        self.routers.extend_from_slice(&router.services[..]);
         self.clone()
     }
 

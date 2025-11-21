@@ -231,6 +231,7 @@ pub struct Router {
     pub base_path: Option<String>,
     pub routes: HashMap<String, matchit::Router<Route>>,
     pub middlewares: Vec<Middleware>,
+    pub services: Vec<Arc<Router>>,
 }
 
 #[gen_stub_pymethods]
@@ -274,9 +275,10 @@ impl Router {
     ///
     /// router.middleware(auth_middleware)
     /// ```
-    fn middleware(&mut self, middleware: Py<PyAny>) {
+    fn middleware(&mut self, middleware: Py<PyAny>) -> Self {
         let middleware = Middleware::new(middleware);
         self.middlewares.push(middleware);
+        self.clone()
     }
 
     /// Register a route with the router.
@@ -300,7 +302,7 @@ impl Router {
     /// route = get("/hello", hello_handler)
     /// router.route(route)
     /// ```
-    fn route(&mut self, route: &Route) -> PyResult<()> {
+    fn route(&mut self, route: &Route) -> PyResult<Self> {
         let method_router = self.routes.entry(route.method.clone()).or_default();
         let full_path = match self.base_path {
             Some(ref base_path) => {
@@ -313,7 +315,7 @@ impl Router {
         method_router
             .insert(full_path, route.clone())
             .into_py_exception()?;
-        Ok(())
+        Ok(self.clone())
     }
 
     /// Register multiple routes with the router.
@@ -343,11 +345,16 @@ impl Router {
     /// ]
     /// router.routes(routes)
     /// ```
-    fn routes(&mut self, routes: Vec<Route>) -> PyResult<()> {
+    fn routes(&mut self, routes: Vec<Route>) -> PyResult<Self> {
         for ref route in routes {
             self.route(route)?;
         }
-        Ok(())
+        Ok(self.clone())
+    }
+
+    fn service(&mut self) -> Self {
+        self.services.push(Arc::new(self.clone()));
+        self.clone()
     }
 
     fn __repr__(&self) -> String {
