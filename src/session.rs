@@ -33,8 +33,10 @@ pub fn generate_session_id() -> String {
 ///
 /// Example:
 /// ```python
+/// from oxapy import get
+///
 /// # Sessions are typically accessed from the request object:
-/// @router.get("/profile")
+/// @get("/profile")
 /// def profile(request):
 ///     session = request.session()
 ///     session["last_visit"] = "today"

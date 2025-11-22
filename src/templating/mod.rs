@@ -104,12 +104,12 @@ impl Template {
 ///
 /// Example:
 /// ```python
-/// from oxapy import Router
+/// from oxapy import Router, get
 /// from oxapy import templating
 ///
 /// router = Router()
 ///
-/// @router.get("/")
+/// @get("/")
 /// def index(request):
 ///     return templating.render(request, "index.html", {"title": "Home Page"})
 /// ```

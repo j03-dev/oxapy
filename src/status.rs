@@ -13,13 +13,13 @@ use pyo3_stub_gen::derive::*;
 ///
 /// Example:
 /// ```python
-/// from oxapy import Status, Response
+/// from oxapy import Status, Response, get
 ///
 /// # Create a not found response
 /// response = Response("Not found", status=Status.NOT_FOUND)
 ///
 /// # Check status in a handler
-/// @router.get("/resource/{id}")
+/// @get("/resource/{id}")
 /// def get_resource(request, id):
 ///     resource = find_resource(id)
 ///     if resource is None:

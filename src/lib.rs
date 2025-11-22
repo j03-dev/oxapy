@@ -87,7 +87,7 @@ struct RequestContext {
 ///
 /// Example:
 /// ```python
-/// from oxapy import HttpServer, Router
+/// from oxapy import HttpServer, Router, get, post
 ///
 /// # Create a server on localhost port 8000
 /// app = HttpServer(("127.0.0.1", 8000))
@@ -95,20 +95,23 @@ struct RequestContext {
 /// # Create a router
 /// router = Router()
 ///
-/// # Define route handlers
-/// @router.get("/")
+/// # Define route handlers using decorators
+/// @get("/")
 /// def home(request):
 ///     return "Hello, World!"
 ///
-/// @router.get("/users/{user_id}")
+/// @get("/users/{user_id}")
 /// def get_user(request, user_id: int):
 ///     return {"user_id": user_id, "name": f"User {user_id}"}
 ///
-/// @router.post("/api/data")
+/// @post("/api/data")
 /// def create_data(request):
 ///     # Access JSON data from the request
 ///     data = request.json()
 ///     return {"status": "success", "received": data}
+///
+/// # Register the routes with the router
+/// router.routes([home, get_user, create_data])
 ///
 /// # Attach the router to the server
 /// app.attach(router)
@@ -177,6 +180,8 @@ impl HttpServer {
     ///
     /// Example:
     /// ```python
+    /// from oxapy import get
+    ///
     /// class AppState:
     ///     def __init__(self):
     ///         self.counter = 0
@@ -187,7 +192,7 @@ impl HttpServer {
     /// app.app_data(AppState())
     ///
     /// # Example of a handler that increments the counter
-    /// @router.get("/counter")
+    /// @get("/counter")
     /// def increment_counter(request):
     ///     state = request.app_data
     ///     state.counter += 1
@@ -208,23 +213,26 @@ impl HttpServer {
     ///
     /// Example:
     /// ```python
+    /// from oxapy import Router, get, post
+    ///
     /// router = Router()
     ///
     /// # Define a simple hello world handler
-    /// @router.get("/")
+    /// @get("/")
     /// def hello(request):
     ///     return "Hello, World!"
     ///
     /// # Handler with path parameters
-    /// @router.get("/users/{user_id}")
+    /// @get("/users/{user_id}")
     /// def get_user(request, user_id: int):
     ///     return f"User ID: {user_id}"
     ///
     /// # Handler that returns JSON
-    /// @router.get("/api/data")
+    /// @post("/api/data")
     /// def get_data(request):
     ///     return {"message": "Success", "data": [1, 2, 3]}
     ///
+    /// router.routes([hello, get_user, get_data])
     /// # Attach the router to the server
     /// server.attach(router)
     /// ```
@@ -366,17 +374,21 @@ impl HttpServer {
     /// Example:
     /// ```python
     /// import asyncio
-    /// app = HttpServer(("127.0.0.1", 8000))
+    /// from oxapy import get, Router, HttpServer
     ///
-    /// @router.get("/")
+    /// app = HttpServer(("127.0.0.1", 8000))
+    /// router = Router()
+    ///
+    /// @get("/")
     /// async def home(request):
     ///     # Asynchronous operations are allowed here
     ///     data = await fetch_data_from_database()
     ///     return "Hello, World!"
     ///
+    /// router.route(home)
     /// app.attach(router)
     ///
-    /// await def main():
+    /// async def main():
     ///     await app.async_mode().run()
     ///
     /// asyncio.run(main())

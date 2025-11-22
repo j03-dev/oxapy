@@ -38,20 +38,21 @@
 ## Basic Example
 
 ```python
-from oxapy import HttpServer, Router, Status, Response
+from oxapy import HttpServer, Router, Status, Response, get
 
 router = Router()
 
 
-@router.get("/")
+@get("/")
 def welcome(request):
     return Response("Welcome to OxAPY!", content_type="text/plain")
 
 
-@router.get("/hello/{name}")
+@get("/hello/{name}")
 def hello(request, name):
     return Response({"message": f"Hello, {name}!"})
 
+router.routes([welcome, hello])
 
 app = HttpServer(("127.0.0.1", 5555))
 app.attach(router)
@@ -63,17 +64,18 @@ if __name__ == "__main__":
 ## Async Example
 
 ```python
-from oxapy import HttpServer, Router
+from oxapy import HttpServer, Router, get
 
 router = Router()
 
 
-@router.get("/")
+@get("/")
 async def home(request):
     # Asynchronous operations are allowed here
     data = await fetch_data_from_database()  # type: ignore
     return "Hello, World!"
 
+router.route(home)
 
 HttpServer(("127.0.0.1", 8000)).attach(router).async_mode().run()
 ```
@@ -81,7 +83,7 @@ HttpServer(("127.0.0.1", 8000)).attach(router).async_mode().run()
 ## Middleware Example
 
 ```python
-from oxapy import Status, Router
+from oxapy import Status, Router, get
 
 
 def auth_middleware(request, next, **kwargs):
@@ -94,9 +96,11 @@ router = Router()
 router.middleware(auth_middleware)
 
 
-@router.get("/protected")
+@get("/protected")
 def protected(request):
     return "This is protected!"
+
+router.route(protected)
 ```
 
 ## Static Files
@@ -112,7 +116,7 @@ router.route(static_file("/static", "./static"))
 ## Application State
 
 ```python
-from oxapy import HttpServer, Router
+from oxapy import HttpServer, Router, get
 
 
 class AppState:
@@ -123,12 +127,13 @@ class AppState:
 router = Router()
 
 
-@router.get("/count")
+@get("/count")
 def handler(request):
     app_data = request.app_data
     app_data.counter += 1
     return {"count": app_data.counter}
 
+router.route(handler)
 
 HttpServer(("127.0.0.1", 5555)).app_data(AppState()).attach(router).run()
 ```
@@ -138,14 +143,16 @@ HttpServer(("127.0.0.1", 5555)).app_data(AppState()).attach(router).run()
 You can set a base path for a router, which will be prepended to all routes defined in it. This is useful for versioning APIs.
 
 ```python
-from oxapy import HttpServer, Router
+from oxapy import HttpServer, Router, get
 
 # All routes in this router will be prefixed with /api/v1
 router = Router("/api/v1")
 
-@router.get("/users")
+@get("/users")
 def get_users(request):
     return [{"id": 1, "name": "user1"}]
+
+router.route(get_users)
 
 app = HttpServer(("127.0.0.1", 5555))
 app.attach(router)

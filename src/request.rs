@@ -39,10 +39,12 @@ use crate::{multipart::parse_multipart, response::Body};
 ///
 /// Example:
 /// ```python
+/// from oxapy import get
+///
 /// # Request objects are typically created by the framework and
 /// # passed to your handler functions:
 ///
-/// @router.get("/hello")
+/// @get("/hello")
 /// def handler(request):
 ///     user_agent = request.headers.get("user-agent")
 ///     return f"Hello from {user_agent}"
@@ -114,7 +116,9 @@ impl Request {
     ///
     /// Example:
     /// ```python
-    /// @router.post("/api/data")
+    /// from oxapy import post
+    ///
+    /// @post("/api/data")
     /// def handle_data(request):
     ///     data = request.json()
     ///     value = data["key"]
@@ -138,7 +142,9 @@ impl Request {
     ///
     /// Example:
     /// ```python
-    /// @router.get("/counter")
+    /// from oxapy import get
+    ///
+    /// @get("/counter")
     /// def get_counter(request):
     ///     app_state = request.app_data
     ///     app_state.counter += 1
@@ -162,8 +168,10 @@ impl Request {
     ///
     /// Example:
     /// ```python
+    /// from oxapy import get
+    ///
     /// # For a request to /api?name=John&age=30
-    /// @router.get("/api")
+    /// @get("/api")
     /// def api_handler(request):
     ///     query = request.query()
     ///     name = query.get("name")
@@ -196,7 +204,9 @@ impl Request {
     ///
     /// Example:
     /// ```python
-    /// @router.get("/login")
+    /// from oxapy import get
+    ///
+    /// @get("/login")
     /// def login(request):
     ///     session = request.session()
     ///     session["user_id"] = 123

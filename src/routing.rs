@@ -66,6 +66,10 @@ impl Route {
         })
     }
 
+    /// Return a string representation of the Router.
+    ///
+    /// Returns:
+    ///     str: A debug string showing the Router's configuration.
     fn __repr__(&self) -> String {
         format!("{:#?}", self)
     }
@@ -97,6 +101,9 @@ macro_rules! method_decorator {
 method_decorator!(
     /// Registers an HTTP GET route.
     ///
+    /// Can be used as a decorator or as a function to create a `Route` object.
+    /// When used as a decorator, the decorated function must be registered with a `Router`.
+    ///
     /// Parameters:
     ///     path (str): The route path, which may include parameters (e.g. `/items/{id}`).
     ///     handler (callable | None): Optional Python function that handles the request.
@@ -106,11 +113,28 @@ method_decorator!(
     ///
     /// Example:
     /// ```python
-    /// get("/hello/{name}", lambda req, name: f"Hello, {name}!")
+    /// from oxapy import Router, get
+    ///
+    /// router = Router()
+    ///
+    /// # As a function
+    /// def get_items(request):
+    ///     return {"items": []}
+    /// router.route(get("/items", get_items))
+    ///
+    /// # As a decorator
+    /// @get("/items/{item_id}")
+    /// def get_item(request, item_id: int):
+    ///     return {"item_id": item_id}
+    ///
+    /// router.route(get_item)
     /// ```
     get;
 
     /// Registers an HTTP POST route.
+    ///
+    /// Can be used as a decorator or as a function to create a `Route` object.
+    /// When used as a decorator, the decorated function must be registered with a `Router`.
     ///
     /// Parameters:
     ///     path (str): The POST route path.
@@ -121,11 +145,28 @@ method_decorator!(
     ///
     /// Example:
     /// ```python
-    /// post("/users", lambda req: {"id": 1, "name": req.json()["name"]})
+    /// from oxapy import Router, post
+    ///
+    /// router = Router()
+    ///
+    /// # As a function
+    /// def create_user(request):
+    ///     return request.json()
+    /// router.route(post("/users", create_user))
+    ///
+    /// # As a decorator
+    /// @post("/items")
+    /// def create_item(request):
+    ///     return {"status": "created"}
+    ///
+    /// router.route(create_item)
     /// ```
     post;
 
     /// Registers an HTTP DELETE route.
+    ///
+    /// Can be used as a decorator or as a function to create a `Route` object.
+    /// When used as a decorator, the decorated function must be registered with a `Router`.
     ///
     /// Parameters:
     ///     path (str): The DELETE route path.
@@ -136,11 +177,26 @@ method_decorator!(
     ///
     /// Example:
     /// ```python
-    /// delete("/items/{id}", lambda req, id: f"Deleted {id}")
+    /// from oxapy import Router, delete
+    ///
+    /// router = Router()
+    ///
+    /// # As a function
+    /// router.route(delete("/items/{id}", lambda req, id: f"Deleted {id}"))
+    ///
+    /// # As a decorator
+    /// @delete("/users/{user_id}")
+    /// def delete_user(request, user_id: int):
+    ///     return {"status": "deleted", "user_id": user_id}
+    ///
+    /// router.route(delete_user)
     /// ```
     delete;
 
     /// Registers an HTTP PATCH route.
+    ///
+    /// Can be used as a decorator or as a function to create a `Route` object.
+    /// When used as a decorator, the decorated function must be registered with a `Router`.
     ///
     /// Parameters:
     ///     path (str): The PATCH route path.
@@ -151,11 +207,26 @@ method_decorator!(
     ///
     /// Example:
     /// ```python
-    /// patch("/users/{id}", lambda req, id: req.json())
+    /// from oxapy import Router, patch
+    ///
+    /// router = Router()
+    ///
+    /// # As a function
+    /// router.route(patch("/users/{id}", lambda req, id: req.json()))
+    ///
+    /// # As a decorator
+    /// @patch("/items/{item_id}")
+    /// def update_item_partial(request, item_id: int):
+    ///     return {"status": "patched", "item_id": item_id}
+    ///
+    /// router.route(update_item_partial)
     /// ```
     patch;
 
     /// Registers an HTTP PUT route.
+    ///
+    /// Can be used as a decorator or as a function to create a `Route` object.
+    /// When used as a decorator, the decorated function must be registered with a `Router`.
     ///
     /// Parameters:
     ///     path (str): The PUT route path.
@@ -166,11 +237,26 @@ method_decorator!(
     ///
     /// Example:
     /// ```python
-    /// put("/users/{id}", lambda req, id: req.json())
+    /// from oxapy import Router, put
+    ///
+    /// router = Router()
+    ///
+    /// # As a function
+    /// router.route(put("/users/{id}", lambda req, id: req.json()))
+    ///
+    /// # As a decorator
+    /// @put("/items/{item_id}")
+    /// def update_item_full(request, item_id: int):
+    ///     return {"status": "updated", "item_id": item_id}
+    ///
+    /// router.route(update_item_full)
     /// ```
     put;
 
     /// Registers an HTTP HEAD route.
+    ///
+    /// Can be used as a decorator or as a function to create a `Route` object.
+    /// When used as a decorator, the decorated function must be registered with a `Router`.
     ///
     /// Parameters:
     ///     path (str): The HEAD route path.
@@ -181,11 +267,26 @@ method_decorator!(
     ///
     /// Example:
     /// ```python
-    /// head("/status", lambda req: None)
+    /// from oxapy import Router, head, Response
+    ///
+    /// router = Router()
+    ///
+    /// # As a function
+    /// router.route(head("/status", lambda req: Response("", status=200)))
+    ///
+    /// # As a decorator
+    /// @head("/health")
+    /// def health_check(request):
+    ///     return Response("", status=200)
+    ///
+    /// router.route(health_check)
     /// ```
     head;
 
     /// Registers an HTTP OPTIONS route.
+    ///
+    /// Can be used as a decorator or as a function to create a `Route` object.
+    /// When used as a decorator, the decorated function must be registered with a `Router`.
     ///
     /// Parameters:
     ///     path (str): The OPTIONS route path.
@@ -196,7 +297,19 @@ method_decorator!(
     ///
     /// Example:
     /// ```python
-    /// options("/users", lambda req: {"Allow": "GET, POST"})
+    /// from oxapy import Router, options
+    ///
+    /// router = Router()
+    ///
+    /// # As a function
+    /// router.route(options("/users", lambda req: {"Allow": "GET, POST"}))
+    ///
+    /// # As a decorator
+    /// @options("/items")
+    /// def item_options(request):
+    ///     return {"Allow": "GET, POST, PUT, DELETE"}
+    ///
+    /// router.route(item_options)
     /// ```
     options;
 );
@@ -217,6 +330,31 @@ impl Layer {
     }
 }
 
+/// A router for handling HTTP routes.
+///
+/// The Router is responsible for registering routes and handling HTTP requests.
+/// It supports path parameters, middleware, and different HTTP methods.
+///
+/// A `base_path` can be provided to prepend a path to all routes.
+///
+/// Returns:
+///     Router: A new router instance.
+///
+/// Example:
+/// ```python
+/// from oxapy import Router, get
+///
+/// # Router with a base path
+/// router = Router("/api/v1")
+///
+/// @get("/hello/{name}")
+/// def hello(request, name):
+///     return f"Hello, {name}!"
+///
+/// router.route(hello)
+///
+/// # The route will be /api/v1/hello/{name}
+/// ```
 #[gen_stub_pyclass]
 #[pyclass]
 #[derive(Default, Clone, Debug)]
@@ -228,6 +366,15 @@ pub struct Router {
 #[gen_stub_pymethods]
 #[pymethods]
 impl Router {
+    /// Create a new Router instance.
+    ///
+    /// Returns:
+    ///     Router: A new router with no routes or middleware.
+    ///
+    /// Example:
+    /// ```python
+    /// router = Router()
+    /// ```
     #[new]
     #[pyo3(signature=(base_path = None))]
     pub fn new(base_path: Option<String>) -> Self {
@@ -237,6 +384,28 @@ impl Router {
         }
     }
 
+    /// Add middleware to the router.
+    ///
+    /// Middleware functions are executed in the order they are added,
+    /// before the route handler.
+    ///
+    /// Args:
+    ///     middleware (callable): A function that will process requests before route handlers.
+    ///
+    /// Returns:
+    ///     None
+    ///
+    /// Example:
+    /// ```python
+    /// from oxapy import Status
+    ///
+    /// def auth_middleware(request, next, **kwargs):
+    ///     if "authorization" not in request.headers:
+    ///         return Status.UNAUTHORIZED
+    ///     return next(request, **kwargs)
+    ///
+    /// router.middleware(auth_middleware)
+    /// ```
     fn middleware(&mut self, middleware: Py<PyAny>) -> Self {
         let middleware = Middleware::new(middleware);
         let current_layer = self.layers.last_mut().unwrap();
@@ -245,6 +414,27 @@ impl Router {
         self.clone()
     }
 
+    /// Register a route with the router.
+    ///
+    /// Args:
+    ///     route (Route): The route to register.
+    ///
+    /// Returns:
+    ///     None
+    ///
+    /// Raises:
+    ///     Exception: If the route cannot be added.
+    ///
+    /// Example:
+    /// ```python
+    /// from oxapy import get
+    ///
+    /// def hello_handler(request):
+    ///     return "Hello World!"
+    ///
+    /// route = get("/hello", hello_handler)
+    /// router.route(route)
+    /// ```
     fn route(&mut self, route: &Route) -> PyResult<Self> {
         let current_layer = self.layers.last_mut().unwrap();
 
@@ -269,6 +459,33 @@ impl Router {
         Ok(self.clone())
     }
 
+    /// Register multiple routes with the router.
+    ///
+    /// Args:
+    ///     routes (list): A list of Route objects to register.
+    ///
+    /// Returns:
+    ///     None
+    ///
+    /// Raises:
+    ///     Exception: If any route cannot be added.
+    ///
+    /// Example:
+    /// ```python
+    /// from oxapy import get, post
+    ///
+    /// def hello_handler(request):
+    ///     return "Hello World!"
+    ///
+    /// def submit_handler(request):
+    ///     return "Form submitted!"
+    ///
+    /// routes = [
+    ///     get("/hello", hello_handler),
+    ///     post("/submit", submit_handler)
+    /// ]
+    /// router.routes(routes)
+    /// ```
     fn routes(&mut self, routes: Vec<Route>) -> PyResult<Self> {
         for ref route in routes {
             self.route(route)?;
@@ -276,6 +493,10 @@ impl Router {
         Ok(self.clone())
     }
 
+    /// Return a string representation of the Router.
+    ///
+    /// Returns:
+    ///     str: A debug string showing the Router's configuration.
     fn __repr__(&self) -> String {
         format!("{:#?}", self)
     }

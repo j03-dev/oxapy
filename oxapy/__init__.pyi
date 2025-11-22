@@ -172,7 +172,9 @@ class File:
     
     Example:
     ```python
-    @router.post("/upload")
+    from oxapy import post
+    
+    @post("/upload")
     def upload_handler(request):
         if request.files:
             image = request.files.get("profile_image")
@@ -256,12 +258,12 @@ class FileStreaming(Response):
     
     Example:
     ```python
-    from oxapy import Router, FileStreaming, Status
+    from oxapy import Router, FileStreaming, Status, get
     
     router = Router()
     
     # Stream a video file
-    @router.get("/videos/{*path}")
+    @get("/videos/{*path}")
     def serve_video(request, path):
         return FileStreaming(
             f"./media/videos/{path}",
@@ -270,7 +272,7 @@ class FileStreaming(Response):
         )
     
     # Stream static files
-    @router.get("/static/{*path}")
+    @get("/static/{*path}")
     def serve_static(request, path):
         return FileStreaming(
             f"./static/{path}",
@@ -279,7 +281,7 @@ class FileStreaming(Response):
         )
     
     # Stream with custom status for partial content
-    @router.get("/downloads/{filename}")
+    @get("/downloads/{filename}")
     def serve_download(request, filename):
         return FileStreaming(
             f"./downloads/{filename}",
@@ -346,7 +348,7 @@ class HttpServer:
     
     Example:
     ```python
-    from oxapy import HttpServer, Router
+    from oxapy import HttpServer, Router, get, post
     
     # Create a server on localhost port 8000
     app = HttpServer(("127.0.0.1", 8000))
@@ -354,20 +356,23 @@ class HttpServer:
     # Create a router
     router = Router()
     
-    # Define route handlers
-    @router.get("/")
+    # Define route handlers using decorators
+    @get("/")
     def home(request):
         return "Hello, World!"
     
-    @router.get("/users/{user_id}")
+    @get("/users/{user_id}")
     def get_user(request, user_id: int):
         return {"user_id": user_id, "name": f"User {user_id}"}
     
-    @router.post("/api/data")
+    @post("/api/data")
     def create_data(request):
         # Access JSON data from the request
         data = request.json()
         return {"status": "success", "received": data}
+    
+    # Register the routes with the router
+    router.routes([home, get_user, create_data])
     
     # Attach the router to the server
     app.attach(router)
@@ -406,6 +411,8 @@ class HttpServer:
         
         Example:
         ```python
+        from oxapy import get
+        
         class AppState:
             def __init__(self):
                 self.counter = 0
@@ -416,7 +423,7 @@ class HttpServer:
         app.app_data(AppState())
         
         # Example of a handler that increments the counter
-        @router.get("/counter")
+        @get("/counter")
         def increment_counter(request):
             state = request.app_data
             state.counter += 1
@@ -435,23 +442,26 @@ class HttpServer:
         
         Example:
         ```python
+        from oxapy import Router, get, post
+        
         router = Router()
         
         # Define a simple hello world handler
-        @router.get("/")
+        @get("/")
         def hello(request):
             return "Hello, World!"
         
         # Handler with path parameters
-        @router.get("/users/{user_id}")
+        @get("/users/{user_id}")
         def get_user(request, user_id: int):
             return f"User ID: {user_id}"
         
         # Handler that returns JSON
-        @router.get("/api/data")
+        @post("/api/data")
         def get_data(request):
             return {"message": "Success", "data": [1, 2, 3]}
         
+        router.routes([hello, get_user, get_data])
         # Attach the router to the server
         server.attach(router)
         ```
@@ -573,17 +583,21 @@ class HttpServer:
         Example:
         ```python
         import asyncio
-        app = HttpServer(("127.0.0.1", 8000))
+        from oxapy import get, Router, HttpServer
         
-        @router.get("/")
+        app = HttpServer(("127.0.0.1", 8000))
+        router = Router()
+        
+        @get("/")
         async def home(request):
             # Asynchronous operations are allowed here
             data = await fetch_data_from_database()
             return "Hello, World!"
         
+        router.route(home)
         app.attach(router)
         
-        await def main():
+        async def main():
             await app.async_mode().run()
         
         asyncio.run(main())
@@ -647,8 +661,10 @@ class Redirect(Response):
         
         Example:
         ```python
+        from oxapy import post, Redirect
+        
         # Redirect user after form submission
-        @router.post("/submit")
+        @post("/submit")
         def submit_form(request):
             # Process form...
             return Redirect("/thank-you")
@@ -673,10 +689,12 @@ class Request:
     
     Example:
     ```python
+    from oxapy import get
+    
     # Request objects are typically created by the framework and
     # passed to your handler functions:
     
-    @router.get("/hello")
+    @get("/hello")
     def handler(request):
         user_agent = request.headers.get("user-agent")
         return f"Hello from {user_agent}"
@@ -725,7 +743,9 @@ class Request:
         
         Example:
         ```python
-        @router.get("/counter")
+        from oxapy import get
+        
+        @get("/counter")
         def get_counter(request):
             app_state = request.app_data
             app_state.counter += 1
@@ -762,7 +782,9 @@ class Request:
         
         Example:
         ```python
-        @router.post("/api/data")
+        from oxapy import post
+        
+        @post("/api/data")
         def handle_data(request):
             data = request.json()
             value = data["key"]
@@ -784,8 +806,10 @@ class Request:
         
         Example:
         ```python
+        from oxapy import get
+        
         # For a request to /api?name=John&age=30
-        @router.get("/api")
+        @get("/api")
         def api_handler(request):
             query = request.query()
             name = query.get("name")
@@ -810,7 +834,9 @@ class Request:
         
         Example:
         ```python
-        @router.get("/login")
+        from oxapy import get
+        
+        @get("/login")
         def login(request):
             session = request.session()
             session["user_id"] = 123
@@ -972,11 +998,13 @@ class Route:
     """
     def __new__(cls, path:builtins.str, method:typing.Optional[builtins.str]=None) -> Route: ...
     def __call__(self, handler:typing.Any) -> Route: ...
-    def __repr__(self) -> builtins.str: ...
-
-@typing.final
-class RouteBuilder:
-    def __call__(self, handler:typing.Any) -> Route: ...
+    def __repr__(self) -> builtins.str:
+        r"""
+        Return a string representation of the Router.
+        
+        Returns:
+            str: A debug string showing the Router's configuration.
+        """
 
 @typing.final
 class Router:
@@ -993,14 +1021,16 @@ class Router:
     
     Example:
     ```python
-    from oxapy import Router
+    from oxapy import Router, get
     
     # Router with a base path
     router = Router("/api/v1")
     
-    @router.get("/hello/{name}")
+    @get("/hello/{name}")
     def hello(request, name):
         return f"Hello, {name}!"
+    
+    router.route(hello)
     
     # The route will be /api/v1/hello/{name}
     ```
@@ -1017,7 +1047,7 @@ class Router:
         router = Router()
         ```
         """
-    def middleware(self, middleware:typing.Any) -> None:
+    def middleware(self, middleware:typing.Any) -> Router:
         r"""
         Add middleware to the router.
         
@@ -1032,6 +1062,8 @@ class Router:
         
         Example:
         ```python
+        from oxapy import Status
+        
         def auth_middleware(request, next, **kwargs):
             if "authorization" not in request.headers:
                 return Status.UNAUTHORIZED
@@ -1040,7 +1072,7 @@ class Router:
         router.middleware(auth_middleware)
         ```
         """
-    def route(self, route:Route) -> None:
+    def route(self, route:Route) -> Router:
         r"""
         Register a route with the router.
         
@@ -1064,7 +1096,7 @@ class Router:
         router.route(route)
         ```
         """
-    def routes(self, routes:typing.Sequence[Route]) -> None:
+    def routes(self, routes:typing.Sequence[Route]) -> Router:
         r"""
         Register multiple routes with the router.
         
@@ -1094,84 +1126,13 @@ class Router:
         router.routes(routes)
         ```
         """
-    def get(self, path:builtins.str) -> RouteBuilder:
+    def __repr__(self) -> builtins.str:
         r"""
-        Register a GET route using the decorator `@router.get(path)`.
+        Return a string representation of the Router.
         
-        Example:
-        ```python
-        @router.get("/hello")
-        def hello(request):
-            return "Hello, world!"
-        ```
+        Returns:
+            str: A debug string showing the Router's configuration.
         """
-    def post(self, path:builtins.str) -> RouteBuilder:
-        r"""
-        Register a POST route using the decorator `@router.post(path)`.
-        
-        Example:
-        ```python
-        @router.post("/submit")
-        def submit(request):
-            return "Submitted!"
-        ```
-        """
-    def put(self, path:builtins.str) -> RouteBuilder:
-        r"""
-        Register a PUT route using the decorator `@router.put(path)`.
-        
-        Example:
-        ```python
-        @router.put("/items/{id}")
-        def update_item(request, id):
-            return f"Updated item {id}"
-        ```
-        """
-    def patch(self, path:builtins.str) -> RouteBuilder:
-        r"""
-        Register a PATCH route using the decorator `@router.patch(path)`.
-        
-        Example:
-        ```python
-        @router.patch("/items/{id}")
-        def patch_item(request, id):
-            return f"Patched item {id}"
-        ```
-        """
-    def delete(self, path:builtins.str) -> RouteBuilder:
-        r"""
-        Register a DELETE route using the decorator `@router.delete(path)`.
-        
-        Example:
-        ```python
-        @router.delete("/items/{id}")
-        def delete_item(request, id):
-            return f"Deleted item {id}"
-        ```
-        """
-    def head(self, path:builtins.str) -> RouteBuilder:
-        r"""
-        Register a HEAD route using the decorator `@router.head(path)`.
-        
-        Example:
-        ```python
-        @router.head("/ping")
-        def head_ping(request):
-            return ""
-        ```
-        """
-    def options(self, path:builtins.str) -> RouteBuilder:
-        r"""
-        Register an OPTIONS route using the decorator `@router.options(path)`.
-        
-        Example:
-        ```python
-        @router.options("/data")
-        def options_data(request):
-            return "OPTIONS OK"
-        ```
-        """
-    def __repr__(self) -> builtins.str: ...
 
 @typing.final
 class Session:
@@ -1189,8 +1150,10 @@ class Session:
     
     Example:
     ```python
+    from oxapy import get
+    
     # Sessions are typically accessed from the request object:
-    @router.get("/profile")
+    @get("/profile")
     def profile(request):
         session = request.session()
         session["last_visit"] = "today"
@@ -1468,13 +1431,13 @@ class Status(enum.Enum):
     
     Example:
     ```python
-    from oxapy import Status, Response
+    from oxapy import Status, Response, get
     
     # Create a not found response
     response = Response("Not found", status=Status.NOT_FOUND)
     
     # Check status in a handler
-    @router.get("/resource/{id}")
+    @get("/resource/{id}")
     def get_resource(request, id):
         resource = find_resource(id)
         if resource is None:
@@ -1805,6 +1768,9 @@ def delete(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route
     r"""
     Registers an HTTP DELETE route.
     
+    Can be used as a decorator or as a function to create a `Route` object.
+    When used as a decorator, the decorated function must be registered with a `Router`.
+    
     Parameters:
         path (str): The DELETE route path.
         handler (callable | None): Optional Python function that handles the request.
@@ -1814,13 +1780,28 @@ def delete(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route
     
     Example:
     ```python
-    delete("/items/{id}", lambda req, id: f"Deleted {id}")
+    from oxapy import Router, delete
+    
+    router = Router()
+    
+    # As a function
+    router.route(delete("/items/{id}", lambda req, id: f"Deleted {id}"))
+    
+    # As a decorator
+    @delete("/users/{user_id}")
+    def delete_user(request, user_id: int):
+        return {"status": "deleted", "user_id": user_id}
+    
+    router.route(delete_user)
     ```
     """
 
 def get(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
     r"""
     Registers an HTTP GET route.
+    
+    Can be used as a decorator or as a function to create a `Route` object.
+    When used as a decorator, the decorated function must be registered with a `Router`.
     
     Parameters:
         path (str): The route path, which may include parameters (e.g. `/items/{id}`).
@@ -1831,13 +1812,30 @@ def get(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
     
     Example:
     ```python
-    get("/hello/{name}", lambda req, name: f"Hello, {name}!")
+    from oxapy import Router, get
+    
+    router = Router()
+    
+    # As a function
+    def get_items(request):
+        return {"items": []}
+    router.route(get("/items", get_items))
+    
+    # As a decorator
+    @get("/items/{item_id}")
+    def get_item(request, item_id: int):
+        return {"item_id": item_id}
+    
+    router.route(get_item)
     ```
     """
 
 def head(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
     r"""
     Registers an HTTP HEAD route.
+    
+    Can be used as a decorator or as a function to create a `Route` object.
+    When used as a decorator, the decorated function must be registered with a `Router`.
     
     Parameters:
         path (str): The HEAD route path.
@@ -1848,13 +1846,28 @@ def head(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
     
     Example:
     ```python
-    head("/status", lambda req: None)
+    from oxapy import Router, head, Response
+    
+    router = Router()
+    
+    # As a function
+    router.route(head("/status", lambda req: Response("", status=200)))
+    
+    # As a decorator
+    @head("/health")
+    def health_check(request):
+        return Response("", status=200)
+    
+    router.route(health_check)
     ```
     """
 
 def options(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
     r"""
     Registers an HTTP OPTIONS route.
+    
+    Can be used as a decorator or as a function to create a `Route` object.
+    When used as a decorator, the decorated function must be registered with a `Router`.
     
     Parameters:
         path (str): The OPTIONS route path.
@@ -1865,13 +1878,28 @@ def options(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Rout
     
     Example:
     ```python
-    options("/users", lambda req: {"Allow": "GET, POST"})
+    from oxapy import Router, options
+    
+    router = Router()
+    
+    # As a function
+    router.route(options("/users", lambda req: {"Allow": "GET, POST"}))
+    
+    # As a decorator
+    @options("/items")
+    def item_options(request):
+        return {"Allow": "GET, POST, PUT, DELETE"}
+    
+    router.route(item_options)
     ```
     """
 
 def patch(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
     r"""
     Registers an HTTP PATCH route.
+    
+    Can be used as a decorator or as a function to create a `Route` object.
+    When used as a decorator, the decorated function must be registered with a `Router`.
     
     Parameters:
         path (str): The PATCH route path.
@@ -1882,13 +1910,28 @@ def patch(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
     
     Example:
     ```python
-    patch("/users/{id}", lambda req, id: req.json())
+    from oxapy import Router, patch
+    
+    router = Router()
+    
+    # As a function
+    router.route(patch("/users/{id}", lambda req, id: req.json()))
+    
+    # As a decorator
+    @patch("/items/{item_id}")
+    def update_item_partial(request, item_id: int):
+        return {"status": "patched", "item_id": item_id}
+    
+    router.route(update_item_partial)
     ```
     """
 
 def post(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
     r"""
     Registers an HTTP POST route.
+    
+    Can be used as a decorator or as a function to create a `Route` object.
+    When used as a decorator, the decorated function must be registered with a `Router`.
     
     Parameters:
         path (str): The POST route path.
@@ -1899,13 +1942,30 @@ def post(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
     
     Example:
     ```python
-    post("/users", lambda req: {"id": 1, "name": req.json()["name"]})
+    from oxapy import Router, post
+    
+    router = Router()
+    
+    # As a function
+    def create_user(request):
+        return request.json()
+    router.route(post("/users", create_user))
+    
+    # As a decorator
+    @post("/items")
+    def create_item(request):
+        return {"status": "created"}
+    
+    router.route(create_item)
     ```
     """
 
 def put(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
     r"""
     Registers an HTTP PUT route.
+    
+    Can be used as a decorator or as a function to create a `Route` object.
+    When used as a decorator, the decorated function must be registered with a `Router`.
     
     Parameters:
         path (str): The PUT route path.
@@ -1916,7 +1976,19 @@ def put(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
     
     Example:
     ```python
-    put("/users/{id}", lambda req, id: req.json())
+    from oxapy import Router, put
+    
+    router = Router()
+    
+    # As a function
+    router.route(put("/users/{id}", lambda req, id: req.json()))
+    
+    # As a decorator
+    @put("/items/{item_id}")
+    def update_item_full(request, item_id: int):
+        return {"status": "updated", "item_id": item_id}
+    
+    router.route(update_item_full)
     ```
     """
 
@@ -1939,12 +2011,12 @@ def render(request:Request, name:builtins.str, context:typing.Optional[dict]=Non
     
     Example:
     ```python
-    from oxapy import Router
+    from oxapy import Router, get
     from oxapy import templating
     
     router = Router()
     
-    @router.get("/")
+    @get("/")
     def index(request):
         return templating.render(request, "index.html", {"title": "Home Page"})
     ```
