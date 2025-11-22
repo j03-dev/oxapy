@@ -444,8 +444,6 @@ class HttpServer:
         ```python
         from oxapy import Router, get, post
         
-        router = Router()
-        
         # Define a simple hello world handler
         @get("/")
         def hello(request):
@@ -461,6 +459,7 @@ class HttpServer:
         def get_data(request):
             return {"message": "Success", "data": [1, 2, 3]}
         
+        router = Router()
         router.routes([hello, get_user, get_data])
         # Attach the router to the server
         server.attach(router)
@@ -894,11 +893,9 @@ class Response:
         Get the response headers as a list of key-value tuples.
         
         Returns:
-        
             list[tuple[str, str]]: The list of headers in the response.
         
         Raises:
-        
             Exception: If a header value cannot be converted to a valid UTF-8 string.
         
         Example:

@@ -215,8 +215,6 @@ impl HttpServer {
     /// ```python
     /// from oxapy import Router, get, post
     ///
-    /// router = Router()
-    ///
     /// # Define a simple hello world handler
     /// @get("/")
     /// def hello(request):
@@ -232,6 +230,7 @@ impl HttpServer {
     /// def get_data(request):
     ///     return {"message": "Success", "data": [1, 2, 3]}
     ///
+    /// router = Router()
     /// router.routes([hello, get_user, get_data])
     /// # Attach the router to the server
     /// server.attach(router)

@@ -128,11 +128,9 @@ impl Response {
     /// Get the response headers as a list of key-value tuples.
     ///
     /// Returns:
-    ///
     ///     list[tuple[str, str]]: The list of headers in the response.
     ///
     /// Raises:
-    ///
     ///     Exception: If a header value cannot be converted to a valid UTF-8 string.
     ///
     /// Example:
