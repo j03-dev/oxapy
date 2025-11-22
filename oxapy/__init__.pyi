@@ -2005,14 +2005,13 @@ def render(request:Request, name:builtins.str, context:typing.Optional[dict]=Non
     
     Example:
     ```python
-    from oxapy import Router, get
-    from oxapy import templating
+    from oxapy import Router, get, render
     
     router = Router()
     
     @get("/")
     def index(request):
-        return templating.render(request, "index.html", {"title": "Home Page"})
+        return render(request, "index.html", {"title": "Home Page"})
     ```
     """
 

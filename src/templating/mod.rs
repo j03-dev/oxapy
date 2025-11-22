@@ -32,16 +32,15 @@ mod tera;
 ///
 /// Example:
 /// ```python
-/// from oxapy import HttpServer
-/// from oxapy.templating import Template
+/// from oxapy import HttpServer, templating
 ///
 /// app = HttpServer(("127.0.0.1", 8000))
 ///
 /// # Configure templates with default settings (Jinja)
-/// app.template(Template())
+/// app.template(templating.Template())
 ///
 /// # Or use Tera with custom template directory
-/// app.template(Template("./views/**/*.html", "tera"))
+/// app.template(templating.Template("./views/**/*.html", "tera"))
 /// ```
 #[gen_stub_pyclass_enum]
 #[pyclass(module = "oxapy.templating")]
@@ -68,11 +67,13 @@ impl Template {
     ///
     /// Example:
     /// ```python
+    /// from oxapy import templating
+    ///
     /// # Use Jinja with default template directory
-    /// template = Template()
+    /// template = templating.Template()
     ///
     /// # Use Tera with custom template directory
-    /// template = Template("./views/**/*.html", "tera")
+    /// template = templating.Template("./views/**/*.html", "tera")
     /// ```
     #[new]
     #[pyo3(signature=(dir="./templates/**/*.html", engine="jinja"))]
@@ -104,14 +105,13 @@ impl Template {
 ///
 /// Example:
 /// ```python
-/// from oxapy import Router, get
-/// from oxapy import templating
+/// from oxapy import Router, get, render
 ///
 /// router = Router()
 ///
 /// @get("/")
 /// def index(request):
-///     return templating.render(request, "index.html", {"title": "Home Page"})
+///     return render(request, "index.html", {"title": "Home Page"})
 /// ```
 #[gen_stub_pyfunction]
 #[pyfunction]
