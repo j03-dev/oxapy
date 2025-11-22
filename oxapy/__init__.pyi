@@ -1039,13 +1039,19 @@ class Router:
         r"""
         Create a new Router instance.
         
+        Args:
+            base_path (str, optional): A base path to prepend to all routes registered with this router.
+        
         Returns:
             Router: A new router with no routes or middleware.
         
         Example:
         ```python
+        # Router with a base path
+        router = Router("/api/v1")
+        
+        # Router without a base path
         router = Router()
-        ```
         """
     def middleware(self, middleware:typing.Any) -> Router:
         r"""

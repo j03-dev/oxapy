@@ -65,11 +65,6 @@ impl Route {
             ..self.clone()
         })
     }
-
-    /// Return a string representation of the Router.
-    ///
-    /// Returns:
-    ///     str: A debug string showing the Router's configuration.
     fn __repr__(&self) -> String {
         format!("{:#?}", self)
     }
@@ -368,13 +363,20 @@ pub struct Router {
 impl Router {
     /// Create a new Router instance.
     ///
+    /// Args:
+    ///     base_path (str, optional): A base path to prepend to all routes registered with this router.
+    ///
     /// Returns:
     ///     Router: A new router with no routes or middleware.
     ///
     /// Example:
     /// ```python
+    /// # Router with a base path
+    /// router = Router("/api/v1")
+    ///
+    /// # Router without a base path
     /// router = Router()
-    /// ```
+    ///
     #[new]
     #[pyo3(signature=(base_path = None))]
     pub fn new(base_path: Option<String>) -> Self {
