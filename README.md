@@ -82,25 +82,41 @@ HttpServer(("127.0.0.1", 8000)).attach(router).async_mode().run()
 
 ## Middleware Example
 
+OxAPY's middleware system is designed to be flexible and powerful. Middleware is applied on a per-layer basis. When you add middleware, it "closes" the current layer of routes and applies to all routes within that layer. Any subsequent routes are added to a new, clean layer. This allows you to build complex routing structures with different middleware for different groups of routes.
+
+### Best Practices
+
+- **Order Matters**: Middleware is executed in the order it is defined. Ensure that middleware with dependencies is ordered correctly.
+- **Layering**: Use multiple middleware layers to separate concerns. For example, you can have one layer for authentication and another for logging.
+- **Clarity**: Be mindful of the routes that fall under each middleware. The middleware will apply to all routes that are defined before it in the same layer.
+
 ```python
 from oxapy import Status, Router, get
 
+def log_middleware(request, next, **kwargs):
+    print(f"Request: {request.method} {request.path}")
+    return next(request, **kwargs)
 
 def auth_middleware(request, next, **kwargs):
     if "authorization" not in request.headers:
         return Status.UNAUTHORIZED
     return next(request, **kwargs)
 
-
 router = Router()
+
+# Define a public route
+router.route(get("/public", lambda req: "Public"))
+
+# Add logging middleware. This closes the first layer.
+# log_middleware will apply to the "/public" route.
+router.middleware(log_middleware)
+
+# Define a protected route in a new layer
+router.route(get("/protected", lambda req: "Protected"))
+
+# Add auth middleware. This closes the second layer.
+# auth_middleware will apply to the "/protected" route, but not the "/public" route.
 router.middleware(auth_middleware)
-
-
-@get("/protected")
-def protected(request):
-    return "This is protected!"
-
-router.route(protected)
 ```
 
 ## Static Files
@@ -179,14 +195,3 @@ Todo:
     - [x] jwt
     - [ ] bcrypt
 - [ ] websocket
-
-
-Router()
-    .middleware(somefunction)
-    .route(get("/", lambda r: "Hello World"))
-    .route(get("/echo", lambda r: {"echo": r.json()}))
-    .service()
-    .middleware(anonther_middleware)
-    .route(get("/greet", lambda r: "Hello World"))
-    .service()
-

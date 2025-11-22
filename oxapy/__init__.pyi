@@ -998,13 +998,7 @@ class Route:
     """
     def __new__(cls, path:builtins.str, method:typing.Optional[builtins.str]=None) -> Route: ...
     def __call__(self, handler:typing.Any) -> Route: ...
-    def __repr__(self) -> builtins.str:
-        r"""
-        Return a string representation of the Router.
-        
-        Returns:
-            str: A debug string showing the Router's configuration.
-        """
+    def __repr__(self) -> builtins.str: ...
 
 @typing.final
 class Router:
@@ -1057,24 +1051,43 @@ class Router:
         r"""
         Add middleware to the router.
         
-        Middleware functions are executed in the order they are added,
-        before the route handler.
+        Middleware is applied on a per-layer basis. When you add middleware, it "closes" the current layer of routes
+        and applies to all routes within that layer. Any subsequent routes are added to a new, clean layer.
+        This allows you to build complex routing structures with different middleware for different groups of routes.
         
         Args:
-            middleware (callable): A function that will process requests before route handlers.
+            middleware (callable): A function that will process requests before route handlers in the current layer.
         
         Returns:
-            None
+            Router: The router instance, allowing for method chaining.
         
         Example:
         ```python
-        from oxapy import Status
+        from oxapy import Status, Router, get
+        
+        def log_middleware(request, next, **kwargs):
+            print(f"Request: {request.method} {request.path}")
+            return next(request, **kwargs)
         
         def auth_middleware(request, next, **kwargs):
             if "authorization" not in request.headers:
                 return Status.UNAUTHORIZED
             return next(request, **kwargs)
         
+        router = Router()
+        
+        # Define a public route
+        router.route(get("/public", lambda req: "Public"))
+        
+        # Add logging middleware. This closes the first layer.
+        # log_middleware will apply to the "/public" route.
+        router.middleware(log_middleware)
+        
+        # Define a protected route in a new layer
+        router.route(get("/protected", lambda req: "Protected"))
+        
+        # Add auth middleware. This closes the second layer.
+        # auth_middleware will apply to the "/protected" route, but not the "/public" route.
         router.middleware(auth_middleware)
         ```
         """
