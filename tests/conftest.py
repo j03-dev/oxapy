@@ -5,18 +5,10 @@ from oxapy import HttpServer, Router, Request, get, post
 import logging
 
 
-def log(r, next, **kwargs):
-    logging.log(1000, f"{r.method} {r.uri}")
-    return next(r, **kwargs)
-
-
 router = (
     Router("/api/v1")
     .route(get("/ping", lambda _: {"message": "pong"}))
     .route(post("/echo", lambda r: {"echo": r.json()}))
-    .service()
-    .middleware(log)
-    .route(get("/hello/{name}", lambda _, name: f"Hello, {name}"))
 )
 
 

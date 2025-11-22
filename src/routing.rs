@@ -201,109 +201,58 @@ method_decorator!(
     options;
 );
 
-/// A router for handling HTTP routes.
-///
-/// The Router is responsible for registering routes and handling HTTP requests.
-/// It supports path parameters, middleware, and different HTTP methods.
-///
-/// A `base_path` can be provided to prepend a path to all routes.
-///
-/// Returns:
-///     Router: A new router instance.
-///
-/// Example:
-/// ```python
-/// from oxapy import Router
-///
-/// # Router with a base path
-/// router = Router("/api/v1")
-///
-/// @router.get("/hello/{name}")
-/// def hello(request, name):
-///     return f"Hello, {name}!"
-///
-/// # The route will be /api/v1/hello/{name}
-/// ```
+#[derive(Default, Clone, Debug)]
+pub struct Layer {
+    pub routes: HashMap<String, matchit::Router<Route>>,
+    pub middlewares: Vec<Middleware>,
+}
+
+impl Layer {
+    pub fn find<'l>(&'l self, method: &str, uri: &'l str) -> Option<MatchRoute<'l>> {
+        let path = uri.split('?').next().unwrap_or(uri);
+        let router = self.routes.get(method)?;
+        let route = router.at(path).ok()?;
+        let route: MatchRoute = unsafe { transmute(route) };
+        Some(route)
+    }
+}
+
 #[gen_stub_pyclass]
 #[pyclass]
 #[derive(Default, Clone, Debug)]
 pub struct Router {
     pub base_path: Option<String>,
-    pub routes: HashMap<String, matchit::Router<Route>>,
-    pub middlewares: Vec<Middleware>,
-    pub services: Vec<Arc<Router>>,
+    pub layers: Vec<Layer>,
 }
 
 #[gen_stub_pymethods]
 #[pymethods]
 impl Router {
-    /// Create a new Router instance.
-    ///
-    /// Returns:
-    ///     Router: A new router with no routes or middleware.
-    ///
-    /// Example:
-    /// ```python
-    /// router = Router()
-    /// ```
     #[new]
     #[pyo3(signature=(base_path = None))]
     pub fn new(base_path: Option<String>) -> Self {
         Router {
             base_path,
-            ..Default::default()
+            layers: vec![Layer::default()],
         }
     }
 
-    /// Add middleware to the router.
-    ///
-    /// Middleware functions are executed in the order they are added,
-    /// before the route handler.
-    ///
-    /// Args:
-    ///     middleware (callable): A function that will process requests before route handlers.
-    ///
-    /// Returns:
-    ///     None
-    ///
-    /// Example:
-    /// ```python
-    /// def auth_middleware(request, next, **kwargs):
-    ///     if "authorization" not in request.headers:
-    ///         return Status.UNAUTHORIZED
-    ///     return next(request, **kwargs)
-    ///
-    /// router.middleware(auth_middleware)
-    /// ```
     fn middleware(&mut self, middleware: Py<PyAny>) -> Self {
         let middleware = Middleware::new(middleware);
-        self.middlewares.push(middleware);
+        let current_layer = self.layers.last_mut().unwrap();
+        current_layer.middlewares.push(middleware);
+        self.layers.push(Layer::default());
         self.clone()
     }
 
-    /// Register a route with the router.
-    ///
-    /// Args:
-    ///     route (Route): The route to register.
-    ///
-    /// Returns:
-    ///     None
-    ///
-    /// Raises:
-    ///     Exception: If the route cannot be added.
-    ///
-    /// Example:
-    /// ```python
-    /// from oxapy import get
-    ///
-    /// def hello_handler(request):
-    ///     return "Hello World!"
-    ///
-    /// route = get("/hello", hello_handler)
-    /// router.route(route)
-    /// ```
     fn route(&mut self, route: &Route) -> PyResult<Self> {
-        let method_router = self.routes.entry(route.method.clone()).or_default();
+        let current_layer = self.layers.last_mut().unwrap();
+
+        let method_router = current_layer
+            .routes
+            .entry(route.method.clone())
+            .or_default();
+
         let full_path = match self.base_path {
             Some(ref base_path) => {
                 let combined = format!("{base_path}/{}", route.path);
@@ -312,39 +261,14 @@ impl Router {
             }
             None => route.path.clone(),
         };
+
         method_router
             .insert(full_path, route.clone())
             .into_py_exception()?;
+
         Ok(self.clone())
     }
 
-    /// Register multiple routes with the router.
-    ///
-    /// Args:
-    ///     routes (list): A list of Route objects to register.
-    ///
-    /// Returns:
-    ///     None
-    ///
-    /// Raises:
-    ///     Exception: If any route cannot be added.
-    ///
-    /// Example:
-    /// ```python
-    /// from oxapy import get, post
-    ///
-    /// def hello_handler(request):
-    ///     return "Hello World!"
-    ///
-    /// def submit_handler(request):
-    ///     return "Form submitted!"
-    ///
-    /// routes = [
-    ///     get("/hello", hello_handler),
-    ///     post("/submit", submit_handler)
-    /// ]
-    /// router.routes(routes)
-    /// ```
     fn routes(&mut self, routes: Vec<Route>) -> PyResult<Self> {
         for ref route in routes {
             self.route(route)?;
@@ -352,23 +276,8 @@ impl Router {
         Ok(self.clone())
     }
 
-    fn service(&mut self) -> Self {
-        self.services.push(Arc::new(self.clone()));
-        self.clone()
-    }
-
     fn __repr__(&self) -> String {
         format!("{:#?}", self)
-    }
-}
-
-impl Router {
-    pub(crate) fn find<'l>(&'l self, method: &str, uri: &'l str) -> Option<MatchRoute<'l>> {
-        let path = uri.split('?').next().unwrap_or(uri);
-        let router = self.routes.get(method)?;
-        let route = router.at(path).ok()?;
-        let route: MatchRoute = unsafe { transmute(route) };
-        Some(route)
     }
 }
 

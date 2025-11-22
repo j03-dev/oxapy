@@ -58,7 +58,7 @@ impl<T, E: ToString> IntoPyException<T> for Result<T, E> {
 
 struct ProcessRequest {
     request: Arc<Request>,
-    router: Option<Arc<Router>>,
+    layer: Option<Layer>,
     match_route: Option<MatchRoute<'static>>,
     tx: Sender<Response>,
     cors: Option<Arc<Cors>>,
@@ -68,7 +68,7 @@ struct ProcessRequest {
 #[derive(Clone)]
 struct RequestContext {
     request_sender: Sender<ProcessRequest>,
-    routers: Vec<Arc<Router>>,
+    layers: Vec<Layer>,
     channel_capacity: usize,
     cors: Option<Arc<Cors>>,
     catchers: Option<Arc<HashMap<Status, Py<PyAny>>>>,
@@ -121,7 +121,7 @@ struct RequestContext {
 #[derive(Clone)]
 struct HttpServer {
     addr: SocketAddr,
-    routers: Vec<Arc<Router>>,
+    layers: Vec<Layer>,
     app_data: Option<Arc<Py<PyAny>>>,
     max_connections: Arc<Semaphore>,
     channel_capacity: usize,
@@ -152,7 +152,7 @@ impl HttpServer {
         let (ip, port) = addr;
         Ok(Self {
             addr: SocketAddr::new(ip.parse()?, port),
-            routers: Vec::new(),
+            layers: Vec::new(),
             app_data: None,
             max_connections: Arc::new(Semaphore::new(100)),
             channel_capacity: 100,
@@ -229,7 +229,7 @@ impl HttpServer {
     /// server.attach(router)
     /// ```
     fn attach(&mut self, router: Router) -> Self {
-        self.routers.extend_from_slice(&router.services[..]);
+        self.layers.extend_from_slice(&router.layers[..]);
         self.clone()
     }
 
@@ -443,7 +443,7 @@ impl HttpServer {
         let max_connections = self.max_connections.clone();
 
         let request_ctx = RequestContext {
-            routers: self.routers.clone(),
+            layers: self.layers.clone(),
             request_sender: tx.clone(),
             cors: self.cors.clone(),
             channel_capacity,
@@ -498,7 +498,7 @@ impl HttpServer {
             tokio::select! {
                 Some(pros_req) = rx.recv() => {
                     let mut response = call_python_handler(
-                            pros_req.router,
+                            pros_req.layer,
                             pros_req.match_route,
                             pros_req.request.deref().clone(),
                             self.is_async,
@@ -538,13 +538,13 @@ impl HttpServer {
 }
 
 async fn call_python_handler<'l>(
-    router: Option<Arc<Router>>,
+    layer: Option<Layer>,
     match_route: Option<MatchRoute<'l>>,
     request: Request,
     is_async: bool,
 ) -> PyResult<Response> {
-    match (match_route, router) {
-        (Some(route), Some(router)) => {
+    match (match_route, layer) {
+        (Some(route), Some(layer)) => {
             let params = route.params;
             let route = route.value;
 
@@ -569,10 +569,10 @@ async fn call_python_handler<'l>(
                 }
 
                 Python::attach(|py| {
-                    if router.middlewares.is_empty() {
+                    if layer.middlewares.is_empty() {
                         route.handler.call(py, (request,), Some(&kwargs))
                     } else {
-                        let chain = MiddlewareChain::new(router.middlewares.clone());
+                        let chain = MiddlewareChain::new(layer.middlewares.clone());
                         chain.execute(py, route.handler.deref(), (request,), kwargs.clone())
                     }
                 })

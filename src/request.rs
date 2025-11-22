@@ -255,14 +255,14 @@ impl Request {
         self,
         RequestContext {
             request_sender,
-            routers,
+            layers,
             channel_capacity,
             cors,
             catchers,
         }: RequestContext,
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
-        for router in routers {
-            if let Some(match_route) = router.find(&self.method, &self.uri) {
+        for layer in layers {
+            if let Some(match_route) = layer.find(&self.method, &self.uri) {
                 let (tx, mut rx) = tokio::sync::mpsc::channel(channel_capacity);
                 let transmutate_route: MatchRoute = unsafe { std::mem::transmute(match_route) };
 
@@ -270,7 +270,7 @@ impl Request {
                     tx,
                     cors: cors.clone(),
                     catchers: catchers.clone(),
-                    router: Some(router),
+                    layer: Some(layer),
                     match_route: Some(transmutate_route),
                     request: Arc::new(self.clone()),
                 };
@@ -289,7 +289,7 @@ impl Request {
             tx,
             cors,
             catchers,
-            router: None,
+            layer: None,
             match_route: None,
             request: Arc::new(self),
         };
