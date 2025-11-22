@@ -493,10 +493,6 @@ impl Router {
         Ok(self.clone())
     }
 
-    /// Return a string representation of the Router.
-    ///
-    /// Returns:
-    ///     str: A debug string showing the Router's configuration.
     fn __repr__(&self) -> String {
         format!("{:#?}", self)
     }

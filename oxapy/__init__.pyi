@@ -1126,13 +1126,7 @@ class Router:
         router.routes(routes)
         ```
         """
-    def __repr__(self) -> builtins.str:
-        r"""
-        Return a string representation of the Router.
-        
-        Returns:
-            str: A debug string showing the Router's configuration.
-        """
+    def __repr__(self) -> builtins.str: ...
 
 @typing.final
 class Session:
