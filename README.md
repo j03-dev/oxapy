@@ -40,25 +40,24 @@
 ```python
 from oxapy import HttpServer, Router, Status, Response, get
 
-router = Router()
-
-
 @get("/")
 def welcome(request):
     return Response("Welcome to OxAPY!", content_type="text/plain")
-
 
 @get("/hello/{name}")
 def hello(request, name):
     return Response({"message": f"Hello, {name}!"})
 
-router.routes([welcome, hello])
-
-app = HttpServer(("127.0.0.1", 5555))
-app.attach(router)
-
 if __name__ == "__main__":
-    app.run()
+    (
+        HttpServer(("127.0.0.1", 5555))
+        .attach(
+            Router()
+            .route(welcome)
+            .route(hello)
+        )
+        .run()
+    )
 ```
 
 ## Async Example
@@ -66,18 +65,21 @@ if __name__ == "__main__":
 ```python
 from oxapy import HttpServer, Router, get
 
-router = Router()
-
-
 @get("/")
 async def home(request):
     # Asynchronous operations are allowed here
     data = await fetch_data_from_database()  # type: ignore
     return "Hello, World!"
 
-router.route(home)
-
-HttpServer(("127.0.0.1", 8000)).attach(router).async_mode().run()
+if __name__ == "__main__":
+    (
+        HttpServer(("127.0.0.1", 8000))
+        .attach(
+            Router().route(home)
+        )
+        .async_mode()
+        .run()
+    )
 ```
 
 ## Middleware Example
@@ -91,7 +93,7 @@ OxAPY's middleware system is designed to be flexible and powerful. Middleware is
 - **Clarity**: Be mindful of the routes that fall under each middleware. The middleware will apply to all routes that are defined before it in the same layer.
 
 ```python
-from oxapy import Status, Router, get
+from oxapy import HttpServer, Status, Router, get
 
 def log_middleware(request, next, **kwargs):
     print(f"Request: {request.method} {request.path}")
@@ -102,31 +104,41 @@ def auth_middleware(request, next, **kwargs):
         return Status.UNAUTHORIZED
     return next(request, **kwargs)
 
-router = Router()
+@get("/public")
+def public(request):
+    return "This is a public route."
 
-# Define a public route
-router.route(get("/public", lambda req: "Public"))
+@get("/protected")
+def protected(request):
+    return "This is a protected route."
 
-# Add logging middleware. This closes the first layer.
-# log_middleware will apply to the "/public" route.
-router.middleware(log_middleware)
-
-# Define a protected route in a new layer
-router.route(get("/protected", lambda req: "Protected"))
-
-# Add auth middleware. This closes the second layer.
-# auth_middleware will apply to the "/protected" route, but not the "/public" route.
-router.middleware(auth_middleware)
+if __name__ == "__main__":
+    (
+        HttpServer(("127.0.0.1", 5555))
+        .attach(
+            Router()
+            .route(public)
+            .middleware(log_middleware)
+            .route(protected)
+            .middleware(auth_middleware)
+        )
+        .run()
+    )
 ```
 
 ## Static Files
 
 ```python
-from oxapy import Router, static_file
+from oxapy import HttpServer, Router, static_file
 
-router = Router()
-router.route(static_file("/static", "./static"))
-# Serves files from ./static directory at /static URL path
+if __name__ == "__main__":
+    (
+        HttpServer(("127.0.0.1", 5555))
+        .attach(
+            Router().route(static_file("/static", "./static"))
+        )
+        .run()
+    )
 ```
 
 ## Application State
@@ -134,14 +146,9 @@ router.route(static_file("/static", "./static"))
 ```python
 from oxapy import HttpServer, Router, get
 
-
 class AppState:
     def __init__(self):
         self.counter = 0
-
-
-router = Router()
-
 
 @get("/count")
 def handler(request):
@@ -149,9 +156,15 @@ def handler(request):
     app_data.counter += 1
     return {"count": app_data.counter}
 
-router.route(handler)
-
-HttpServer(("127.0.0.1", 5555)).app_data(AppState()).attach(router).run()
+if __name__ == "__main__":
+    (
+        HttpServer(("127.0.0.1", 5555))
+        .app_data(AppState())
+        .attach(
+            Router().route(handler)
+        )
+        .run()
+    )
 ```
 
 ## Router with Base Path
@@ -161,20 +174,18 @@ You can set a base path for a router, which will be prepended to all routes defi
 ```python
 from oxapy import HttpServer, Router, get
 
-# All routes in this router will be prefixed with /api/v1
-router = Router("/api/v1")
-
 @get("/users")
 def get_users(request):
     return [{"id": 1, "name": "user1"}]
 
-router.route(get_users)
-
-app = HttpServer(("127.0.0.1", 5555))
-app.attach(router)
-
 if __name__ == "__main__":
-    app.run()
+    (
+        HttpServer(("127.0.0.1", 5555))
+        .attach(
+            Router("/api/v1").route(get_users)
+        )
+        .run()
+    )
 
 # You can now access the endpoint at http://127.0.0.1:5555/api/v1/users
 ```
