@@ -5,17 +5,16 @@ from oxapy import HttpServer, Router, Request, get, post
 import logging
 
 
-router = (
-    Router("/api/v1")
-    .route(get("/ping", lambda _: {"message": "pong"}))
-    .route(post("/echo", lambda r: {"echo": r.json()}))
-)
-
-
 def main():
-    server = HttpServer(("127.0.0.1", 9999))
-    server.attach(router)
-    server.run()
+    (
+        HttpServer(("127.0.0.1", 9999))
+        .attach(
+            Router("/api/v1")
+            .route(get("/ping", lambda _: {"message": "pong"}))
+            .route(post("/echo", lambda r: {"echo": r.json()}))
+        )
+        .run()
+    )
 
 
 @pytest.fixture(scope="session")
