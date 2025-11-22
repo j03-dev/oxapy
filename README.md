@@ -48,7 +48,7 @@ def welcome(request):
 def hello(request, name):
     return Response({"message": f"Hello, {name}!"})
 
-if __name__ == "__main__":
+def main():
     (
         HttpServer(("127.0.0.1", 5555))
         .attach(
@@ -58,6 +58,9 @@ if __name__ == "__main__":
         )
         .run()
     )
+
+if __name__ == "__main__":
+    main()
 ```
 
 ## Async Example
@@ -71,7 +74,7 @@ async def home(request):
     data = await fetch_data_from_database()  # type: ignore
     return "Hello, World!"
 
-if __name__ == "__main__":
+def main():
     (
         HttpServer(("127.0.0.1", 8000))
         .attach(
@@ -80,6 +83,9 @@ if __name__ == "__main__":
         .async_mode()
         .run()
     )
+
+if __name__ == "__main__":
+    main()
 ```
 
 ## Middleware Example
@@ -93,7 +99,7 @@ OxAPY's middleware system is designed to be flexible and powerful. Middleware is
 - **Clarity**: Be mindful of the routes that fall under each middleware. The middleware will apply to all routes that are defined before it in the same layer.
 
 ```python
-from oxapy import HttpServer, Status, Router, get
+from oxapy import Status, Router, get, HttpServer
 
 def log_middleware(request, next, **kwargs):
     print(f"Request: {request.method} {request.path}")
@@ -112,7 +118,7 @@ def public(request):
 def protected(request):
     return "This is a protected route."
 
-if __name__ == "__main__":
+def main():
     (
         HttpServer(("127.0.0.1", 5555))
         .attach(
@@ -124,6 +130,9 @@ if __name__ == "__main__":
         )
         .run()
     )
+
+if __name__ == "__main__":
+    main()
 ```
 
 ## Static Files
@@ -131,7 +140,7 @@ if __name__ == "__main__":
 ```python
 from oxapy import HttpServer, Router, static_file
 
-if __name__ == "__main__":
+def main():
     (
         HttpServer(("127.0.0.1", 5555))
         .attach(
@@ -139,6 +148,9 @@ if __name__ == "__main__":
         )
         .run()
     )
+
+if __name__ == "__main__":
+    main()
 ```
 
 ## Application State
@@ -156,7 +168,7 @@ def handler(request):
     app_data.counter += 1
     return {"count": app_data.counter}
 
-if __name__ == "__main__":
+def main():
     (
         HttpServer(("127.0.0.1", 5555))
         .app_data(AppState())
@@ -165,6 +177,9 @@ if __name__ == "__main__":
         )
         .run()
     )
+
+if __name__ == "__main__":
+    main()
 ```
 
 ## Router with Base Path
@@ -178,7 +193,7 @@ from oxapy import HttpServer, Router, get
 def get_users(request):
     return [{"id": 1, "name": "user1"}]
 
-if __name__ == "__main__":
+def main():
     (
         HttpServer(("127.0.0.1", 5555))
         .attach(
@@ -186,6 +201,9 @@ if __name__ == "__main__":
         )
         .run()
     )
+
+if __name__ == "__main__":
+    main()
 
 # You can now access the endpoint at http://127.0.0.1:5555/api/v1/users
 ```
