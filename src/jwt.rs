@@ -125,12 +125,12 @@ impl Jwt {
     ///
     /// Example:
     /// ```python
-    /// from oxapy import jwt, Router
+    /// from oxapy import jwt, Router, post
     ///
     /// jwt_handler = jwt.Jwt(secret="mysecret", algorithm="HS256")
     /// router = Router()
     ///
-    /// @router.post("/login")
+    /// @post("/login")
     /// def login(request):
     ///     # Authenticate user...
     ///     claims = {
@@ -187,12 +187,12 @@ impl Jwt {
     ///
     /// Example:
     /// ```python
-    /// from oxapy import jwt, Router, exceptions
+    /// from oxapy import jwt, Router, exceptions, get
     ///
     /// jwt_handler = jwt.Jwt(secret="mysecret", algorithm="HS256")
     /// router = Router()
     ///
-    /// @router.get("/protected")
+    /// @get("/protected")
     /// def protected_route(request):
     ///     token = request.headers.get("Authorization", "").replace("Bearer ", "")
     ///     try:

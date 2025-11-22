@@ -35,16 +35,15 @@ class Template(enum.Enum):
     
     Example:
     ```python
-    from oxapy import HttpServer
-    from oxapy.templating import Template
+    from oxapy import HttpServer, templating
     
     app = HttpServer(("127.0.0.1", 8000))
     
     # Configure templates with default settings (Jinja)
-    app.template(Template())
+    app.template(templating.Template())
     
     # Or use Tera with custom template directory
-    app.template(Template("./views/**/*.html", "tera"))
+    app.template(templating.Template("./views/**/*.html", "tera"))
     ```
     """
     Jinja = ...
@@ -66,11 +65,13 @@ class Template(enum.Enum):
         
         Example:
         ```python
+        from oxapy import templating
+        
         # Use Jinja with default template directory
-        template = Template()
+        template = templating.Template()
         
         # Use Tera with custom template directory
-        template = Template("./views/**/*.html", "tera")
+        template = templating.Template("./views/**/*.html", "tera")
         ```
         """
 

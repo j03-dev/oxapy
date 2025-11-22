@@ -273,8 +273,10 @@ impl Redirect {
     ///
     /// Example:
     /// ```python
+    /// from oxapy import post, Redirect
+    ///
     /// # Redirect user after form submission
-    /// @router.post("/submit")
+    /// @post("/submit")
     /// def submit_form(request):
     ///     # Process form...
     ///     return Redirect("/thank-you")
@@ -340,12 +342,12 @@ impl Iterator for ChunkIter {
 ///
 /// Example:
 /// ```python
-/// from oxapy import Router, FileStreaming, Status
+/// from oxapy import Router, FileStreaming, Status, get
 ///
 /// router = Router()
 ///
 /// # Stream a video file
-/// @router.get("/videos/{*path}")
+/// @get("/videos/{*path}")
 /// def serve_video(request, path):
 ///     return FileStreaming(
 ///         f"./media/videos/{path}",
@@ -354,7 +356,7 @@ impl Iterator for ChunkIter {
 ///     )
 ///
 /// # Stream static files
-/// @router.get("/static/{*path}")
+/// @get("/static/{*path}")
 /// def serve_static(request, path):
 ///     return FileStreaming(
 ///         f"./static/{path}",
@@ -363,7 +365,7 @@ impl Iterator for ChunkIter {
 ///     )
 ///
 /// # Stream with custom status for partial content
-/// @router.get("/downloads/{filename}")
+/// @get("/downloads/{filename}")
 /// def serve_download(request, filename):
 ///     return FileStreaming(
 ///         f"./downloads/{filename}",

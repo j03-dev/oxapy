@@ -19,7 +19,9 @@ use pyo3_stub_gen::derive::*;
 ///
 /// Example:
 /// ```python
-/// @router.post("/upload")
+/// from oxapy import post
+///
+/// @post("/upload")
 /// def upload_handler(request):
 ///     if request.files:
 ///         image = request.files.get("profile_image")

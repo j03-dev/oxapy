@@ -39,10 +39,12 @@ use crate::{multipart::parse_multipart, response::Body};
 ///
 /// Example:
 /// ```python
+/// from oxapy import get
+///
 /// # Request objects are typically created by the framework and
 /// # passed to your handler functions:
 ///
-/// @router.get("/hello")
+/// @get("/hello")
 /// def handler(request):
 ///     user_agent = request.headers.get("user-agent")
 ///     return f"Hello from {user_agent}"
@@ -114,7 +116,9 @@ impl Request {
     ///
     /// Example:
     /// ```python
-    /// @router.post("/api/data")
+    /// from oxapy import post
+    ///
+    /// @post("/api/data")
     /// def handle_data(request):
     ///     data = request.json()
     ///     value = data["key"]
@@ -138,7 +142,9 @@ impl Request {
     ///
     /// Example:
     /// ```python
-    /// @router.get("/counter")
+    /// from oxapy import get
+    ///
+    /// @get("/counter")
     /// def get_counter(request):
     ///     app_state = request.app_data
     ///     app_state.counter += 1
@@ -162,8 +168,10 @@ impl Request {
     ///
     /// Example:
     /// ```python
+    /// from oxapy import get
+    ///
     /// # For a request to /api?name=John&age=30
-    /// @router.get("/api")
+    /// @get("/api")
     /// def api_handler(request):
     ///     query = request.query()
     ///     name = query.get("name")
@@ -196,7 +204,9 @@ impl Request {
     ///
     /// Example:
     /// ```python
-    /// @router.get("/login")
+    /// from oxapy import get
+    ///
+    /// @get("/login")
     /// def login(request):
     ///     session = request.session()
     ///     session["user_id"] = 123
@@ -255,14 +265,14 @@ impl Request {
         self,
         RequestContext {
             request_sender,
-            routers,
+            layers,
             channel_capacity,
             cors,
             catchers,
         }: RequestContext,
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
-        for router in routers {
-            if let Some(match_route) = router.find(&self.method, &self.uri) {
+        for layer in layers {
+            if let Some(match_route) = layer.find(&self.method, &self.uri) {
                 let (tx, mut rx) = tokio::sync::mpsc::channel(channel_capacity);
                 let transmutate_route: MatchRoute = unsafe { std::mem::transmute(match_route) };
 
@@ -270,7 +280,7 @@ impl Request {
                     tx,
                     cors: cors.clone(),
                     catchers: catchers.clone(),
-                    router: Some(router),
+                    layer: Some(layer),
                     match_route: Some(transmutate_route),
                     request: Arc::new(self.clone()),
                 };
@@ -289,7 +299,7 @@ impl Request {
             tx,
             cors,
             catchers,
-            router: None,
+            layer: None,
             match_route: None,
             request: Arc::new(self),
         };

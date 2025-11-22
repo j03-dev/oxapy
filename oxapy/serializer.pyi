@@ -284,6 +284,17 @@ class Serializer(Field):
         
         Example:
         ```python
+        from oxapy import serializer
+        
+        class MySerializer(serializer.Serializer):
+            email = serializer.EmailField()
+        
+        class User:
+            def __init__(self, email):
+                self.email = email
+        
+        user = User("user@example.com")
+        serializer = MySerializer(instance=user)
         print(serializer.data)
         ```
         """
@@ -292,8 +303,7 @@ class Serializer(Field):
         Create a new `Serializer` instance.
         
         This constructor initializes the serializer with optional raw JSON data, an instance to serialize,
-        and optional context. The serializer is configured as a field of type `"object"`, with flags for
-        `required`, `nullable`, and `many`.
+        and optional context.
         
         Args:
             data (str, optional): Raw JSON string to be validated or deserialized.
@@ -306,11 +316,17 @@ class Serializer(Field):
             write_only (bool, optional): If `True`, the serializer will be excluded when serializing (default: False).
         
         Returns:
-            tuple[Serializer, Field]: A tuple containing the serializer instance and its associated `Field`.
+            Serializer: The new serializer instance.
         
         Example:
         ```python
-        serializer, field = MySerializer(
+        from oxapy import serializer
+        
+        class MySerializer(serializer.Serializer):
+            email = serializer.EmailField()
+            password = serializer.CharField(write_only=True)
+        
+        serializer = MySerializer(
             data='{"email": "user@example.com", "password": "secret123"}'
         )
         ```
@@ -326,6 +342,12 @@ class Serializer(Field):
         
         Example:
         ```python
+        from oxapy import serializer
+        
+        class MySerializer(serializer.Serializer):
+            email = serializer.EmailField()
+        
+        serializer = MySerializer()
         schema = serializer.schema()
         print(schema)
         ```
@@ -341,6 +363,12 @@ class Serializer(Field):
         
         Example:
         ```python
+        from oxapy import serializer
+        
+        class MySerializer(serializer.Serializer):
+            email = serializer.EmailField()
+        
+        serializer = MySerializer(data='{"email": "user@example.com"}')
         serializer.is_valid()
         print(serializer.validated_data["email"])
         ```
@@ -360,6 +388,12 @@ class Serializer(Field):
         
         Example:
         ```python
+        from oxapy import serializer
+        
+        class MySerializer(serializer.Serializer):
+            email = serializer.EmailField()
+        
+        serializer = MySerializer()
         serializer.validate({"email": "user@example.com"})
         ```
         """
@@ -376,6 +410,14 @@ class Serializer(Field):
         
         Example:
         ```python
+        from oxapy import serializer
+        
+        class MySerializer(serializer.Serializer):
+            email = serializer.EmailField()
+        
+        serializer = MySerializer(data='{"email": "user@example.com"}')
+        serializer.is_valid()
+        # Assuming `session` is a database session
         instance = serializer.create(session, serializer.validated_data)
         ```
         """
@@ -396,6 +438,14 @@ class Serializer(Field):
         
         Example:
         ```python
+        from oxapy import serializer
+        
+        class MySerializer(serializer.Serializer):
+            email = serializer.EmailField()
+        
+        serializer = MySerializer(data='{"email": "user@example.com"}')
+        serializer.is_valid()
+        # Assuming `session` is a database session
         instance = serializer.save(session)
         ```
         """
@@ -413,6 +463,13 @@ class Serializer(Field):
         
         Example:
         ```python
+        from oxapy import serializer
+        
+        class MySerializer(serializer.Serializer):
+            email = serializer.EmailField()
+        
+        # Assuming `session` and `instance` are available
+        serializer = MySerializer()
         updated = serializer.update(session, instance, {"email": "new@email.com"})
         ```
         """
