@@ -262,7 +262,7 @@ impl Serializer {
 
         if let Some(instance) = slf.getattr("instance")?.extract::<Option<Py<PyAny>>>()? {
             let repr = slf.call_method1("to_representation", (instance,))?;
-            return repr.extract();
+            return Ok(repr.extract()?);
         }
 
         Ok(py.None())
