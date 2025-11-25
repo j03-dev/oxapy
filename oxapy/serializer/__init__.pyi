@@ -9,7 +9,7 @@ class BooleanField(Field):
     r"""
     Represents a boolean field.
     """
-    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = None, many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> tuple[BooleanField, Field]:
+    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = None, many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> BooleanField:
         r"""
         Create a new field of this type.
         
@@ -30,7 +30,7 @@ class CharField(Field):
     r"""
     Represents a string field.
     """
-    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = None, many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> tuple[CharField, Field]:
+    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = None, many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> CharField:
         r"""
         Create a new field of this type.
         
@@ -51,7 +51,7 @@ class DateField(Field):
     r"""
     Represents a date field (YYYY-MM-DD).
     """
-    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = 'date', many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> tuple[DateField, Field]:
+    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = 'date', many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> DateField:
         r"""
         Create a new field of this type.
         
@@ -72,7 +72,7 @@ class DateTimeField(Field):
     r"""
     Represents a date-time field (RFC 3339).
     """
-    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = 'date-time', many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> tuple[DateTimeField, Field]:
+    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = 'date-time', many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> DateTimeField:
         r"""
         Create a new field of this type.
         
@@ -93,7 +93,7 @@ class EmailField(Field):
     r"""
     Represents an email field, validated by format.
     """
-    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = 'email', many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> tuple[EmailField, Field]:
+    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = 'email', many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> EmailField:
         r"""
         Create a new field of this type.
         
@@ -114,7 +114,7 @@ class EnumField(Field):
     r"""
     Represents an enumerated string field.
     """
-    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = None, many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> tuple[EnumField, Field]:
+    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = None, many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> EnumField:
         r"""
         Create a new field of this type.
         
@@ -215,7 +215,7 @@ class IntegerField(Field):
     r"""
     Represents an integer field in JSON schema.
     """
-    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = None, many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> tuple[IntegerField, Field]:
+    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = None, many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> IntegerField:
         r"""
         Create a new field of this type.
         
@@ -236,7 +236,7 @@ class NumberField(Field):
     r"""
     Represents a numeric (float) field.
     """
-    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = None, many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> tuple[NumberField, Field]:
+    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = None, many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> NumberField:
         r"""
         Create a new field of this type.
         
@@ -298,7 +298,7 @@ class Serializer(Field):
         print(serializer.data)
         ```
         """
-    def __new__(cls, data: typing.Optional[builtins.str] = None, instance: typing.Optional[typing.Any] = None, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, many: typing.Optional[builtins.bool] = False, context: typing.Optional[dict] = None, read_only: typing.Optional[builtins.bool] = False, write_only: typing.Optional[builtins.bool] = False) -> tuple[Serializer, Field]:
+    def __new__(cls, data: typing.Optional[builtins.str] = None, instance: typing.Optional[typing.Any] = None, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, many: typing.Optional[builtins.bool] = False, context: typing.Optional[dict] = None, read_only: typing.Optional[builtins.bool] = False, write_only: typing.Optional[builtins.bool] = False) -> Serializer:
         r"""
         Create a new `Serializer` instance.
         
@@ -490,7 +490,7 @@ class UUIDField(Field):
     r"""
     Represents a UUID field.
     """
-    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = 'uuid', many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> tuple[UUIDField, Field]:
+    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = 'uuid', many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> UUIDField:
         r"""
         Create a new field of this type.
         
@@ -516,5 +516,5 @@ class ValidationException(ClientError):
     This includes missing required fields, invalid field values, type mismatches,
     and schema constraint violations.
     """
-    def __new__(cls, e: typing.Any) -> tuple[ValidationException, ClientError]: ...
+    def __new__(cls, e: typing.Any) -> ValidationException: ...
 

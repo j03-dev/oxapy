@@ -15,7 +15,7 @@ class BadRequestError(ClientError):
     
     This exception corresponds to HTTP status code 400.
     """
-    def __new__(cls, e: typing.Any) -> tuple[BadRequestError, ClientError]: ...
+    def __new__(cls, e: typing.Any) -> BadRequestError: ...
 
 class ClientError(builtins.Exception):
     r"""
@@ -42,7 +42,7 @@ class ConflictError(ClientError):
     
     This exception corresponds to HTTP status code 409.
     """
-    def __new__(cls, e: typing.Any) -> tuple[ConflictError, ClientError]: ...
+    def __new__(cls, e: typing.Any) -> ConflictError: ...
 
 @typing.final
 class ForbiddenError(ClientError):
@@ -55,7 +55,7 @@ class ForbiddenError(ClientError):
     
     This exception corresponds to HTTP status code 403.
     """
-    def __new__(cls, e: typing.Any) -> tuple[ForbiddenError, ClientError]: ...
+    def __new__(cls, e: typing.Any) -> ForbiddenError: ...
 
 @typing.final
 class InternalError(builtins.Exception):
@@ -81,7 +81,7 @@ class NotFoundError(ClientError):
     
     This exception corresponds to HTTP status code 404.
     """
-    def __new__(cls, e: typing.Any) -> tuple[NotFoundError, ClientError]: ...
+    def __new__(cls, e: typing.Any) -> NotFoundError: ...
 
 @typing.final
 class UnauthorizedError(ClientError):
@@ -93,5 +93,5 @@ class UnauthorizedError(ClientError):
     
     This exception corresponds to HTTP status code 401.
     """
-    def __new__(cls, e: typing.Any) -> tuple[UnauthorizedError, ClientError]: ...
+    def __new__(cls, e: typing.Any) -> UnauthorizedError: ...
 
