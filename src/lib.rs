@@ -23,6 +23,7 @@ use std::sync::Arc;
 
 use crate::catcher::Catcher;
 use crate::cors::Cors;
+use crate::exceptions::IntoPyException;
 use crate::multipart::File;
 use crate::request::{Request, RequestBuilder};
 use crate::response::{FileStreaming, Redirect, Response};
@@ -44,17 +45,7 @@ use tokio::net::TcpListener;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::Semaphore;
 
-use pyo3::{exceptions::PyException, prelude::*};
-
-trait IntoPyException<T> {
-    fn into_py_exception(self) -> PyResult<T>;
-}
-
-impl<T, E: ToString> IntoPyException<T> for Result<T, E> {
-    fn into_py_exception(self) -> PyResult<T> {
-        self.map_err(|err| PyException::new_err(err.to_string()))
-    }
-}
+use pyo3::prelude::*;
 
 struct ProcessRequest {
     request: Arc<Request>,

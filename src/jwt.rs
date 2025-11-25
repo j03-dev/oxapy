@@ -1,5 +1,3 @@
-use crate::json::Wrap;
-use crate::{extend_exception, IntoPyException};
 use jsonwebtoken::errors::ErrorKind;
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use pyo3::exceptions::PyException;
@@ -8,8 +6,12 @@ use pyo3::{exceptions::PyValueError, impl_exception_boilerplate, prelude::*};
 use pyo3_stub_gen::derive::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
 use std::str::FromStr;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+use crate::json::Wrap;
+use crate::{exceptions::IntoPyException, extend_exception};
 
 /// Base class for all JWT related exceptions.
 #[gen_stub_pyclass]
