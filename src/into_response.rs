@@ -2,8 +2,8 @@ use hyper::{body::Bytes, header::CONTENT_TYPE, HeaderMap};
 use pyo3::{prelude::*, types::PyAny, Py};
 
 use crate::{
-    cors::Cors, exceptions::*, json, response::ResponseBody, status::Status, IntoPyException,
-    Response,
+    cors::Cors, exceptions::IntoPyException, exceptions::*, json, response::ResponseBody,
+    status::Status, Response,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -86,11 +86,13 @@ impl From<PyErr> for Response {
                 true if value.is_instance_of::<ConflictError>(py) => Status::CONFLICT,
                 true => Status::BAD_REQUEST,
                 false => {
-                    if let Some(v) = std::env::var("DEBUG").ok() {
-                        if v.parse::<bool>().expect("DEBUG should be a bool") {
-                            value.display(py);
-                        }
-                    };
+                    let debug = std::env::var("DEBUG")
+                        .ok()
+                        .and_then(|v| v.parse::<bool>().ok())
+                        .unwrap_or(true);
+                    if debug {
+                        value.display(py);
+                    }
                     Status::INTERNAL_SERVER_ERROR
                 }
             };

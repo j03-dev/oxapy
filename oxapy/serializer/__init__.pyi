@@ -9,7 +9,7 @@ class BooleanField(Field):
     r"""
     Represents a boolean field.
     """
-    def __new__(cls, required:typing.Optional[builtins.bool]=True, nullable:typing.Optional[builtins.bool]=False, format:typing.Optional[builtins.str]=None, many:typing.Optional[builtins.bool]=False, length:typing.Optional[builtins.int]=None, min_length:typing.Optional[builtins.int]=None, max_length:typing.Optional[builtins.int]=None, pattern:typing.Optional[builtins.str]=None, enum_values:typing.Optional[typing.Sequence[builtins.str]]=None, read_only:typing.Optional[builtins.bool]=None, write_only:typing.Optional[builtins.bool]=None) -> BooleanField:
+    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = None, many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> BooleanField:
         r"""
         Create a new field of this type.
         
@@ -30,7 +30,7 @@ class CharField(Field):
     r"""
     Represents a string field.
     """
-    def __new__(cls, required:typing.Optional[builtins.bool]=True, nullable:typing.Optional[builtins.bool]=False, format:typing.Optional[builtins.str]=None, many:typing.Optional[builtins.bool]=False, length:typing.Optional[builtins.int]=None, min_length:typing.Optional[builtins.int]=None, max_length:typing.Optional[builtins.int]=None, pattern:typing.Optional[builtins.str]=None, enum_values:typing.Optional[typing.Sequence[builtins.str]]=None, read_only:typing.Optional[builtins.bool]=None, write_only:typing.Optional[builtins.bool]=None) -> CharField:
+    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = None, many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> CharField:
         r"""
         Create a new field of this type.
         
@@ -51,7 +51,7 @@ class DateField(Field):
     r"""
     Represents a date field (YYYY-MM-DD).
     """
-    def __new__(cls, required:typing.Optional[builtins.bool]=True, nullable:typing.Optional[builtins.bool]=False, format:typing.Optional[builtins.str]='date', many:typing.Optional[builtins.bool]=False, length:typing.Optional[builtins.int]=None, min_length:typing.Optional[builtins.int]=None, max_length:typing.Optional[builtins.int]=None, pattern:typing.Optional[builtins.str]=None, enum_values:typing.Optional[typing.Sequence[builtins.str]]=None, read_only:typing.Optional[builtins.bool]=None, write_only:typing.Optional[builtins.bool]=None) -> DateField:
+    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = 'date', many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> DateField:
         r"""
         Create a new field of this type.
         
@@ -72,7 +72,7 @@ class DateTimeField(Field):
     r"""
     Represents a date-time field (RFC 3339).
     """
-    def __new__(cls, required:typing.Optional[builtins.bool]=True, nullable:typing.Optional[builtins.bool]=False, format:typing.Optional[builtins.str]='date-time', many:typing.Optional[builtins.bool]=False, length:typing.Optional[builtins.int]=None, min_length:typing.Optional[builtins.int]=None, max_length:typing.Optional[builtins.int]=None, pattern:typing.Optional[builtins.str]=None, enum_values:typing.Optional[typing.Sequence[builtins.str]]=None, read_only:typing.Optional[builtins.bool]=None, write_only:typing.Optional[builtins.bool]=None) -> DateTimeField:
+    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = 'date-time', many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> DateTimeField:
         r"""
         Create a new field of this type.
         
@@ -93,7 +93,7 @@ class EmailField(Field):
     r"""
     Represents an email field, validated by format.
     """
-    def __new__(cls, required:typing.Optional[builtins.bool]=True, nullable:typing.Optional[builtins.bool]=False, format:typing.Optional[builtins.str]='email', many:typing.Optional[builtins.bool]=False, length:typing.Optional[builtins.int]=None, min_length:typing.Optional[builtins.int]=None, max_length:typing.Optional[builtins.int]=None, pattern:typing.Optional[builtins.str]=None, enum_values:typing.Optional[typing.Sequence[builtins.str]]=None, read_only:typing.Optional[builtins.bool]=None, write_only:typing.Optional[builtins.bool]=None) -> EmailField:
+    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = 'email', many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> EmailField:
         r"""
         Create a new field of this type.
         
@@ -114,7 +114,7 @@ class EnumField(Field):
     r"""
     Represents an enumerated string field.
     """
-    def __new__(cls, required:typing.Optional[builtins.bool]=True, nullable:typing.Optional[builtins.bool]=False, format:typing.Optional[builtins.str]=None, many:typing.Optional[builtins.bool]=False, length:typing.Optional[builtins.int]=None, min_length:typing.Optional[builtins.int]=None, max_length:typing.Optional[builtins.int]=None, pattern:typing.Optional[builtins.str]=None, enum_values:typing.Optional[typing.Sequence[builtins.str]]=None, read_only:typing.Optional[builtins.bool]=None, write_only:typing.Optional[builtins.bool]=None) -> EnumField:
+    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = None, many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> EnumField:
         r"""
         Create a new field of this type.
         
@@ -183,7 +183,7 @@ class Field:
     def write_only(self) -> typing.Optional[builtins.bool]: ...
     @write_only.setter
     def write_only(self, value: typing.Optional[builtins.bool]) -> None: ...
-    def __new__(cls, ty:builtins.str, required:typing.Optional[builtins.bool]=True, nullable:typing.Optional[builtins.bool]=False, format:typing.Optional[builtins.str]=None, many:typing.Optional[builtins.bool]=False, length:typing.Optional[builtins.int]=None, min_length:typing.Optional[builtins.int]=None, max_length:typing.Optional[builtins.int]=None, pattern:typing.Optional[builtins.str]=None, enum_values:typing.Optional[typing.Sequence[builtins.str]]=None, read_only:typing.Optional[builtins.bool]=None, write_only:typing.Optional[builtins.bool]=None) -> Field:
+    def __new__(cls, ty: builtins.str, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = None, many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> Field:
         r"""
         Create a new field definition.
         
@@ -215,7 +215,7 @@ class IntegerField(Field):
     r"""
     Represents an integer field in JSON schema.
     """
-    def __new__(cls, required:typing.Optional[builtins.bool]=True, nullable:typing.Optional[builtins.bool]=False, format:typing.Optional[builtins.str]=None, many:typing.Optional[builtins.bool]=False, length:typing.Optional[builtins.int]=None, min_length:typing.Optional[builtins.int]=None, max_length:typing.Optional[builtins.int]=None, pattern:typing.Optional[builtins.str]=None, enum_values:typing.Optional[typing.Sequence[builtins.str]]=None, read_only:typing.Optional[builtins.bool]=None, write_only:typing.Optional[builtins.bool]=None) -> IntegerField:
+    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = None, many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> IntegerField:
         r"""
         Create a new field of this type.
         
@@ -236,7 +236,7 @@ class NumberField(Field):
     r"""
     Represents a numeric (float) field.
     """
-    def __new__(cls, required:typing.Optional[builtins.bool]=True, nullable:typing.Optional[builtins.bool]=False, format:typing.Optional[builtins.str]=None, many:typing.Optional[builtins.bool]=False, length:typing.Optional[builtins.int]=None, min_length:typing.Optional[builtins.int]=None, max_length:typing.Optional[builtins.int]=None, pattern:typing.Optional[builtins.str]=None, enum_values:typing.Optional[typing.Sequence[builtins.str]]=None, read_only:typing.Optional[builtins.bool]=None, write_only:typing.Optional[builtins.bool]=None) -> NumberField:
+    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = None, many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> NumberField:
         r"""
         Create a new field of this type.
         
@@ -298,7 +298,7 @@ class Serializer(Field):
         print(serializer.data)
         ```
         """
-    def __new__(cls, data:typing.Optional[builtins.str]=None, instance:typing.Optional[typing.Any]=None, required:typing.Optional[builtins.bool]=True, nullable:typing.Optional[builtins.bool]=False, many:typing.Optional[builtins.bool]=False, context:typing.Optional[dict]=None, read_only:typing.Optional[builtins.bool]=False, write_only:typing.Optional[builtins.bool]=False) -> Serializer:
+    def __new__(cls, data: typing.Optional[builtins.str] = None, instance: typing.Optional[typing.Any] = None, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, many: typing.Optional[builtins.bool] = False, context: typing.Optional[dict] = None, read_only: typing.Optional[builtins.bool] = False, write_only: typing.Optional[builtins.bool] = False) -> Serializer:
         r"""
         Create a new `Serializer` instance.
         
@@ -373,7 +373,7 @@ class Serializer(Field):
         print(serializer.validated_data["email"])
         ```
         """
-    def validate(self, attr:dict) -> dict:
+    def validate(self, attr: dict) -> dict:
         r"""
         Validate a Python dictionary against the serializer's schema.
         
@@ -397,7 +397,7 @@ class Serializer(Field):
         serializer.validate({"email": "user@example.com"})
         ```
         """
-    def create(self, session:typing.Any, validated_data:dict) -> typing.Any:
+    def create(self, session: typing.Any, validated_data: dict) -> typing.Any:
         r"""
         Create and persist a new model instance with validated data.
         
@@ -421,7 +421,7 @@ class Serializer(Field):
         instance = serializer.create(session, serializer.validated_data)
         ```
         """
-    def save(self, session:typing.Any) -> typing.Any:
+    def save(self, session: typing.Any) -> typing.Any:
         r"""
         Save validated data by creating a new instance and persisting it.
         
@@ -449,7 +449,7 @@ class Serializer(Field):
         instance = serializer.save(session)
         ```
         """
-    def update(self, session:typing.Any, instance:typing.Any, validated_data:typing.Mapping[builtins.str, typing.Any]) -> typing.Any:
+    def update(self, session: typing.Any, instance: typing.Any, validated_data: typing.Mapping[builtins.str, typing.Any]) -> typing.Any:
         r"""
         Update an existing instance with validated data.
         
@@ -473,7 +473,7 @@ class Serializer(Field):
         updated = serializer.update(session, instance, {"email": "new@email.com"})
         ```
         """
-    def to_representation(self, instance:typing.Any) -> dict:
+    def to_representation(self, instance: typing.Any) -> dict:
         r"""
         Convert a model instance to a Python dictionary.
         
@@ -490,7 +490,7 @@ class UUIDField(Field):
     r"""
     Represents a UUID field.
     """
-    def __new__(cls, required:typing.Optional[builtins.bool]=True, nullable:typing.Optional[builtins.bool]=False, format:typing.Optional[builtins.str]='uuid', many:typing.Optional[builtins.bool]=False, length:typing.Optional[builtins.int]=None, min_length:typing.Optional[builtins.int]=None, max_length:typing.Optional[builtins.int]=None, pattern:typing.Optional[builtins.str]=None, enum_values:typing.Optional[typing.Sequence[builtins.str]]=None, read_only:typing.Optional[builtins.bool]=None, write_only:typing.Optional[builtins.bool]=None) -> UUIDField:
+    def __new__(cls, required: typing.Optional[builtins.bool] = True, nullable: typing.Optional[builtins.bool] = False, format: typing.Optional[builtins.str] = 'uuid', many: typing.Optional[builtins.bool] = False, length: typing.Optional[builtins.int] = None, min_length: typing.Optional[builtins.int] = None, max_length: typing.Optional[builtins.int] = None, pattern: typing.Optional[builtins.str] = None, enum_values: typing.Optional[typing.Sequence[builtins.str]] = None, read_only: typing.Optional[builtins.bool] = None, write_only: typing.Optional[builtins.bool] = None) -> UUIDField:
         r"""
         Create a new field of this type.
         
@@ -516,5 +516,5 @@ class ValidationException(ClientError):
     This includes missing required fields, invalid field values, type mismatches,
     and schema constraint violations.
     """
-    def __new__(cls, e:typing.Any) -> ValidationException: ...
+    def __new__(cls, e: typing.Any) -> ValidationException: ...
 

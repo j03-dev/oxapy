@@ -41,7 +41,7 @@ class CatcherBuilder:
     This class is returned by the `catcher` function and is used to create
     a Catcher when called with a handler function.
     """
-    def __call__(self, handler:typing.Any) -> Catcher:
+    def __call__(self, handler: typing.Any) -> Catcher:
         r"""
         Create a Catcher when called with a handler function.
         
@@ -210,7 +210,7 @@ class File:
         file_size = len(file_bytes)
         ```
         """
-    def save(self, path:builtins.str) -> None:
+    def save(self, path: builtins.str) -> None:
         r"""
         Save the file content to disk.
         
@@ -290,7 +290,7 @@ class FileStreaming(Response):
         )
     ```
     """
-    def __new__(cls, path:builtins.str, buf_size:builtins.int=8192, status:Status=Status.OK, content_type:builtins.str='application/octet-stream') -> FileStreaming:
+    def __new__(cls, path: builtins.str, buf_size: builtins.int = 8192, status: Status = Status.OK, content_type: builtins.str = 'application/octet-stream') -> FileStreaming:
         r"""
         Create a new FileStreaming response.
         
@@ -381,7 +381,7 @@ class HttpServer:
     app.run()
         ```
     """
-    def __new__(cls, addr:tuple[builtins.str, builtins.int]) -> HttpServer:
+    def __new__(cls, addr: tuple[builtins.str, builtins.int]) -> HttpServer:
         r"""
         Create a new instance of HttpServer.
         
@@ -396,7 +396,7 @@ class HttpServer:
         server = HttpServer(("127.0.0.1", 5555))
         ```
         """
-    def app_data(self, app_data:typing.Any) -> HttpServer:
+    def app_data(self, app_data: typing.Any) -> HttpServer:
         r"""
         Set application-wide data that will be available to all request handlers.
         
@@ -430,7 +430,7 @@ class HttpServer:
             return {"count": state.counter}
         ```
         """
-    def attach(self, router:Router) -> HttpServer:
+    def attach(self, router: Router) -> HttpServer:
         r"""
         Attach a router to the server.
         
@@ -465,7 +465,7 @@ class HttpServer:
         server.attach(router)
         ```
         """
-    def session_store(self, session_store:SessionStore) -> HttpServer:
+    def session_store(self, session_store: SessionStore) -> HttpServer:
         r"""
         Set up a session store for managing user sessions.
         
@@ -482,7 +482,7 @@ class HttpServer:
         server.session_store(SessionStore())
         ```
         """
-    def template(self, template:Template) -> HttpServer:
+    def template(self, template: Template) -> HttpServer:
         r"""
         Enable template rendering for the server.
         
@@ -499,7 +499,7 @@ class HttpServer:
         server.template(templating.Template())
         ```
         """
-    def cors(self, cors:Cors) -> HttpServer:
+    def cors(self, cors: Cors) -> HttpServer:
         r"""
         Set up Cross-Origin Resource Sharing (CORS) for the server.
         
@@ -516,7 +516,7 @@ class HttpServer:
         server.cors(cors)
         ```
         """
-    def max_connections(self, max_connections:builtins.int) -> HttpServer:
+    def max_connections(self, max_connections: builtins.int) -> HttpServer:
         r"""
         Set the maximum number of concurrent connections the server will handle.
         
@@ -531,7 +531,7 @@ class HttpServer:
         server.max_connections(1000)
         ```
         """
-    def channel_capacity(self, channel_capacity:builtins.int) -> HttpServer:
+    def channel_capacity(self, channel_capacity: builtins.int) -> HttpServer:
         r"""
         Set the internal channel capacity for handling requests.
         
@@ -549,7 +549,7 @@ class HttpServer:
         server.channel_capacity(200)
         ```
         """
-    def catchers(self, catchers:typing.Sequence[Catcher]) -> HttpServer:
+    def catchers(self, catchers: typing.Sequence[Catcher]) -> HttpServer:
         r"""
         Add status code catchers to the server.
         
@@ -602,7 +602,7 @@ class HttpServer:
         asyncio.run(main())
         ```
         """
-    def run(self, workers:typing.Optional[builtins.int]=None) -> typing.Any:
+    def run(self, workers: typing.Optional[builtins.int] = None) -> typing.Any:
         r"""
         Run the HTTP server.
         
@@ -648,7 +648,7 @@ class Redirect(Response):
     return Redirect("https://example.com")
     ```
     """
-    def __new__(cls, location:builtins.str) -> Redirect:
+    def __new__(cls, location: builtins.str) -> Redirect:
         r"""
         Create a new HTTP redirect response.
         
@@ -751,7 +751,7 @@ class Request:
             return {"count": app_state.counter}
         ```
         """
-    def __new__(cls, method:builtins.str, uri:builtins.str, headers:typing.Mapping[builtins.str, builtins.str]) -> Request:
+    def __new__(cls, method: builtins.str, uri: builtins.str, headers: typing.Mapping[builtins.str, builtins.str]) -> Request:
         r"""
         Create a new Request instance.
         
@@ -843,9 +843,9 @@ class Request:
             return "Logged in successfully"
         ```
         """
-    def get_cookie(self, name:builtins.str) -> typing.Optional[builtins.str]: ...
-    def __getattr__(self, name:builtins.str) -> typing.Any: ...
-    def __setattr__(self, name:builtins.str, value:typing.Any) -> None: ...
+    def get_cookie(self, name: builtins.str) -> typing.Optional[builtins.str]: ...
+    def __getattr__(self, name: builtins.str) -> typing.Any: ...
+    def __setattr__(self, name: builtins.str, value: typing.Any) -> None: ...
     def __repr__(self) -> builtins.str: ...
 
 class Response:
@@ -906,7 +906,7 @@ class Response:
             print(f"{name}: {value}")
         ```
         """
-    def __new__(cls, body:typing.Any, status:Status=Status.OK, content_type:builtins.str='application/json') -> Response:
+    def __new__(cls, body: typing.Any, status: Status = Status.OK, content_type: builtins.str = 'application/json') -> Response:
         r"""
         Create a new Response instance.
         
@@ -930,7 +930,7 @@ class Response:
         response = Response("Not authorized", status=Status.UNAUTHORIZED)
         ```
         """
-    def insert_header(self, key:builtins.str, value:builtins.str) -> None:
+    def insert_header(self, key: builtins.str, value: builtins.str) -> None:
         r"""
         Add or update a header in the response.
         
@@ -947,7 +947,7 @@ class Response:
         response.insert_header("Cache-Control", "no-cache")
         ```
         """
-    def append_header(self, key:builtins.str, value:builtins.str) -> None:
+    def append_header(self, key: builtins.str, value: builtins.str) -> None:
         r"""
         Append a header to the response.
         
@@ -993,8 +993,8 @@ class Route:
     route = route(handler)  # Attach the handler
     ```
     """
-    def __new__(cls, path:builtins.str, method:typing.Optional[builtins.str]=None) -> Route: ...
-    def __call__(self, handler:typing.Any) -> Route: ...
+    def __new__(cls, path: builtins.str, method: typing.Optional[builtins.str] = None) -> Route: ...
+    def __call__(self, handler: typing.Any) -> Route: ...
     def __repr__(self) -> builtins.str: ...
 
 @typing.final
@@ -1026,7 +1026,7 @@ class Router:
     # The route will be /api/v1/hello/{name}
     ```
     """
-    def __new__(cls, base_path:typing.Optional[builtins.str]=None) -> Router:
+    def __new__(cls, base_path: typing.Optional[builtins.str] = None) -> Router:
         r"""
         Create a new Router instance.
         
@@ -1044,7 +1044,7 @@ class Router:
         # Router without a base path
         router = Router()
         """
-    def middleware(self, middleware:typing.Any) -> Router:
+    def middleware(self, middleware: typing.Any) -> Router:
         r"""
         Add middleware to the router.
         
@@ -1088,7 +1088,7 @@ class Router:
         router.middleware(auth_middleware)
         ```
         """
-    def route(self, route:Route) -> Router:
+    def route(self, route: Route) -> Router:
         r"""
         Register a route with the router.
         
@@ -1112,7 +1112,7 @@ class Router:
         router.route(route)
         ```
         """
-    def routes(self, routes:typing.Sequence[Route]) -> Router:
+    def routes(self, routes: typing.Sequence[Route]) -> Router:
         r"""
         Register multiple routes with the router.
         
@@ -1174,7 +1174,7 @@ class Session:
     def id(self) -> builtins.str: ...
     @property
     def create_at(self) -> builtins.int: ...
-    def __new__(cls, id:typing.Optional[builtins.str]) -> Session:
+    def __new__(cls, id: typing.Optional[builtins.str]) -> Session:
         r"""
         Create a new Session instance.
         
@@ -1190,7 +1190,7 @@ class Session:
         session = Session()
         ```
         """
-    def get(self, key:builtins.str) -> typing.Any:
+    def get(self, key: builtins.str) -> typing.Any:
         r"""
         Get a value from the session by key.
         
@@ -1207,7 +1207,7 @@ class Session:
             # User is logged in
         ```
         """
-    def set(self, key:builtins.str, value:typing.Any) -> None:
+    def set(self, key: builtins.str, value: typing.Any) -> None:
         r"""
         Set a value in the session.
         
@@ -1225,7 +1225,7 @@ class Session:
         session.set("is_admin", False)
         ```
         """
-    def remove(self, key:builtins.str) -> None:
+    def remove(self, key: builtins.str) -> None:
         r"""
         Remove a key-value pair from the session.
         
@@ -1277,11 +1277,11 @@ class Session:
         """
     def values(self) -> typing.Any: ...
     def items(self) -> typing.Any: ...
-    def __contains__(self, key:builtins.str) -> builtins.bool: ...
+    def __contains__(self, key: builtins.str) -> builtins.bool: ...
     def __iter__(self) -> typing.Any: ...
-    def __getitem__(self, key:builtins.str) -> typing.Any: ...
-    def __setitem__(self, key:builtins.str, value:typing.Any) -> None: ...
-    def __delitem__(self, key:builtins.str) -> None: ...
+    def __getitem__(self, key: builtins.str) -> typing.Any: ...
+    def __setitem__(self, key: builtins.str, value: typing.Any) -> None: ...
+    def __delitem__(self, key: builtins.str) -> None: ...
     def __len__(self) -> builtins.int: ...
     def __repr__(self) -> builtins.str: ...
     def __str__(self) -> builtins.str: ...
@@ -1349,7 +1349,7 @@ class SessionStore:
     def expiry_seconds(self) -> typing.Optional[builtins.int]: ...
     @expiry_seconds.setter
     def expiry_seconds(self, value: typing.Optional[builtins.int]) -> None: ...
-    def __new__(cls, cookie_name:builtins.str='session', cookie_max_age:typing.Optional[builtins.int]=None, cookie_path:builtins.str='/', cookie_secure:builtins.bool=False, cookie_http_only:builtins.bool=True, cookie_same_site:builtins.str='Lax', expiry_seconds:typing.Optional[builtins.int]=86400) -> SessionStore:
+    def __new__(cls, cookie_name: builtins.str = 'session', cookie_max_age: typing.Optional[builtins.int] = None, cookie_path: builtins.str = '/', cookie_secure: builtins.bool = False, cookie_http_only: builtins.bool = True, cookie_same_site: builtins.str = 'Lax', expiry_seconds: typing.Optional[builtins.int] = 86400) -> SessionStore:
         r"""
         Create a new SessionStore.
         
@@ -1378,7 +1378,7 @@ class SessionStore:
         )
         ```
         """
-    def get_session(self, session_id:typing.Optional[builtins.str]) -> Session:
+    def get_session(self, session_id: typing.Optional[builtins.str]) -> Session:
         r"""
         Get a session by ID or create a new one if not found.
         
@@ -1391,7 +1391,7 @@ class SessionStore:
         Note:
             This method is primarily used internally by the framework.
         """
-    def clear_session(self, session_id:builtins.str) -> builtins.bool:
+    def clear_session(self, session_id: builtins.str) -> builtins.bool:
         r"""
         Remove a session from the store.
         
@@ -1424,7 +1424,7 @@ class SessionStore:
         print(f"Active sessions: {count}")
         ```
         """
-    def get_cookie_header(self, session:Session) -> builtins.str: ...
+    def get_cookie_header(self, session: Session) -> builtins.str: ...
 
 @typing.final
 class Status(enum.Enum):
@@ -1696,7 +1696,7 @@ class Status(enum.Enum):
     511 Network Authentication Required - The client needs to authenticate to gain network access
     """
 
-    def __richcmp__(self, other:Status, op:int) -> builtins.bool:
+    def __richcmp__(self, other: Status, op: int) -> builtins.bool:
         r"""
         Compare two Status objects.
         
@@ -1728,7 +1728,7 @@ class Status(enum.Enum):
             int: The status code
         """
 
-def convert_to_response(result:typing.Any) -> Response:
+def convert_to_response(result: typing.Any) -> Response:
     r"""
     Convert a Python object into an OxAPY `Response`.
     
@@ -1774,7 +1774,7 @@ def convert_to_response(result:typing.Any) -> Response:
         but it can also be used manually if you’re building custom middlewares or decorators.
     """
 
-def delete(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
+def delete(path: builtins.str, handler: typing.Optional[typing.Any] = None) -> Route:
     r"""
     Registers an HTTP DELETE route.
     
@@ -1806,7 +1806,7 @@ def delete(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route
     ```
     """
 
-def get(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
+def get(path: builtins.str, handler: typing.Optional[typing.Any] = None) -> Route:
     r"""
     Registers an HTTP GET route.
     
@@ -1840,7 +1840,7 @@ def get(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
     ```
     """
 
-def head(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
+def head(path: builtins.str, handler: typing.Optional[typing.Any] = None) -> Route:
     r"""
     Registers an HTTP HEAD route.
     
@@ -1872,7 +1872,7 @@ def head(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
     ```
     """
 
-def options(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
+def options(path: builtins.str, handler: typing.Optional[typing.Any] = None) -> Route:
     r"""
     Registers an HTTP OPTIONS route.
     
@@ -1904,7 +1904,7 @@ def options(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Rout
     ```
     """
 
-def patch(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
+def patch(path: builtins.str, handler: typing.Optional[typing.Any] = None) -> Route:
     r"""
     Registers an HTTP PATCH route.
     
@@ -1936,7 +1936,7 @@ def patch(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
     ```
     """
 
-def post(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
+def post(path: builtins.str, handler: typing.Optional[typing.Any] = None) -> Route:
     r"""
     Registers an HTTP POST route.
     
@@ -1970,7 +1970,7 @@ def post(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
     ```
     """
 
-def put(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
+def put(path: builtins.str, handler: typing.Optional[typing.Any] = None) -> Route:
     r"""
     Registers an HTTP PUT route.
     
@@ -2002,7 +2002,7 @@ def put(path:builtins.str, handler:typing.Optional[typing.Any]=None) -> Route:
     ```
     """
 
-def render(request:Request, name:builtins.str, context:typing.Optional[dict]=None) -> Response:
+def render(request: Request, name: builtins.str, context: typing.Optional[dict] = None) -> Response:
     r"""
     Render a template and return the result as an HTTP response.
     
@@ -2031,7 +2031,7 @@ def render(request:Request, name:builtins.str, context:typing.Optional[dict]=Non
     ```
     """
 
-def static_file(path:builtins.str='/static', directory:builtins.str='./static') -> Route:
+def static_file(path: builtins.str = '/static', directory: builtins.str = './static') -> Route:
     r"""
     Create a route for serving static files.
     

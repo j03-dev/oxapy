@@ -1,5 +1,6 @@
-use pyo3_stub_gen::Result;
 use std::process::Command;
+
+use pyo3_stub_gen::Result;
 
 fn main() -> Result<()> {
     let stub = oxapy::stub_info()?;

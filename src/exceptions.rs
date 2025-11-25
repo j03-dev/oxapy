@@ -10,6 +10,15 @@ use pyo3_stub_gen::derive::*;
 
 use crate::extend_exception;
 
+pub trait IntoPyException<T> {
+    fn into_py_exception(self) -> PyResult<T>;
+}
+
+impl<T, E: ToString> IntoPyException<T> for Result<T, E> {
+    fn into_py_exception(self) -> PyResult<T> {
+        self.map_err(|err| PyException::new_err(err.to_string()))
+    }
+}
 /// Base exception for all client-related HTTP errors.
 ///
 /// This is the parent class for all HTTP client error exceptions (4xx status codes).

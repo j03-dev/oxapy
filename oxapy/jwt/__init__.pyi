@@ -9,7 +9,7 @@ class Jwt:
     r"""
     Python class for generating and verifying JWT tokens
     """
-    def __new__(cls, secret:builtins.str, algorithm:builtins.str='HS256') -> Jwt:
+    def __new__(cls, secret: builtins.str, algorithm: builtins.str = 'HS256') -> Jwt:
         r"""
         Create a new JWT
         
@@ -30,7 +30,7 @@ class Jwt:
         jwt_handler = jwt.Jwt(secret="mysecret", algorithm="HS256")
         ```
         """
-    def generate_token(self, claims:dict) -> builtins.str:
+    def generate_token(self, claims: dict) -> builtins.str:
         r"""
         Generate a JWT token with the given claims
         
@@ -64,7 +64,7 @@ class Jwt:
             return {"token": token}
         ```
         """
-    def verify_token(self, token:builtins.str) -> dict:
+    def verify_token(self, token: builtins.str) -> dict:
         r"""
         Verify the integrity of the JWT token
         
@@ -100,32 +100,32 @@ class JwtDecodingError(JwtError):
     r"""
     Occurs when there's an error during JWT decoding/verification.
     """
-    def __new__(cls, e:typing.Any) -> JwtDecodingError: ...
+    def __new__(cls, e: typing.Any) -> JwtDecodingError: ...
 
 @typing.final
 class JwtEncodingError(JwtError):
     r"""
     Occurs when there's an error during JWT encoding.
     """
-    def __new__(cls, e:typing.Any) -> JwtEncodingError: ...
+    def __new__(cls, e: typing.Any) -> JwtEncodingError: ...
 
 class JwtError(builtins.Exception):
     r"""
     Base class for all JWT related exceptions.
     """
-    def __new__(cls, e:typing.Any) -> JwtError: ...
+    def __new__(cls, e: typing.Any) -> JwtError: ...
 
 @typing.final
 class JwtInvalidAlgorithm(JwtError):
     r"""
     Occurs when the JWT algorithm is invalid or not supported.
     """
-    def __new__(cls, e:typing.Any) -> JwtInvalidAlgorithm: ...
+    def __new__(cls, e: typing.Any) -> JwtInvalidAlgorithm: ...
 
 @typing.final
 class JwtInvalidClaim(JwtError):
     r"""
     Occurs when a JWT claim is invalid (e.g., wrong format).
     """
-    def __new__(cls, e:typing.Any) -> JwtInvalidClaim: ...
+    def __new__(cls, e: typing.Any) -> JwtInvalidClaim: ...
 

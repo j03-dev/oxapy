@@ -17,7 +17,7 @@ pub fn dumps(data: &Py<PyAny>) -> PyResult<String> {
         let serialized_data = orjson_module
             .call_method1(py, "dumps", (data,))?
             .call_method1(py, "decode", ("utf-8",))?;
-        serialized_data.extract(py)
+        Ok(serialized_data.extract(py)?)
     })
 }
 
@@ -26,7 +26,7 @@ pub fn loads(data: &str) -> PyResult<Py<PyDict>> {
     Python::attach(|py| {
         let orjson_module = ORJSON.get().unwrap();
         let deserialized_data = orjson_module.call_method1(py, "loads", (data,))?;
-        deserialized_data.extract(py)
+        Ok(deserialized_data.extract(py)?)
     })
 }
 

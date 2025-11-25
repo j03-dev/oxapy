@@ -15,7 +15,7 @@ class BadRequestError(ClientError):
     
     This exception corresponds to HTTP status code 400.
     """
-    def __new__(cls, e:typing.Any) -> BadRequestError: ...
+    def __new__(cls, e: typing.Any) -> BadRequestError: ...
 
 class ClientError(builtins.Exception):
     r"""
@@ -28,7 +28,7 @@ class ClientError(builtins.Exception):
     This exception is typically not raised directly, but rather one of its
     more specific subclasses should be used.
     """
-    def __new__(cls, e:typing.Any) -> ClientError: ...
+    def __new__(cls, e: typing.Any) -> ClientError: ...
 
 @typing.final
 class ConflictError(ClientError):
@@ -42,7 +42,7 @@ class ConflictError(ClientError):
     
     This exception corresponds to HTTP status code 409.
     """
-    def __new__(cls, e:typing.Any) -> ConflictError: ...
+    def __new__(cls, e: typing.Any) -> ConflictError: ...
 
 @typing.final
 class ForbiddenError(ClientError):
@@ -55,7 +55,7 @@ class ForbiddenError(ClientError):
     
     This exception corresponds to HTTP status code 403.
     """
-    def __new__(cls, e:typing.Any) -> ForbiddenError: ...
+    def __new__(cls, e: typing.Any) -> ForbiddenError: ...
 
 @typing.final
 class InternalError(builtins.Exception):
@@ -68,7 +68,7 @@ class InternalError(builtins.Exception):
     
     This exception corresponds to HTTP status code 500.
     """
-    def __new__(cls, e:typing.Any) -> InternalError: ...
+    def __new__(cls, e: typing.Any) -> InternalError: ...
 
 @typing.final
 class NotFoundError(ClientError):
@@ -81,7 +81,7 @@ class NotFoundError(ClientError):
     
     This exception corresponds to HTTP status code 404.
     """
-    def __new__(cls, e:typing.Any) -> NotFoundError: ...
+    def __new__(cls, e: typing.Any) -> NotFoundError: ...
 
 @typing.final
 class UnauthorizedError(ClientError):
@@ -93,5 +93,5 @@ class UnauthorizedError(ClientError):
     
     This exception corresponds to HTTP status code 401.
     """
-    def __new__(cls, e:typing.Any) -> UnauthorizedError: ...
+    def __new__(cls, e: typing.Any) -> UnauthorizedError: ...
 
