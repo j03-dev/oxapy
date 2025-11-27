@@ -90,13 +90,13 @@ if __name__ == "__main__":
 
 ## Middleware Example
 
-OxAPY's middleware system is designed to be flexible and powerful. Middleware is applied on a per-layer basis. When you add middleware, it "closes" the current layer of routes and applies to all routes within that layer. Any subsequent routes are added to a new, clean layer. This allows you to build complex routing structures with different middleware for different groups of routes.
+OxAPY's middleware system is designed to be flexible and powerful. Middleware is applied to all routes within the same **scope**. You can use the `.scope()` method to create new scopes, allowing you to group routes with different middleware. This allows for building complex routing structures where different sets of middleware apply to different groups of routes.
 
 ### Best Practices
 
-- **Order Matters**: Middleware is executed in the order it is defined. Ensure that middleware with dependencies is ordered correctly.
-- **Layering**: Use multiple middleware layers to separate concerns. For example, you can have one layer for authentication and another for logging.
-- **Clarity**: Be mindful of the routes that fall under each middleware. The middleware will apply to all routes that are defined before it in the same layer.
+- **Order Matters**: Middleware is executed in the order it is defined within a scope.
+- **Scoping**: Use `.scope()` to create logical separation between groups of routes and their middleware. For example, you can have one scope for public endpoints and another for authenticated endpoints.
+- **Clarity**: Be mindful that middleware applies to all routes defined in the current scope, both before and after the middleware is added.
 
 ```python
 from oxapy import Status, Router, get, HttpServer
@@ -123,9 +123,14 @@ def main():
         HttpServer(("127.0.0.1", 5555))
         .attach(
             Router()
+            # First scope: public routes with logging
             .route(public)
             .middleware(log_middleware)
+
+            # Second scope: protected routes with logging and authentication
+            .scope()
             .route(protected)
+            .middleware(log_middleware)
             .middleware(auth_middleware)
         )
         .run()

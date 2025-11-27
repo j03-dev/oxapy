@@ -386,11 +386,11 @@ impl Router {
         }
     }
 
-    /// Add middleware to the router.
+    /// Add middleware to the current routing layer.
     ///
-    /// Middleware is applied on a per-layer basis. When you add middleware, it "closes" the current layer of routes
-    /// and applies to all routes within that layer. Any subsequent routes are added to a new, clean layer.
-    /// This allows you to build complex routing structures with different middleware for different groups of routes.
+    /// Middleware is applied to all routes defined in the current layer (scope).
+    /// To create a new layer with a separate set of middleware, use the `.scope()` method.
+    /// Middleware functions are executed in the order they are added.
     ///
     /// Args:
     ///     middleware (callable): A function that will process requests before route handlers in the current layer.
@@ -411,27 +411,28 @@ impl Router {
     ///         return Status.UNAUTHORIZED
     ///     return next(request, **kwargs)
     ///
-    /// router = Router()
+    /// router = (
+    ///     Router()
+    ///     # Scope 1: public routes with logging
+    ///     .route(get("/status", lambda r: "OK"))
+    ///     .middleware(log_middleware)
     ///
-    /// # Define a public route
-    /// router.route(get("/public", lambda req: "Public"))
+    ///     # Scope 2: protected routes with logging and auth
+    ///     .scope()
+    ///     .route(get("/admin", lambda r: "Admin Area"))
+    ///     .middleware(log_middleware)
+    ///     .middleware(auth_middleware)
+    /// )
     ///
-    /// # Add logging middleware. This closes the first layer.
-    /// # log_middleware will apply to the "/public" route.
-    /// router.middleware(log_middleware)
-    ///
-    /// # Define a protected route in a new layer
-    /// router.route(get("/protected", lambda req: "Protected"))
-    ///
-    /// # Add auth middleware. This closes the second layer.
-    /// # auth_middleware will apply to the "/protected" route, but not the "/public" route.
-    /// router.middleware(auth_middleware)
+    /// # In this example:
+    /// # - Requests to /status will go through log_middleware.
+    /// # - Requests to /admin will go through log_middleware and then auth_middleware.
+    /// # - The middleware from the first scope does not affect the second scope.
     /// ```
     fn middleware(&mut self, middleware: Py<PyAny>) -> Self {
         let middleware = Middleware::new(middleware);
         let current_layer = self.layers.last_mut().unwrap();
         current_layer.middlewares.push(middleware);
-        self.layers.push(Layer::default());
         self.clone()
     }
 
@@ -512,6 +513,42 @@ impl Router {
             self.route(route)?;
         }
         Ok(self.clone())
+    }
+
+    /// Create a new routing layer (scope).
+    ///
+    /// Scopes are used to group routes with a specific set of middleware.
+    /// Middleware applied to a scope will only affect routes defined within that scope.
+    ///
+    /// Returns:
+    ///     Router: The router instance, allowing for method chaining.
+    ///
+    /// Example:
+    /// ```python
+    /// from oxapy import Router, get
+    ///
+    /// def middleware_a(request, next, **kwargs):
+    ///     print("Middleware A")
+    ///     return next(request, **kwargs)
+    ///
+    /// def middleware_b(request, next, **kwargs):
+    ///     print("Middleware B")
+    ///     return next(request, **kwargs)
+    ///
+    /// router = (
+    ///     Router()
+    ///     .route(get("/route1", lambda r: "Route 1"))
+    ///     .middleware(middleware_a)
+    ///     .scope()
+    ///     .route(get("/route2", lambda r: "Route 2"))
+    ///     .middleware(middleware_b)
+    /// )
+    /// # /route1 is affected by middleware_a.
+    /// # /route2 is affected by middleware_b, but not middleware_a.
+    /// ```
+    fn scope(&mut self) -> Self {
+        self.layers.push(Layer::default());
+        self.clone()
     }
 
     fn __repr__(&self) -> String {
