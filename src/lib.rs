@@ -501,7 +501,7 @@ impl HttpServer {
                                 .build()
                                 .await
                                 .unwrap();
-                            request.handle(request_ctx).await
+                            request.process(request_ctx).await
                         }
                     }),
                 )
@@ -510,7 +510,11 @@ impl HttpServer {
         });
     }
 
-    async fn process_requests(&self, mut shutdown: ShutDownSignal, mut rx: Receiver<ProcessRequest>) -> PyResult<()> {
+    async fn process_requests(
+        &self,
+        mut shutdown: ShutDownSignal,
+        mut rx: Receiver<ProcessRequest>,
+    ) -> PyResult<()> {
         loop {
             tokio::select! {
                 Some(req) = rx.recv() => self.handle_request(req).await?,
@@ -521,14 +525,10 @@ impl HttpServer {
     }
 
     async fn handle_request(&self, req: ProcessRequest) -> PyResult<()> {
-        let mut response = call_python_handler(
-            &req.layer,
-            &req.match_route,
-            &req.request,
-            self.is_async,
-        )
-        .await
-        .unwrap_or_else(Response::from);
+        let mut response =
+            call_python_handler(&req.layer, &req.match_route, &req.request, self.is_async)
+                .await
+                .unwrap_or_else(Response::from);
 
         response = self.apply_catcher(response, &req);
         response = self.apply_session(response, &req.request);
@@ -621,10 +621,18 @@ fn execute_route_handler(
         let kwargs = build_route_params(py, &route.params)?;
 
         if layer.middlewares.is_empty() {
-            route.value.handler.call(py, (request.clone(),), Some(&kwargs))
+            route
+                .value
+                .handler
+                .call(py, (request.clone(),), Some(&kwargs))
         } else {
             let chain = MiddlewareChain::new(layer.middlewares.clone());
-            chain.execute(py, route.value.handler.deref(), (request.clone(),), kwargs.clone())
+            chain.execute(
+                py,
+                route.value.handler.deref(),
+                (request.clone(),),
+                kwargs.clone(),
+            )
         }
     })
 }

@@ -261,7 +261,7 @@ impl Request {
 }
 
 impl Request {
-    pub(crate) async fn handle(
+    pub(crate) async fn process(
         self,
         ctx: RequestContext,
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
