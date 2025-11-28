@@ -9,7 +9,7 @@ use hyper::{
     HeaderMap,
 };
 
-use futures_util::stream::{self};
+use futures_util::stream;
 use http_body_util::{BodyExt, Full, StreamBody};
 use hyper::header::CACHE_CONTROL;
 use pyo3::exceptions::PyTypeError;

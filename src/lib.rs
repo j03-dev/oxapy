@@ -41,7 +41,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::types::{PyDict, PyInt, PyString};
 use pyo3_async_runtimes::tokio::{future_into_py, into_future};
 use pyo3_stub_gen::derive::*;
-use tokio::net::TcpListener;
+use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::sync::Semaphore;
 
@@ -476,7 +476,7 @@ impl HttpServer {
     }
 
     fn spawn_request_handler(
-        io: TokioIo<tokio::net::TcpStream>,
+        io: TokioIo<TcpStream>,
         request_ctx: RequestContext,
         app_data: Option<Arc<Py<PyAny>>>,
         template: Option<Arc<Template>>,
