@@ -90,12 +90,12 @@ impl File {
     }
 }
 
-pub struct MultiPart {
+pub struct ParsedMultipart {
     pub fields: HashMap<String, String>,
     pub files: HashMap<String, File>,
 }
 
-pub async fn parse_multipart(content_type: &str, body_stream: Bytes) -> PyResult<MultiPart> {
+pub async fn parse_multipart(content_type: &str, body_stream: Bytes) -> PyResult<ParsedMultipart> {
     let mut fields = HashMap::default();
     let mut files = HashMap::default();
 
@@ -130,5 +130,5 @@ pub async fn parse_multipart(content_type: &str, body_stream: Bytes) -> PyResult
         }
     }
 
-    Ok(MultiPart { fields, files })
+    Ok(ParsedMultipart { fields, files })
 }
