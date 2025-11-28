@@ -441,7 +441,7 @@ impl HttpServer {
     fn create_request_context(&self) -> (RequestContext, Receiver<ProcessRequest>) {
         let (tx, rx) = channel::<ProcessRequest>(self.channel_capacity);
         let ctx = RequestContext {
-            request_sender: tx.clone(),
+            request_sender: tx,
             layers: self.layers.clone(),
             channel_capacity: self.channel_capacity,
             cors: self.cors.clone(),
