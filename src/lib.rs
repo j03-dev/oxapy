@@ -42,7 +42,7 @@ use pyo3::types::{PyDict, PyInt, PyString};
 use pyo3_async_runtimes::tokio::{future_into_py, into_future};
 use pyo3_stub_gen::derive::*;
 use tokio::net::TcpListener;
-use tokio::sync::mpsc::{channel, Sender};
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::sync::Semaphore;
 
 use pyo3::prelude::*;
@@ -423,170 +423,237 @@ impl HttpServer {
 
 impl HttpServer {
     async fn run_server(&self) -> PyResult<()> {
-        let running = Arc::new(AtomicBool::new(true));
-        let r = running.clone();
-        let addr = self.addr;
-        let channel_capacity = self.channel_capacity;
+        let (listener, shutdown) = self.setup_serve().await?;
+        let (request_ctx, rx) = self.create_request_context();
 
-        let (tx, mut rx) = channel::<ProcessRequest>(channel_capacity);
-        let (kill_tx, mut kill_rx) = channel::<()>(1);
+        self.spaw_connection_handler(listener, request_ctx).await;
+        self.process_requests(shutdown, rx).await
+    }
 
-        ctrlc::set_handler(move || {
-            println!("\nReceived Ctrl+C! Shutting Down...");
-            r.store(false, Ordering::SeqCst);
-            block_on(kill_tx.send(()), None).unwrap();
-        })
-        .into_py_exception()?;
+    async fn setup_serve(&self) -> PyResult<(TcpListener, ShutDownSignal)> {
+        let listener = TcpListener::bind(self.addr).await?;
+        println!("Listening on {}", self.addr);
 
-        let listener = TcpListener::bind(addr).await?;
-        println!("Listening on {}", addr);
+        let shutdown = ShutDownSignal::new()?;
+        Ok((listener, shutdown))
+    }
 
-        let running_clone = running.clone();
-        let max_connections = self.max_connections.clone();
-
-        let request_ctx = RequestContext {
-            layers: self.layers.clone(),
+    fn create_request_context(&self) -> (RequestContext, Receiver<ProcessRequest>) {
+        let (tx, rx) = channel::<ProcessRequest>(self.channel_capacity);
+        let ctx = RequestContext {
             request_sender: tx.clone(),
+            layers: self.layers.clone(),
+            channel_capacity: self.channel_capacity,
             cors: self.cors.clone(),
-            channel_capacity,
             catchers: self.catchers.clone(),
         };
+        (ctx, rx)
+    }
 
+    async fn spaw_connection_handler(&self, listener: TcpListener, request_ctx: RequestContext) {
+        let running = Arc::new(AtomicBool::new(true));
+        let max_connection = self.max_connections.clone();
         let app_data = self.app_data.clone();
         let template = self.template.clone();
         let session_store = self.session_store.clone();
 
         tokio::spawn(async move {
-            while running_clone.load(Ordering::SeqCst) {
-                let permit = max_connections.clone().acquire_owned().await.unwrap();
-                let (stream, _) = listener.accept().await.unwrap();
-                let io = TokioIo::new(stream);
+            while running.load(Ordering::SeqCst) {
+                let permit = max_connection.clone().acquire_owned().await.unwrap();
+                let (steam, _) = listener.accept().await.unwrap();
+                let io = TokioIo::new(steam);
 
-                let request_ctx = request_ctx.clone();
-                let app_data = app_data.clone();
-                let template = template.clone();
-                let session_store = session_store.clone();
-
-                tokio::spawn(async move {
-                    let _permit = permit;
-                    http1::Builder::new()
-                        .serve_connection(
-                            io,
-                            service_fn(move |req| {
-                                let request_ctx = request_ctx.clone();
-                                let app_data = app_data.clone();
-                                let template = template.clone();
-                                let session_store = session_store.clone();
-
-                                async move {
-                                    let request = RequestBuilder::new(req)
-                                        .with_app_data(app_data)
-                                        .with_template(template)
-                                        .with_session_store(session_store)
-                                        .build()
-                                        .await
-                                        .unwrap();
-                                    request.handle(request_ctx).await
-                                }
-                            }),
-                        )
-                        .await
-                        .into_py_exception()
-                });
+                Self::spawn_request_handler(
+                    io,
+                    request_ctx.clone(),
+                    app_data.clone(),
+                    template.clone(),
+                    session_store.clone(),
+                    permit,
+                );
             }
         });
+    }
 
+    fn spawn_request_handler(
+        io: TokioIo<tokio::net::TcpStream>,
+        request_ctx: RequestContext,
+        app_data: Option<Arc<Py<PyAny>>>,
+        template: Option<Arc<Template>>,
+        session_store: Option<Arc<SessionStore>>,
+        _permit: tokio::sync::OwnedSemaphorePermit,
+    ) {
+        tokio::spawn(async move {
+            http1::Builder::new()
+                .serve_connection(
+                    io,
+                    service_fn(move |req| {
+                        let request_ctx = request_ctx.clone();
+                        let app_data = app_data.clone();
+                        let template = template.clone();
+                        let session_store = session_store.clone();
+
+                        async move {
+                            let request = RequestBuilder::new(req)
+                                .with_app_data(app_data)
+                                .with_template(template)
+                                .with_session_store(session_store)
+                                .build()
+                                .await
+                                .unwrap();
+                            request.handle(request_ctx).await
+                        }
+                    }),
+                )
+                .await
+                .into_py_exception()
+        });
+    }
+
+    async fn process_requests(&self, mut shutdown: ShutDownSignal, mut rx: Receiver<ProcessRequest>) -> PyResult<()> {
         loop {
             tokio::select! {
-                Some(pros_req) = rx.recv() => {
-                    let mut response = call_python_handler(
-                            pros_req.layer,
-                            pros_req.match_route,
-                            pros_req.request.deref().clone(),
-                            self.is_async,
-                        ).await
-                    .unwrap_or_else(Response::from);
-
-                    if let Some(catchers) = pros_req.catchers {
-                        if let Some(handler) = catchers.get(&response.status)  {
-                            let request: Request = pros_req.request.as_ref().clone();
-                            response = Python::attach(|py|{
-                                let result = handler.call(py, (request, response), None)?;
-                                into_response::convert_to_response(result, py)
-                            })
-                            .unwrap_or_else(Response::from);
-                        }
-                    }
-
-                    if let (Some(session), Some(store)) =
-                        (&pros_req.request.session, &pros_req.request.session_store)
-                    {
-                        let cookie_header = store.get_cookie_header(session);
-                        response.insert_or_append_cookie(cookie_header);
-                    }
-
-                    if let Some(cors) = pros_req.cors {
-                        response = cors.apply_to_response(response)?;
-                    }
-
-                    pros_req.tx.send(response).await.ok();
-                }
-                _ = kill_rx.recv() => {break}
+                Some(req) = rx.recv() => self.handle_request(req).await?,
+                _ = shutdown.wait() => break,
             }
         }
-
         Ok(())
+    }
+
+    async fn handle_request(&self, req: ProcessRequest) -> PyResult<()> {
+        let mut response = call_python_handler(
+            &req.layer,
+            &req.match_route,
+            req.request.deref().clone(),
+            self.is_async,
+        )
+        .await
+        .unwrap_or_else(Response::from);
+
+        response = self.apply_catcher(response, &req);
+        response = self.apply_session(response, &req.request);
+        response = self.apply_cors(response, &req.cors)?;
+
+        let _ = req.tx.send(response).await;
+        Ok(())
+    }
+
+    fn apply_catcher(&self, mut response: Response, req: &ProcessRequest) -> Response {
+        if let Some(catchers) = &req.catchers {
+            if let Some(handler) = catchers.get(&response.status) {
+                let request: Request = req.request.as_ref().clone();
+                response = Python::attach(|py| {
+                    let result = handler.call(py, (request, response), None)?;
+                    into_response::convert_to_response(result, py)
+                })
+                .unwrap_or_else(Response::from);
+            }
+        }
+        response
+    }
+
+    fn apply_session(&self, mut response: Response, request: &Arc<Request>) -> Response {
+        if let (Some(session), Some(store)) = (&request.session, &request.session_store) {
+            let cookie_header = store.get_cookie_header(session);
+            response.insert_or_append_cookie(cookie_header);
+        }
+        response
+    }
+
+    fn apply_cors(&self, mut response: Response, cors: &Option<Arc<Cors>>) -> PyResult<Response> {
+        if let Some(cors) = cors {
+            response = cors.apply_to_response(response)?;
+        }
+        Ok(response)
+    }
+}
+
+struct ShutDownSignal {
+    rx: Receiver<()>,
+}
+
+impl ShutDownSignal {
+    fn new() -> PyResult<Self> {
+        let running = Arc::new(AtomicBool::new(true));
+        let (tx, rx) = channel::<()>(1);
+
+        ctrlc::set_handler(move || {
+            println!("\nReceived Ctrl+C! Shutting Down...");
+            running.store(false, Ordering::SeqCst);
+            let _ = block_on(tx.send(()), None);
+        })
+        .into_py_exception()?;
+
+        Ok(Self { rx })
+    }
+
+    async fn wait(&mut self) {
+        self.rx.recv().await;
     }
 }
 
 async fn call_python_handler<'l>(
-    layer: Option<Layer>,
-    match_route: Option<MatchRoute<'l>>,
+    layer: &Option<Layer>,
+    match_route: &Option<MatchRoute<'l>>,
     request: Request,
     is_async: bool,
 ) -> PyResult<Response> {
     match (match_route, layer) {
         (Some(route), Some(layer)) => {
-            let params = route.params;
-            let route = route.value;
-
-            let mut result = Python::attach(|py| {
-                let kwargs = PyDict::new(py);
-
-                for (key, value) in params.iter() {
-                    match key.split_once(":") {
-                        Some((name, ty)) => {
-                            let parsed_value: Py<PyAny> = match ty {
-                                "int" => PyInt::new(kwargs.py(), value.parse::<i64>()?).into(),
-                                "str" => PyString::new(kwargs.py(), value).into(),
-                                other => {
-                                    let message = format!("Unsupported type annotation '{other}' in parameter key '{key}'.");
-                                    return Err(PyValueError::new_err(message));
-                                }
-                            };
-                            kwargs.set_item(name, parsed_value)?;
-                        }
-                        _ => kwargs.set_item(key, value)?,
-                    }
-                }
-
-                Python::attach(|py| {
-                    if layer.middlewares.is_empty() {
-                        route.handler.call(py, (request,), Some(&kwargs))
-                    } else {
-                        let chain = MiddlewareChain::new(layer.middlewares.clone());
-                        chain.execute(py, route.handler.deref(), (request,), kwargs.clone())
-                    }
-                })
-            })?;
+            let mut result = execute_route_handler(&route, &layer, request)?;
 
             if is_async {
-                result = Python::attach(|py| into_future(result.into_bound(py)))?.await?
+                result = Python::attach(|py| into_future(result.into_bound(py)))?.await?;
             }
 
             Python::attach(|py| into_response::convert_to_response(result, py))
         }
         _ => Ok(Status::NOT_FOUND.into()),
+    }
+}
+
+fn execute_route_handler(
+    route: &MatchRoute,
+    layer: &Layer,
+    request: Request,
+) -> PyResult<Py<PyAny>> {
+    Python::attach(|py| {
+        let kwargs = build_route_params(py, &route.params)?;
+
+        if layer.middlewares.is_empty() {
+            route.value.handler.call(py, (request,), Some(&kwargs))
+        } else {
+            let chain = MiddlewareChain::new(layer.middlewares.clone());
+            chain.execute(py, route.value.handler.deref(), (request,), kwargs.clone())
+        }
+    })
+}
+
+fn build_route_params<'py>(
+    py: Python<'py>,
+    params: &matchit::Params,
+) -> PyResult<Bound<'py, PyDict>> {
+    let kwargs = PyDict::new(py);
+
+    for (key, value) in params.iter() {
+        match key.split_once(":") {
+            Some((name, ty)) => {
+                let parsed = parse_params_value(py, value, ty)?;
+                kwargs.set_item(name, parsed)?;
+            }
+            None => kwargs.set_item(key, value)?,
+        }
+    }
+    Ok(kwargs)
+}
+
+fn parse_params_value(py: Python<'_>, value: &str, ty: &str) -> PyResult<Py<PyAny>> {
+    match ty {
+        "int" => Ok(PyInt::new(py, value.parse::<i64>()?).into()),
+        "str" => Ok(PyString::new(py, value).into()),
+        other => Err(PyValueError::new_err(format!(
+            "Unsupported type annotation {other} in parameter"
+        ))),
     }
 }
 
