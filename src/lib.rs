@@ -524,7 +524,7 @@ impl HttpServer {
         let mut response = call_python_handler(
             &req.layer,
             &req.match_route,
-            req.request.deref().clone(),
+            &req.request,
             self.is_async,
         )
         .await
@@ -595,7 +595,7 @@ impl ShutDownSignal {
 async fn call_python_handler<'l>(
     layer: &Option<Layer>,
     match_route: &Option<MatchRoute<'l>>,
-    request: Request,
+    request: &Request,
     is_async: bool,
 ) -> PyResult<Response> {
     match (match_route, layer) {
@@ -615,16 +615,16 @@ async fn call_python_handler<'l>(
 fn execute_route_handler(
     route: &MatchRoute,
     layer: &Layer,
-    request: Request,
+    request: &Request,
 ) -> PyResult<Py<PyAny>> {
     Python::attach(|py| {
         let kwargs = build_route_params(py, &route.params)?;
 
         if layer.middlewares.is_empty() {
-            route.value.handler.call(py, (request,), Some(&kwargs))
+            route.value.handler.call(py, (request.clone(),), Some(&kwargs))
         } else {
             let chain = MiddlewareChain::new(layer.middlewares.clone());
-            chain.execute(py, route.value.handler.deref(), (request,), kwargs.clone())
+            chain.execute(py, route.value.handler.deref(), (request.clone(),), kwargs.clone())
         }
     })
 }
