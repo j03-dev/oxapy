@@ -426,7 +426,7 @@ impl HttpServer {
         let (listener, shutdown) = self.setup_serve().await?;
         let (request_ctx, rx) = self.create_request_context();
 
-        self.spaw_connection_handler(listener, request_ctx).await;
+        self.spawn_connection_handler(listener, request_ctx).await;
         self.process_requests(shutdown, rx).await
     }
 
@@ -450,7 +450,7 @@ impl HttpServer {
         (ctx, rx)
     }
 
-    async fn spaw_connection_handler(&self, listener: TcpListener, request_ctx: RequestContext) {
+    async fn spawn_connection_handler(&self, listener: TcpListener, request_ctx: RequestContext) {
         let running = Arc::new(AtomicBool::new(true));
         let max_connection = self.max_connections.clone();
         let app_data = self.app_data.clone();
