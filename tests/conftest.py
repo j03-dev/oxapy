@@ -1,8 +1,7 @@
 import threading
 import time
 import pytest
-from oxapy import HttpServer, Router, Request, get, post
-import logging
+from oxapy import HttpServer, Router, get, post
 
 
 def main():

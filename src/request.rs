@@ -12,7 +12,6 @@ use hyper::Uri;
 use pyo3_stub_gen::derive::*;
 use url::form_urlencoded;
 
-use crate::response::Response;
 use crate::routing::MatchRoute;
 use crate::status::Status;
 use crate::{
@@ -23,6 +22,7 @@ use crate::{
     IntoPyException, ProcessRequest, RequestContext,
 };
 use crate::{multipart::parse_multipart, response::Body};
+use crate::{response::Response, routing::Layer};
 
 /// HTTP request object containing information about the incoming request.
 ///
@@ -261,55 +261,82 @@ impl Request {
 }
 
 impl Request {
-    pub(crate) async fn handle(
+    pub(crate) async fn process(
         self,
-        RequestContext {
-            request_sender,
-            layers,
-            channel_capacity,
-            cors,
-            catchers,
-        }: RequestContext,
+        ctx: RequestContext,
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
-        for layer in layers {
-            if let Some(match_route) = layer.find(&self.method, &self.uri) {
-                let (tx, mut rx) = tokio::sync::mpsc::channel(channel_capacity);
-                let transmutate_route: MatchRoute = unsafe { std::mem::transmute(match_route) };
-
-                let process_request = ProcessRequest {
-                    tx,
-                    cors: cors.clone(),
-                    catchers: catchers.clone(),
-                    layer: Some(layer),
-                    match_route: Some(transmutate_route),
-                    request: Arc::new(self.clone()),
-                };
-
-                if request_sender.send(process_request).await.is_ok() {
-                    if let Some(response) = rx.recv().await {
-                        return response.try_into();
-                    }
-                }
-            }
+        if let Some(response) = self.try_handle_route(&ctx).await {
+            return response;
         }
 
-        let (tx, mut rx) = tokio::sync::mpsc::channel(channel_capacity);
+        self.handle_not_found(&ctx).await
+    }
+
+    async fn try_handle_route(
+        &self,
+        ctx: &RequestContext,
+    ) -> Option<Result<hyper::Response<Body>, hyper::http::Error>> {
+        for layer in &ctx.layers {
+            if let Some(match_route) = layer.find(&self.method, &self.uri) {
+                return Some(
+                    self.process_matched_route(ctx, layer.clone(), match_route)
+                        .await,
+                );
+            }
+        }
+        None
+    }
+
+    async fn process_matched_route(
+        &self,
+        ctx: &RequestContext,
+        layer: Layer,
+        match_route: MatchRoute<'_>,
+    ) -> Result<hyper::Response<Body>, hyper::http::Error> {
+        let (tx, rx) = tokio::sync::mpsc::channel(ctx.channel_capacity);
+
+        let transmutate_route: MatchRoute<'static> = unsafe { std::mem::transmute(match_route) };
 
         let process_request = ProcessRequest {
+            request: Arc::new(self.clone()),
+            layer: Some(layer),
+            match_route: Some(transmutate_route),
             tx,
-            cors,
-            catchers,
-            layer: None,
-            match_route: None,
-            request: Arc::new(self),
+            cors: ctx.cors.clone(),
+            catchers: ctx.catchers.clone(),
         };
 
-        if request_sender.send(process_request).await.is_ok() {
+        Self::send_and_wait_response(ctx, process_request, rx).await
+    }
+
+    async fn handle_not_found(
+        self,
+        ctx: &RequestContext,
+    ) -> Result<hyper::Response<Body>, hyper::http::Error> {
+        let (tx, rx) = tokio::sync::mpsc::channel(ctx.channel_capacity);
+
+        let process_request = ProcessRequest {
+            request: Arc::new(self),
+            layer: None,
+            match_route: None,
+            tx,
+            cors: ctx.cors.clone(),
+            catchers: ctx.catchers.clone(),
+        };
+
+        Self::send_and_wait_response(ctx, process_request, rx).await
+    }
+
+    async fn send_and_wait_response(
+        ctx: &RequestContext,
+        process_request: ProcessRequest,
+        mut rx: tokio::sync::mpsc::Receiver<Response>,
+    ) -> Result<hyper::Response<Body>, hyper::http::Error> {
+        if ctx.request_sender.send(process_request).await.is_ok() {
             if let Some(response) = rx.recv().await {
                 return response.try_into();
             }
         }
-
         let response: Response = Status::NOT_FOUND.into();
         response.try_into()
     }
