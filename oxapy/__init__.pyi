@@ -148,13 +148,7 @@ class Cors:
         cors.allow_credentials = False
         ```
         """
-    def __repr__(self) -> builtins.str:
-        r"""
-        Return a string representation of the CORS configuration.
-        
-        Returns:
-            str: A debug string showing the CORS configuration.
-        """
+    def __repr__(self) -> builtins.str: ...
 
 @typing.final
 class File:
@@ -189,11 +183,11 @@ class File:
     ```
     """
     @property
-    def name(self) -> typing.Optional[builtins.str]: ...
+    def name(self) -> builtins.str: ...
     @property
-    def content_type(self) -> typing.Optional[builtins.str]: ...
+    def content_type(self) -> builtins.str: ...
     @content_type.setter
-    def content_type(self, value: typing.Optional[builtins.str]) -> None: ...
+    def content_type(self, value: builtins.str) -> None: ...
     def content(self) -> bytes:
         r"""
         Get the file content as bytes.
@@ -790,7 +784,7 @@ class Request:
             return {"received": value}
         ```
         """
-    def query(self) -> typing.Optional[builtins.dict[builtins.str, builtins.str]]:
+    def query(self) -> builtins.dict[builtins.str, builtins.str]:
         r"""
         Parse and return the query parameters from the request URI.
         
@@ -798,7 +792,7 @@ class Request:
             None
         
         Returns:
-            dict or None: Dictionary of query parameters, or None if no query string exists
+            dict: Dictionary of query parameters
         
         Raises:
             Exception: If the URI cannot be parsed

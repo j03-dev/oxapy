@@ -82,26 +82,12 @@ impl Cors {
         Self::default()
     }
 
-    /// Return a string representation of the CORS configuration.
-    ///
-    /// Returns:
-    ///     str: A debug string showing the CORS configuration.
     fn __repr__(&self) -> String {
         format!("{:#?}", self.clone())
     }
 }
 
 impl Cors {
-    /// Apply CORS headers to a response.
-    ///
-    /// This is an internal method used to add all configured CORS headers
-    /// to an existing response.
-    ///
-    /// Args:
-    ///     response (Response): The response to modify.
-    ///
-    /// Returns:
-    ///     None
     pub fn apply_headers(&self, response: &mut Response) {
         response.insert_header("Access-Control-Allow-Origin", self.origins.join(", "));
         response.insert_header("Access-Control-Allow-Methods", self.methods.join(", "));
@@ -112,13 +98,6 @@ impl Cors {
         response.insert_header("Access-Control-Max-Age", self.max_age.to_string());
     }
 
-    /// Apply CORS headers to a response and return the modified response.
-    ///
-    /// Args:
-    ///     response (Response): The response to modify with CORS headers.
-    ///
-    /// Returns:
-    ///     Response: The modified response with CORS headers.
     pub fn apply_to_response(&self, mut response: Response) -> PyResult<Response> {
         self.apply_headers(&mut response);
         Ok(response)

@@ -2,7 +2,6 @@ use crate::IntoPyException;
 use ahash::HashMap;
 use futures_util::stream;
 use hyper::body::Bytes;
-use multer::Multipart;
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyBytes};
 use pyo3_stub_gen::derive::*;
 
@@ -39,10 +38,20 @@ use pyo3_stub_gen::derive::*;
 #[pyclass]
 pub struct File {
     #[pyo3(get)]
-    pub name: Option<String>,
+    pub name: String,
     #[pyo3(set, get)]
-    pub content_type: Option<String>,
+    pub content_type: String,
     pub data: Bytes,
+}
+
+impl File {
+    fn new(name: String, content_type: String, data: Bytes) -> Self {
+        Self {
+            name,
+            content_type,
+            data,
+        }
+    }
 }
 
 #[gen_stub_pymethods]
@@ -90,14 +99,14 @@ impl File {
     }
 }
 
-pub struct ParsedMultipart {
+#[derive(Default)]
+pub struct Multpart {
     pub fields: HashMap<String, String>,
     pub files: HashMap<String, File>,
 }
 
-pub async fn parse_multipart(content_type: &str, body_stream: Bytes) -> PyResult<ParsedMultipart> {
-    let mut fields = HashMap::default();
-    let mut files = HashMap::default();
+pub async fn parse_multipart(content_type: &str, body_stream: Bytes) -> PyResult<Multpart> {
+    let mut parsed_multipart = Multpart::default();
 
     let boundary = content_type
         .split("boundary=")
@@ -106,29 +115,38 @@ pub async fn parse_multipart(content_type: &str, body_stream: Bytes) -> PyResult
         .ok_or_else(|| PyValueError::new_err("Boundary not found in Content-Type header"))?;
 
     let stream = stream::once(async { Result::<Bytes, std::io::Error>::Ok(body_stream) });
-    let mut multipart = Multipart::new(stream, boundary);
+    let mut multipart = multer::Multipart::new(stream, boundary);
 
-    while let Some(mut field) = multipart.next_field().await.into_py_exception()? {
-        if field.content_type().is_some() || field.file_name().is_some() {
-            let file_name = field.file_name().map(String::from);
-            let content_type = field.content_type().map(|ct| ct.to_string());
-            let mut file_data = Vec::new();
-            while let Some(chunk) = field.chunk().await.into_py_exception()? {
-                file_data.extend_from_slice(&chunk);
-            }
-            let file_bytes = Bytes::from(file_data);
-            let file_obj = File {
-                name: file_name,
-                content_type,
-                data: file_bytes,
-            };
-            files.insert(field.name().unwrap_or_default().to_string(), file_obj);
-        } else {
-            let field_name = field.name().unwrap_or_default().to_string();
-            let field_value = field.text().await.into_py_exception()?;
-            fields.insert(field_name, field_value);
+    while let Some(field) = multipart.next_field().await.into_py_exception()? {
+        match (field.file_name(), field.content_type()) {
+            (Some(_), Some(_)) => parse_file(field, &mut parsed_multipart).await?,
+            _ => parse_field(field, &mut parsed_multipart).await?,
         }
     }
 
-    Ok(ParsedMultipart { fields, files })
+    Ok(parsed_multipart)
+}
+
+async fn parse_field(field: multer::Field<'_>, out: &mut Multpart) -> PyResult<()> {
+    let name = field.name().unwrap_or_default().to_string();
+    let value = field.text().await.into_py_exception()?;
+    out.fields.insert(name, value);
+    Ok(())
+}
+
+async fn parse_file(mut field: multer::Field<'_>, out: &mut Multpart) -> PyResult<()> {
+    let name = field.file_name().unwrap().to_string();
+    let content_type = field.content_type().unwrap().to_string();
+
+    let mut data = Vec::new();
+    while let Some(chunk) = field.chunk().await.into_py_exception()? {
+        data.extend_from_slice(&chunk);
+    }
+
+    let file = File::new(name, content_type, data.into());
+
+    out.files
+        .insert(field.name().unwrap_or_default().to_string(), file);
+
+    Ok(())
 }

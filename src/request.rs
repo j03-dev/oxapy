@@ -161,7 +161,7 @@ impl Request {
     ///     None
     ///
     /// Returns:
-    ///     dict or None: Dictionary of query parameters, or None if no query string exists
+    ///     dict: Dictionary of query parameters
     ///
     /// Raises:
     ///     Exception: If the URI cannot be parsed
@@ -178,15 +178,15 @@ impl Request {
     ///     age = query.get("age")
     ///     return {"name": name, "age": age}
     /// ```
-    fn query(&self) -> PyResult<Option<std::collections::HashMap<String, String>>> {
+    fn query(&self) -> PyResult<HashMap<String, String>> {
         let uri: Uri = self.uri.parse().into_py_exception()?;
         if let Some(query_string) = uri.query() {
             let parsed_query = form_urlencoded::parse(query_string.as_bytes())
                 .map(|(key, value)| (key.to_string(), value.to_string()))
                 .collect();
-            return Ok(Some(parsed_query));
+            return Ok(parsed_query);
         }
-        Ok(None)
+        Ok(HashMap::default())
     }
 
     /// Get the session object for the current request.
