@@ -100,13 +100,39 @@ impl File {
 }
 
 #[derive(Default)]
-pub struct Multpart {
+pub struct Multipart {
     pub fields: HashMap<String, String>,
     pub files: HashMap<String, File>,
 }
 
-pub async fn parse_multipart(content_type: &str, body_stream: Bytes) -> PyResult<Multpart> {
-    let mut parsed_multipart = Multpart::default();
+impl Multipart {
+    async fn parse_field(&mut self, field: multer::Field<'_>) -> PyResult<()> {
+        let name = field.name().unwrap_or_default().to_string();
+        let value = field.text().await.into_py_exception()?;
+        self.fields.insert(name, value);
+        Ok(())
+    }
+
+    async fn parse_file(&mut self, mut field: multer::Field<'_>) -> PyResult<()> {
+        let name = field.file_name().unwrap().to_string();
+        let content_type = field.content_type().unwrap().to_string();
+
+        let mut data = Vec::new();
+        while let Some(chunk) = field.chunk().await.into_py_exception()? {
+            data.extend_from_slice(&chunk);
+        }
+
+        let file = File::new(name, content_type, data.into());
+
+        self.files
+            .insert(field.name().unwrap_or_default().to_string(), file);
+
+        Ok(())
+    }
+}
+
+pub async fn parse_multipart(content_type: &str, body_stream: Bytes) -> PyResult<Multipart> {
+    let mut parsed_multipart = Multipart::default();
 
     let boundary = content_type
         .split("boundary=")
@@ -119,34 +145,10 @@ pub async fn parse_multipart(content_type: &str, body_stream: Bytes) -> PyResult
 
     while let Some(field) = multipart.next_field().await.into_py_exception()? {
         match (field.file_name(), field.content_type()) {
-            (Some(_), Some(_)) => parse_file(field, &mut parsed_multipart).await?,
-            _ => parse_field(field, &mut parsed_multipart).await?,
+            (Some(_), Some(_)) => parsed_multipart.parse_file(field).await?,
+            _ => parsed_multipart.parse_field(field).await?,
         }
     }
 
     Ok(parsed_multipart)
-}
-
-async fn parse_field(field: multer::Field<'_>, out: &mut Multpart) -> PyResult<()> {
-    let name = field.name().unwrap_or_default().to_string();
-    let value = field.text().await.into_py_exception()?;
-    out.fields.insert(name, value);
-    Ok(())
-}
-
-async fn parse_file(mut field: multer::Field<'_>, out: &mut Multpart) -> PyResult<()> {
-    let name = field.file_name().unwrap().to_string();
-    let content_type = field.content_type().unwrap().to_string();
-
-    let mut data = Vec::new();
-    while let Some(chunk) = field.chunk().await.into_py_exception()? {
-        data.extend_from_slice(&chunk);
-    }
-
-    let file = File::new(name, content_type, data.into());
-
-    out.files
-        .insert(field.name().unwrap_or_default().to_string(), file);
-
-    Ok(())
 }
