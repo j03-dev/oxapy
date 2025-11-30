@@ -132,7 +132,7 @@ impl Multipart {
 }
 
 pub async fn parse_multipart(content_type: &str, body_stream: Bytes) -> PyResult<Multipart> {
-    let mut parsed_multipart = Multipart::default();
+    let mut mulitpart = Multipart::default();
 
     let boundary = content_type
         .split("boundary=")
@@ -145,10 +145,10 @@ pub async fn parse_multipart(content_type: &str, body_stream: Bytes) -> PyResult
 
     while let Some(field) = multipart.next_field().await.into_py_exception()? {
         match (field.file_name(), field.content_type()) {
-            (Some(_), Some(_)) => parsed_multipart.parse_file(field).await?,
-            _ => parsed_multipart.parse_field(field).await?,
+            (Some(_), Some(_)) => mulitpart.parse_file(field).await?,
+            _ => mulitpart.parse_field(field).await?,
         }
     }
 
-    Ok(parsed_multipart)
+    Ok(mulitpart)
 }
