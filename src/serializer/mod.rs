@@ -15,7 +15,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::{exceptions::ClientError, extend_exception, json, IntoPyException};
+use crate::{exceptions::ClientError, json, IntoPyException};
 
 use fields::{
     BooleanField, CharField, DateField, DateTimeField, EmailField, EnumField, Field, IntegerField,

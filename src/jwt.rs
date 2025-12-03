@@ -10,8 +10,8 @@ use serde_json::Value;
 use std::str::FromStr;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use crate::exceptions::IntoPyException;
 use crate::json::Wrap;
-use crate::{exceptions::IntoPyException, extend_exception};
 
 /// Base class for all JWT related exceptions.
 #[gen_stub_pyclass]

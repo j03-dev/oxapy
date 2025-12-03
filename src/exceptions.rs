@@ -1,14 +1,6 @@
-//! HTTP Exception Classes
-//!
-//! This module provides a comprehensive set of HTTP exception classes that correspond
-//! to standard HTTP status codes. These exceptions can be raised in request handlers
-//! to return specific HTTP error responses.
-
 use pyo3::exceptions::PyException;
 use pyo3::{impl_exception_boilerplate, prelude::*};
 use pyo3_stub_gen::derive::*;
-
-use crate::extend_exception;
 
 pub trait IntoPyException<T> {
     fn into_py_exception(self) -> PyResult<T>;
@@ -19,6 +11,20 @@ impl<T, E: ToString> IntoPyException<T> for Result<T, E> {
         self.map_err(|err| PyException::new_err(err.to_string()))
     }
 }
+
+macro_rules! extend_exception {
+    ($name:ident, $extend:ident) => {
+        #[pyo3_stub_gen::derive::gen_stub_pymethods]
+        #[pyo3::prelude::pymethods]
+        impl $name {
+            #[new]
+            fn new(e: pyo3::Py<pyo3::PyAny>) -> ($name, $extend) {
+                ($name, $extend(e))
+            }
+        }
+    };
+}
+
 /// Base exception for all client-related HTTP errors.
 ///
 /// This is the parent class for all HTTP client error exceptions (4xx status codes).

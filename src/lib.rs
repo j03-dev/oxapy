@@ -1,10 +1,10 @@
 mod catcher;
 mod cors;
+#[macro_use]
 mod exceptions;
 mod into_response;
 mod json;
 mod jwt;
-mod macros;
 mod middleware;
 mod multipart;
 mod request;
@@ -49,7 +49,7 @@ use pyo3::prelude::*;
 
 struct ProcessRequest {
     request: Arc<Request>,
-    layer: Option<Layer>,
+    layer: Option<Arc<Layer>>,
     match_route: Option<MatchRoute<'static>>,
     tx: Sender<Response>,
     cors: Option<Arc<Cors>>,
@@ -59,7 +59,7 @@ struct ProcessRequest {
 #[derive(Clone)]
 struct RequestContext {
     request_sender: Sender<ProcessRequest>,
-    layers: Vec<Layer>,
+    layers: Vec<Arc<Layer>>,
     channel_capacity: usize,
     cors: Option<Arc<Cors>>,
     catchers: Option<Arc<HashMap<Status, Py<PyAny>>>>,
@@ -115,7 +115,7 @@ struct RequestContext {
 #[derive(Clone)]
 struct HttpServer {
     addr: SocketAddr,
-    layers: Vec<Layer>,
+    layers: Vec<Arc<Layer>>,
     app_data: Option<Arc<Py<PyAny>>>,
     max_connections: Arc<Semaphore>,
     channel_capacity: usize,
@@ -227,7 +227,8 @@ impl HttpServer {
     /// server.attach(router)
     /// ```
     fn attach(&mut self, router: Router) -> Self {
-        self.layers.extend_from_slice(&router.layers[..]);
+        let arc_layers = router.layers.into_iter().map(Arc::new);
+        self.layers.extend(arc_layers);
         self.clone()
     }
 
@@ -593,7 +594,7 @@ impl ShutDownSignal {
 }
 
 async fn call_python_handler<'l>(
-    layer: &Option<Layer>,
+    layer: &Option<Arc<Layer>>,
     match_route: &Option<MatchRoute<'l>>,
     request: &Request,
     is_async: bool,
@@ -649,7 +650,7 @@ fn build_route_params<'py>(
                 let parsed = parse_params_value(py, value, ty)?;
                 kwargs.set_item(name, parsed)?;
             }
-            None => kwargs.set_item(key, value)?,
+            _ => kwargs.set_item(key, value)?,
         }
     }
     Ok(kwargs)

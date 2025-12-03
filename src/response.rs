@@ -296,7 +296,7 @@ impl Redirect {
 }
 
 struct ChunkIter {
-    file: std::fs::File,
+    file: fs::File,
     buf_size: usize,
 }
 

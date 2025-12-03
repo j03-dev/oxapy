@@ -290,7 +290,7 @@ impl Request {
     async fn process_matched_route(
         &self,
         ctx: &RequestContext,
-        layer: Layer,
+        layer: Arc<Layer>,
         match_route: MatchRoute<'_>,
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
         let (tx, rx) = tokio::sync::mpsc::channel(ctx.channel_capacity);
