@@ -461,17 +461,17 @@ impl HttpServer {
         tokio::spawn(async move {
             while running.load(Ordering::SeqCst) {
                 let permit = max_connection.clone().acquire_owned().await.unwrap();
-                let (steam, _) = listener.accept().await.unwrap();
-                let io = TokioIo::new(steam);
-
-                Self::spawn_request_handler(
-                    io,
-                    request_ctx.clone(),
-                    app_data.clone(),
-                    template.clone(),
-                    session_store.clone(),
-                    permit,
-                );
+                if let Ok((stream, _)) = listener.accept().await {
+                    let io = TokioIo::new(stream);
+                    Self::spawn_request_handler(
+                        io,
+                        request_ctx.clone(),
+                        app_data.clone(),
+                        template.clone(),
+                        session_store.clone(),
+                        permit,
+                    );
+                }
             }
         });
     }
@@ -485,29 +485,31 @@ impl HttpServer {
         _permit: tokio::sync::OwnedSemaphorePermit,
     ) {
         tokio::spawn(async move {
-            http1::Builder::new()
-                .serve_connection(
-                    io,
-                    service_fn(move |req| {
-                        let request_ctx = request_ctx.clone();
-                        let app_data = app_data.clone();
-                        let template = template.clone();
-                        let session_store = session_store.clone();
+            let http = http1::Builder::new();
+            let conn = http.serve_connection(
+                io,
+                service_fn(move |req| {
+                    let request_ctx = request_ctx.clone();
+                    let app_data = app_data.clone();
+                    let template = template.clone();
+                    let session_store = session_store.clone();
 
-                        async move {
-                            let request = RequestBuilder::new(req)
-                                .with_app_data(app_data)
-                                .with_template(template)
-                                .with_session_store(session_store)
-                                .build()
-                                .await
-                                .unwrap();
-                            request.process(request_ctx).await
-                        }
-                    }),
-                )
-                .await
-                .into_py_exception()
+                    async move {
+                        let request = RequestBuilder::new(req)
+                            .with_app_data(app_data)
+                            .with_template(template)
+                            .with_session_store(session_store)
+                            .build()
+                            .await
+                            .unwrap();
+                        request.process(request_ctx).await
+                    }
+                }),
+            );
+
+            if let Err(err) = conn.await {
+                eprintln!("server connection error: {err}!");
+            }
         });
     }
 
