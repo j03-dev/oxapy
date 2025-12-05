@@ -15,7 +15,6 @@ mod session;
 mod status;
 mod templating;
 
-use std::future::Future;
 use std::net::SocketAddr;
 use std::ops::Deref;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -24,6 +23,7 @@ use std::sync::Arc;
 use crate::catcher::Catcher;
 use crate::cors::Cors;
 use crate::exceptions::IntoPyException;
+use crate::middleware::MiddlewareChain;
 use crate::multipart::File;
 use crate::request::{Request, RequestBuilder};
 use crate::response::{FileStreaming, Redirect, Response};
@@ -32,15 +32,12 @@ use crate::session::{Session, SessionStore};
 use crate::status::Status;
 use crate::templating::Template;
 
-use ahash::HashMap;
-use hyper::server::conn::http1;
-use hyper::service::service_fn;
-use hyper_util::rt::TokioIo;
-use middleware::MiddlewareChain;
 use pyo3::exceptions::PyValueError;
 use pyo3::types::{PyDict, PyInt, PyString};
 use pyo3_async_runtimes::tokio::{future_into_py, into_future};
 use pyo3_stub_gen::derive::*;
+
+use ahash::HashMap;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::sync::Semaphore;
@@ -58,11 +55,14 @@ struct ProcessRequest {
 
 #[derive(Clone)]
 struct RequestContext {
-    request_sender: Sender<ProcessRequest>,
-    layers: Vec<Arc<Layer>>,
+    app_data: Option<Arc<Py<PyAny>>>,
+    catchers: Option<Arc<HashMap<Status, Py<PyAny>>>>,
     channel_capacity: usize,
     cors: Option<Arc<Cors>>,
-    catchers: Option<Arc<HashMap<Status, Py<PyAny>>>>,
+    request_sender: Sender<ProcessRequest>,
+    layers: Vec<Arc<Layer>>,
+    session_store: Option<Arc<SessionStore>>,
+    template: Option<Arc<Template>>,
 }
 
 /// HTTP Server for handling web requests.
@@ -115,15 +115,15 @@ struct RequestContext {
 #[derive(Clone)]
 struct HttpServer {
     addr: SocketAddr,
-    layers: Vec<Arc<Layer>>,
     app_data: Option<Arc<Py<PyAny>>>,
-    max_connections: Arc<Semaphore>,
+    catchers: Option<Arc<HashMap<Status, Py<PyAny>>>>,
     channel_capacity: usize,
     cors: Option<Arc<Cors>>,
-    template: Option<Arc<Template>>,
-    session_store: Option<Arc<SessionStore>>,
-    catchers: Option<Arc<HashMap<Status, Py<PyAny>>>>,
     is_async: bool,
+    layers: Vec<Arc<Layer>>,
+    max_connections: Arc<Semaphore>,
+    session_store: Option<Arc<SessionStore>>,
+    template: Option<Arc<Template>>,
 }
 
 #[gen_stub_pymethods]
@@ -146,15 +146,15 @@ impl HttpServer {
         let (ip, port) = addr;
         Ok(Self {
             addr: SocketAddr::new(ip.parse()?, port),
-            layers: Vec::new(),
             app_data: None,
-            max_connections: Arc::new(Semaphore::new(100)),
+            catchers: None,
             channel_capacity: 100,
             cors: None,
-            template: None,
-            session_store: None,
-            catchers: None,
             is_async: false,
+            layers: Vec::new(),
+            max_connections: Arc::new(Semaphore::new(100)),
+            session_store: None,
+            template: None,
         })
     }
 
@@ -189,9 +189,9 @@ impl HttpServer {
     ///     state.counter += 1
     ///     return {"count": state.counter}
     /// ```
-    fn app_data(&mut self, app_data: Py<PyAny>) -> Self {
-        self.app_data = Some(Arc::new(app_data));
-        self.clone()
+    fn app_data(mut slf: PyRefMut<'_, Self>, app_data: Py<PyAny>) -> PyRefMut<'_, Self> {
+        slf.app_data = Some(Arc::new(app_data));
+        slf
     }
 
     /// Attach a router to the server.
@@ -226,10 +226,10 @@ impl HttpServer {
     /// # Attach the router to the server
     /// server.attach(router)
     /// ```
-    fn attach(&mut self, router: Router) -> Self {
+    fn attach(mut slf: PyRefMut<'_, Self>, router: Router) -> PyRefMut<'_, Self> {
         let arc_layers = router.layers.into_iter().map(Arc::new);
-        self.layers.extend(arc_layers);
-        self.clone()
+        slf.layers.extend(arc_layers);
+        slf
     }
 
     /// Set up a session store for managing user sessions.
@@ -246,9 +246,12 @@ impl HttpServer {
     /// ```python
     /// server.session_store(SessionStore())
     /// ```
-    fn session_store(&mut self, session_store: SessionStore) -> Self {
-        self.session_store = Some(Arc::new(session_store));
-        self.clone()
+    fn session_store(
+        mut slf: PyRefMut<'_, Self>,
+        session_store: SessionStore,
+    ) -> PyRefMut<'_, Self> {
+        slf.session_store = Some(Arc::new(session_store));
+        slf
     }
 
     /// Enable template rendering for the server.
@@ -265,9 +268,9 @@ impl HttpServer {
     ///
     /// server.template(templating.Template())
     /// ```
-    fn template(&mut self, template: Template) -> Self {
-        self.template = Some(Arc::new(template));
-        self.clone()
+    fn template(mut slf: PyRefMut<'_, Self>, template: Template) -> PyRefMut<'_, Self> {
+        slf.template = Some(Arc::new(template));
+        slf
     }
 
     /// Set up Cross-Origin Resource Sharing (CORS) for the server.
@@ -284,9 +287,9 @@ impl HttpServer {
     /// cors.origins = ["https://example.com"]
     /// server.cors(cors)
     /// ```
-    fn cors(&mut self, cors: Cors) -> Self {
-        self.cors = Some(Arc::new(cors));
-        self.clone()
+    fn cors(mut slf: PyRefMut<'_, Self>, cors: Cors) -> PyRefMut<'_, Self> {
+        slf.cors = Some(Arc::new(cors));
+        slf
     }
 
     /// Set the maximum number of concurrent connections the server will handle.
@@ -301,9 +304,9 @@ impl HttpServer {
     /// ```python
     /// server.max_connections(1000)
     /// ```
-    fn max_connections(&mut self, max_connections: usize) -> Self {
-        self.max_connections = Arc::new(Semaphore::new(max_connections));
-        self.clone()
+    fn max_connections(mut slf: PyRefMut<'_, Self>, max_connections: usize) -> PyRefMut<'_, Self> {
+        slf.max_connections = Arc::new(Semaphore::new(max_connections));
+        slf
     }
 
     /// Set the internal channel capacity for handling requests.
@@ -321,9 +324,12 @@ impl HttpServer {
     /// ```python
     /// server.channel_capacity(200)
     /// ```
-    fn channel_capacity(&mut self, channel_capacity: usize) -> Self {
-        self.channel_capacity = channel_capacity;
-        self.clone()
+    fn channel_capacity(
+        mut slf: PyRefMut<'_, Self>,
+        channel_capacity: usize,
+    ) -> PyRefMut<'_, Self> {
+        slf.channel_capacity = channel_capacity;
+        slf
     }
 
     /// Add status code catchers to the server.
@@ -342,15 +348,19 @@ impl HttpServer {
     ///
     /// server.catchers([not_found])
     /// ```
-    fn catchers(&mut self, catchers: Vec<PyRef<Catcher>>, py: Python<'_>) -> Self {
+    fn catchers<'py>(
+        mut slf: PyRefMut<'py, Self>,
+        catchers: Vec<PyRef<Catcher>>,
+        py: Python<'py>,
+    ) -> PyRefMut<'py, Self> {
         let mut map = HashMap::default();
 
         for catcher in catchers {
             map.insert(catcher.status, catcher.handler.clone_ref(py));
         }
 
-        self.catchers = Some(Arc::new(map));
-        self.clone()
+        slf.catchers = Some(Arc::new(map));
+        slf
     }
 
     /// Enable asynchronous mode for the server.
@@ -384,9 +394,9 @@ impl HttpServer {
     ///
     /// asyncio.run(main())
     /// ```
-    fn async_mode(&mut self) -> Self {
-        self.is_async = true;
-        self.clone()
+    fn async_mode(mut slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
+        slf.is_async = true;
+        slf
     }
 
     /// Run the HTTP server.
@@ -439,66 +449,56 @@ impl HttpServer {
         Ok((listener, shutdown))
     }
 
-    fn create_request_context(&self) -> (RequestContext, Receiver<ProcessRequest>) {
+    fn create_request_context(&self) -> (Arc<RequestContext>, Receiver<ProcessRequest>) {
         let (tx, rx) = channel::<ProcessRequest>(self.channel_capacity);
         let ctx = RequestContext {
-            request_sender: tx,
-            layers: self.layers.clone(),
+            app_data: self.app_data.clone(),
+            catchers: self.catchers.clone(),
             channel_capacity: self.channel_capacity,
             cors: self.cors.clone(),
-            catchers: self.catchers.clone(),
+            layers: self.layers.clone(),
+            request_sender: tx,
+            session_store: self.session_store.clone(),
+            template: self.template.clone(),
         };
-        (ctx, rx)
+        (Arc::new(ctx), rx)
     }
 
-    async fn spawn_connection_handler(&self, listener: TcpListener, request_ctx: RequestContext) {
+    async fn spawn_connection_handler(
+        &self,
+        listener: TcpListener,
+        request_ctx: Arc<RequestContext>,
+    ) {
         let running = Arc::new(AtomicBool::new(true));
         let max_connection = self.max_connections.clone();
-        let app_data = self.app_data.clone();
-        let template = self.template.clone();
-        let session_store = self.session_store.clone();
 
         tokio::spawn(async move {
             while running.load(Ordering::SeqCst) {
                 let permit = max_connection.clone().acquire_owned().await.unwrap();
                 if let Ok((stream, _)) = listener.accept().await {
-                    let io = TokioIo::new(stream);
-                    Self::spawn_request_handler(
-                        io,
-                        request_ctx.clone(),
-                        app_data.clone(),
-                        template.clone(),
-                        session_store.clone(),
-                        permit,
-                    );
+                    let io = hyper_util::rt::TokioIo::new(stream);
+                    Self::spawn_request_handler(io, request_ctx.clone(), permit);
                 }
             }
         });
     }
 
     fn spawn_request_handler(
-        io: TokioIo<TcpStream>,
-        request_ctx: RequestContext,
-        app_data: Option<Arc<Py<PyAny>>>,
-        template: Option<Arc<Template>>,
-        session_store: Option<Arc<SessionStore>>,
+        io: hyper_util::rt::TokioIo<TcpStream>,
+        request_ctx: Arc<RequestContext>,
         _permit: tokio::sync::OwnedSemaphorePermit,
     ) {
         tokio::spawn(async move {
-            let http = http1::Builder::new();
+            let http = hyper::server::conn::http1::Builder::new();
             let conn = http.serve_connection(
                 io,
-                service_fn(move |req| {
+                hyper::service::service_fn(move |req| {
                     let request_ctx = request_ctx.clone();
-                    let app_data = app_data.clone();
-                    let template = template.clone();
-                    let session_store = session_store.clone();
-
                     async move {
                         let request = RequestBuilder::new(req)
-                            .with_app_data(app_data)
-                            .with_template(template)
-                            .with_session_store(session_store)
+                            .with_app_data(&request_ctx.app_data)
+                            .with_template(&request_ctx.template)
+                            .with_session_store(&request_ctx.session_store)
                             .build()
                             .await
                             .unwrap();
@@ -581,7 +581,7 @@ impl ShutDownSignal {
         let (tx, rx) = channel::<()>(1);
 
         ctrlc::set_handler(move || {
-            println!("\nReceived Ctrl+C! Shutting Down...");
+            println!("\nShutting Down...");
             running.store(false, Ordering::SeqCst);
             let _ = block_on(tx.send(()), None);
         })
@@ -668,7 +668,7 @@ fn parse_params_value(py: Python<'_>, value: &str, ty: &str) -> PyResult<Py<PyAn
     }
 }
 
-fn block_on<F: Future>(future: F, workers: Option<usize>) -> <F as Future>::Output {
+fn block_on<F: std::future::Future>(future: F, workers: Option<usize>) -> F::Output {
     let mut runtime = tokio::runtime::Builder::new_multi_thread();
     workers.map(|w| runtime.worker_threads(w));
     runtime.enable_all().build().unwrap().block_on(future)

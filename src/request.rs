@@ -67,10 +67,10 @@ pub struct Request {
     pub data: Option<String>,
     /// Form data parsed from the request body, available when content type is application/x-www-form-urlencoded.
     #[pyo3(get)]
-    pub form: Option<HashMap<String, String>>,
+    pub form: HashMap<String, String>,
     /// Files uploaded in a multipart form request, mapping field names to File objects.
     #[pyo3(get)]
-    pub files: Option<HashMap<String, File>>,
+    pub files: HashMap<String, File>,
     pub app_data: Option<Arc<Py<PyAny>>>,
     pub template: Option<Arc<Template>>,
     pub ext: HashMap<String, Arc<Py<PyAny>>>,
@@ -263,7 +263,7 @@ impl Request {
 impl Request {
     pub(crate) async fn process(
         self,
-        ctx: RequestContext,
+        ctx: Arc<RequestContext>,
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
         if let Some(response) = self.try_handle_route(&ctx).await {
             return response;
@@ -369,18 +369,18 @@ impl RequestBuilder {
         }
     }
 
-    pub fn with_app_data(mut self, app_data: Option<Arc<Py<PyAny>>>) -> Self {
-        self.app_data = app_data;
+    pub fn with_app_data(mut self, app_data: &Option<Arc<Py<PyAny>>>) -> Self {
+        self.app_data = app_data.clone();
         self
     }
 
-    pub fn with_template(mut self, template: Option<Arc<Template>>) -> Self {
-        self.template = template;
+    pub fn with_template(mut self, template: &Option<Arc<Template>>) -> Self {
+        self.template = template.clone();
         self
     }
 
-    pub fn with_session_store(mut self, session_store: Option<Arc<SessionStore>>) -> Self {
-        self.session_store = session_store;
+    pub fn with_session_store(mut self, session_store: &Option<Arc<SessionStore>>) -> Self {
+        self.session_store = session_store.clone();
         self
     }
 
@@ -388,19 +388,19 @@ impl RequestBuilder {
         let mut request = Request::new(self.method, self.uri, self.headers);
 
         let bytes = self.req.collect().await.into_py_exception()?.to_bytes();
-        let body = String::from_utf8_lossy(&bytes).to_string();
-
-        if !body.is_empty() {
-            request.data = Some(body.clone());
-        }
 
         if let Some(content_type) = request.headers.get("content-type") {
             if content_type.starts_with("multipart/form-data") {
                 let parsed_multipart = parse_multipart(content_type, bytes)
                     .await
                     .into_py_exception()?;
-                request.form = Some(parsed_multipart.fields);
-                request.files = Some(parsed_multipart.files);
+                request.form = parsed_multipart.fields;
+                request.files = parsed_multipart.files;
+            } else {
+                let body = String::from_utf8_lossy(&bytes).to_string();
+                if !body.is_empty() {
+                    request.data = Some(body.clone());
+                }
             }
         }
 

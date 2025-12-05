@@ -430,11 +430,11 @@ impl Router {
     /// # - Requests to /admin will go through log_middleware and then auth_middleware.
     /// # - The middleware from the first scope does not affect the second scope.
     /// ```
-    fn middleware(&mut self, middleware: Py<PyAny>) -> Self {
+    fn middleware(mut slf: PyRefMut<'_, Self>, middleware: Py<PyAny>) -> PyRefMut<'_, Self> {
         let middleware = Middleware::new(middleware);
-        let current_layer = self.layers.last_mut().unwrap();
+        let current_layer = slf.layers.last_mut().unwrap();
         current_layer.middlewares.push(middleware);
-        self.clone()
+        slf
     }
 
     /// Register a route with the router.
@@ -509,11 +509,11 @@ impl Router {
     /// ]
     /// router.routes(routes)
     /// ```
-    fn routes(&mut self, routes: Vec<Route>) -> PyResult<Self> {
+    fn routes(mut slf: PyRefMut<'_, Self>, routes: Vec<Route>) -> PyResult<PyRefMut<'_, Self>> {
         for ref route in routes {
-            self.route(route)?;
+            slf.route(route)?;
         }
-        Ok(self.clone())
+        Ok(slf)
     }
 
     /// Create a new routing layer (scope).
@@ -547,9 +547,9 @@ impl Router {
     /// # /route1 is affected by middleware_a.
     /// # /route2 is affected by middleware_b, but not middleware_a.
     /// ```
-    fn scope(&mut self) -> Self {
-        self.layers.push(Layer::default());
-        self.clone()
+    fn scope(mut slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
+        slf.layers.push(Layer::default());
+        slf
     }
 
     fn __repr__(&self) -> String {

@@ -714,12 +714,12 @@ class Request:
         The raw data content of the request as a string, if present.
         """
     @property
-    def form(self) -> typing.Optional[builtins.dict[builtins.str, builtins.str]]:
+    def form(self) -> builtins.dict[builtins.str, builtins.str]:
         r"""
         Form data parsed from the request body, available when content type is application/x-www-form-urlencoded.
         """
     @property
-    def files(self) -> typing.Optional[builtins.dict[builtins.str, File]]:
+    def files(self) -> builtins.dict[builtins.str, File]:
         r"""
         Files uploaded in a multipart form request, mapping field names to File objects.
         """

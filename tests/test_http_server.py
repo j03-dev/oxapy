@@ -67,6 +67,16 @@ def test_static_file_not_found(oxapy_server):
     assert res.status_code == 404
 
 
+def test_form(oxapy_server):
+    payload = [("username", "John Does"), ("email", "johndoes@email.com")]
+    res = requests.post(
+        f"{oxapy_server}/api/v1/form",
+        data=payload,
+    )
+    assert res.status_code == 200
+    assert res.json() == payload
+
+
 def test_protected_route_unauthorized(oxapy_server):
     res = requests.get(f"{oxapy_server}/api/v1/protected")
     assert res.status_code == 401

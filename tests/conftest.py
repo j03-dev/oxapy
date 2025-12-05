@@ -1,4 +1,4 @@
-from oxapy import HttpServer, Router, get, post, static_file, Status, Response
+from oxapy import HttpServer, Request, Router, get, post, static_file, Status, Response
 import threading
 import time
 import pytest
@@ -43,6 +43,12 @@ def query_handler(request):
     return {"param": param}
 
 
+@post("/form")
+def form(request: Request):
+    input_form = request.form
+    return {"username": input_form["username"], "password": input_form["password"]}
+
+
 @get("/protected")
 def protected_handler(_request):
     return "This is a protected route."
@@ -56,10 +62,15 @@ def main(static_dir: Path):
             Router("/api/v1")
             .route(get("/ping", lambda _: {"message": "pong"}))
             .route(post("/echo", lambda r: {"echo": r.json()}))
-            .route(hello)
-            .route(count_handler)
-            .route(query_handler)
-            .route(static_file("/static", str(static_dir)))
+            .routes(
+                [
+                    count_handler,
+                    form,
+                    hello,
+                    query_handler,
+                    static_file("/static", str(static_dir)),
+                ]
+            )
             .scope()
             .middleware(mid)
             .route(get("/me", lambda r: f"Hello {r.user_name}"))
