@@ -46,7 +46,7 @@ def query_handler(request):
 @post("/form")
 def form(request: Request):
     input_form = request.form
-    return {"username": input_form["username"], "password": input_form["password"]}
+    return {"username": input_form["username"], "email": input_form["email"]}
 
 
 @get("/protected")

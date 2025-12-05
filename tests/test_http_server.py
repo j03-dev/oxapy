@@ -68,13 +68,23 @@ def test_static_file_not_found(oxapy_server):
 
 
 def test_form(oxapy_server):
-    payload = [("username", "John Does"), ("email", "johndoes@email.com")]
+    boundary = "--------------------------735323031399963166993862"
+    headers = {"content-type": f"multipart/form-data; boundary={boundary}"}
+    form_data = {"username": "John Does", "email": "johndoes@email.com"}
+    body_parts = []
+    for name, value in form_data.items():
+        body_parts.append(f"--{boundary}")
+        body_parts.append(f'Content-Disposition: form-data; name="{name}"')
+        body_parts.append("")
+        body_parts.append(value)
+    body_parts.append(f"--{boundary}--")
+    request_body = "\r\n".join(body_parts)
+
     res = requests.post(
-        f"{oxapy_server}/api/v1/form",
-        data=payload,
+        f"{oxapy_server}/api/v1/form", data=request_body, headers=headers
     )
     assert res.status_code == 200
-    assert res.json() == payload
+    assert res.json() == form_data
 
 
 def test_protected_route_unauthorized(oxapy_server):

@@ -132,8 +132,6 @@ impl Multipart {
 }
 
 pub async fn parse_multipart(content_type: &str, body_stream: Bytes) -> PyResult<Multipart> {
-    let mut mulitpart = Multipart::default();
-
     let boundary = content_type
         .split("boundary=")
         .nth(1)
@@ -141,14 +139,15 @@ pub async fn parse_multipart(content_type: &str, body_stream: Bytes) -> PyResult
         .ok_or_else(|| PyValueError::new_err("Boundary not found in Content-Type header"))?;
 
     let stream = stream::once(async { Result::<Bytes, std::io::Error>::Ok(body_stream) });
-    let mut multipart = multer::Multipart::new(stream, boundary);
+    let mut multer_multipart = multer::Multipart::new(stream, boundary);
+    let mut multipart = Multipart::default();
 
-    while let Some(field) = multipart.next_field().await.into_py_exception()? {
+    while let Some(field) = multer_multipart.next_field().await.into_py_exception()? {
         match (field.file_name(), field.content_type()) {
-            (Some(_), Some(_)) => mulitpart.parse_file(field).await?,
-            _ => mulitpart.parse_field(field).await?,
+            (Some(_), Some(_)) => multipart.parse_file(field).await?,
+            _ => multipart.parse_field(field).await?,
         }
     }
 
-    Ok(mulitpart)
+    Ok(multipart)
 }
