@@ -89,16 +89,16 @@ impl Response {
     pub fn new(body: Bound<PyAny>, status: Status, content_type: &str) -> PyResult<Self> {
         let content_type = HeaderValue::from_str(content_type).into_py_exception()?;
 
-        if body.is_instance_of::<PyString>() {
-            return Self::from_str(body.to_string(), status, content_type);
-        }
-
         if content_type == "application/json" {
             return Self::from_json(body, status, content_type);
         }
 
         if body.is_instance_of::<PyBytes>() {
             return Self::from_bytes(body.extract()?, status, content_type);
+        }
+
+        if body.is_instance_of::<PyString>() {
+            return Self::from_str(body.to_string(), status, content_type);
         }
 
         Err(PyTypeError::new_err("Unsupported response type"))

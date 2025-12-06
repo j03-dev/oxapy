@@ -421,7 +421,7 @@ impl HttpServer {
     /// server.run(workers)
     /// ```
     #[pyo3(signature=(workers=None))]
-    fn run<'l>(&'l self, workers: Option<usize>, py: Python<'l>) -> PyResult<Bound<'l, PyAny>> {
+    fn run<'py>(&self, workers: Option<usize>, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let server = self.clone();
         if self.is_async {
             future_into_py(py, async move { server.run_server().await })

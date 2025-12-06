@@ -1,4 +1,4 @@
-from oxapy import HttpServer, Request, Router, get, post, static_file, Status, Response
+from oxapy import HttpServer, Router, get, post, static_file, Status, Response
 import threading
 import time
 import pytest
@@ -12,20 +12,16 @@ class AppState:
 
 
 # Middleware
-def mid(req, next, **kw):
-    req.user_name = "John Does"
-    return next(req, **kw)
-
-
 def auth_middleware(request, next, **kw):
     if "authorization" not in request.headers:
         return Status.UNAUTHORIZED
+    request.user_name = "John Does"
     return next(request, **kw)
 
 
 # Handlers
 @get("/hello/{name}")
-def hello(request, name):
+def hello(_request, name):
     return Response({"message": f"Hello, {name}!"})
 
 
@@ -44,14 +40,14 @@ def query_handler(request):
 
 
 @post("/form")
-def form(request: Request):
+def form(request):
     input_form = request.form
     return {"username": input_form["username"], "email": input_form["email"]}
 
 
 @get("/protected")
-def protected_handler(_request):
-    return "This is a protected route."
+def protected_handler(request):
+    return f"Hello, {request.user_name}!"
 
 
 def main(static_dir: Path):
@@ -71,9 +67,6 @@ def main(static_dir: Path):
                     static_file("/static", str(static_dir)),
                 ]
             )
-            .scope()
-            .middleware(mid)
-            .route(get("/me", lambda r: f"Hello {r.user_name}"))
             .scope()
             .middleware(auth_middleware)
             .route(protected_handler)

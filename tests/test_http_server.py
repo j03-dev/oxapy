@@ -1,4 +1,5 @@
 import requests
+from tests.utils import Multipart
 
 
 def test_ping_endpoint(oxapy_server):
@@ -14,13 +15,6 @@ def test_echo_endpoint(oxapy_server):
     assert res.status_code == 200
     assert res.json()["echo"] == payload
     assert "application/json" in res.headers["Content-Type"]
-
-
-def test_middleware_endpoint(oxapy_server):
-    res = requests.get(f"{oxapy_server}/api/v1/me")
-    assert res.status_code == 200
-    assert res.text == "Hello John Does"
-    assert "text/plain" in res.headers["Content-Type"]
 
 
 def test_path_parameter_endpoint(oxapy_server):
@@ -68,20 +62,10 @@ def test_static_file_not_found(oxapy_server):
 
 
 def test_form(oxapy_server):
-    boundary = "--------------------------735323031399963166993862"
-    headers = {"content-type": f"multipart/form-data; boundary={boundary}"}
     form_data = {"username": "John Does", "email": "johndoes@email.com"}
-    body_parts = []
-    for name, value in form_data.items():
-        body_parts.append(f"--{boundary}")
-        body_parts.append(f'Content-Disposition: form-data; name="{name}"')
-        body_parts.append("")
-        body_parts.append(value)
-    body_parts.append(f"--{boundary}--")
-    request_body = "\r\n".join(body_parts)
-
+    multipart = Multipart(form_data)
     res = requests.post(
-        f"{oxapy_server}/api/v1/form", data=request_body, headers=headers
+        f"{oxapy_server}/api/v1/form", data=multipart.data, headers=multipart.headers
     )
     assert res.status_code == 200
     assert res.json() == form_data
@@ -96,7 +80,7 @@ def test_protected_route_authorized(oxapy_server):
     headers = {"Authorization": "Bearer some_token"}
     res = requests.get(f"{oxapy_server}/api/v1/protected", headers=headers)
     assert res.status_code == 200
-    assert res.text == "This is a protected route."
+    assert res.text == "Hello, John Does!"
 
 
 def test_not_found_endpoint(oxapy_server):
