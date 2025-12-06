@@ -435,9 +435,9 @@ impl HttpServer {
 impl HttpServer {
     async fn run_server(&self) -> PyResult<()> {
         let (listener, shutdown) = self.setup_serve().await?;
-        let (request_ctx, rx) = self.create_request_context();
+        let (ctx, rx) = self.create_request_context();
 
-        self.spawn_connection_handler(listener, request_ctx).await;
+        self.spawn_connection_handler(listener, Arc::new(ctx)).await;
         self.process_requests(shutdown, rx).await
     }
 
@@ -449,7 +449,7 @@ impl HttpServer {
         Ok((listener, shutdown))
     }
 
-    fn create_request_context(&self) -> (Arc<RequestContext>, Receiver<ProcessRequest>) {
+    fn create_request_context(&self) -> (RequestContext, Receiver<ProcessRequest>) {
         let (tx, rx) = channel::<ProcessRequest>(self.channel_capacity);
         let ctx = RequestContext {
             app_data: self.app_data.clone(),
@@ -461,14 +461,10 @@ impl HttpServer {
             session_store: self.session_store.clone(),
             template: self.template.clone(),
         };
-        (Arc::new(ctx), rx)
+        (ctx, rx)
     }
 
-    async fn spawn_connection_handler(
-        &self,
-        listener: TcpListener,
-        request_ctx: Arc<RequestContext>,
-    ) {
+    async fn spawn_connection_handler(&self, listener: TcpListener, ctx: Arc<RequestContext>) {
         let running = Arc::new(AtomicBool::new(true));
         let max_connection = self.max_connections.clone();
 
@@ -477,7 +473,7 @@ impl HttpServer {
                 let permit = max_connection.clone().acquire_owned().await.unwrap();
                 if let Ok((stream, _)) = listener.accept().await {
                     let io = hyper_util::rt::TokioIo::new(stream);
-                    Self::spawn_request_handler(io, request_ctx.clone(), permit);
+                    Self::spawn_request_handler(io, ctx.clone(), permit);
                 }
             }
         });
@@ -485,7 +481,7 @@ impl HttpServer {
 
     fn spawn_request_handler(
         io: hyper_util::rt::TokioIo<TcpStream>,
-        request_ctx: Arc<RequestContext>,
+        ctx: Arc<RequestContext>,
         _permit: tokio::sync::OwnedSemaphorePermit,
     ) {
         tokio::spawn(async move {
@@ -493,16 +489,16 @@ impl HttpServer {
             let conn = http.serve_connection(
                 io,
                 hyper::service::service_fn(move |req| {
-                    let request_ctx = request_ctx.clone();
+                    let ctx = ctx.clone();
                     async move {
                         let request = RequestBuilder::new(req)
-                            .with_app_data(&request_ctx.app_data)
-                            .with_template(&request_ctx.template)
-                            .with_session_store(&request_ctx.session_store)
+                            .with_app_data(&ctx.app_data)
+                            .with_template(&ctx.template)
+                            .with_session_store(&ctx.session_store)
                             .build()
                             .await
                             .unwrap();
-                        request.process(request_ctx).await
+                        request.process(ctx).await
                     }
                 }),
             );
