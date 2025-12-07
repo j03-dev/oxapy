@@ -21,7 +21,7 @@
 </p>
 
 <p>
-  <a href="https://github.com/j03-dev/bench/benchmark_rps.png"><img src="https://bench-n9zz.onrender.com/bench"/></a>
+  <a href="https://bench-n9zz.onrender.com/bench/benchmark_rps.png"><img src="https://bench-n9zz.onrender.com/bench/benchmark_rps.png"/></a>
 </p>
 </div>
 
