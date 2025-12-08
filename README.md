@@ -68,14 +68,16 @@ if __name__ == "__main__":
 ```python
 from oxapy import HttpServer, Router, get
 
+import asyncio
+
 @get("/")
 async def home(request):
     # Asynchronous operations are allowed here
     data = await fetch_data_from_database()  # type: ignore
     return "Hello, World!"
 
-def main():
-    (
+async def main():
+    await (
         HttpServer(("127.0.0.1", 8000))
         .attach(
             Router().route(home)
@@ -85,7 +87,7 @@ def main():
     )
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
 ```
 
 ## Middleware Example
