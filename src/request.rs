@@ -173,11 +173,12 @@ impl Request {
     /// # For a request to /api?name=John&age=30
     /// @get("/api")
     /// def api_handler(request):
-    ///     query = request.query()
+    ///     query = request.query
     ///     name = query.get("name")
     ///     age = query.get("age")
     ///     return {"name": name, "age": age}
     /// ```
+    #[getter]
     fn query(&self) -> PyResult<HashMap<String, String>> {
         let uri: Uri = self.uri.parse().into_py_exception()?;
         if let Some(query_string) = uri.query() {

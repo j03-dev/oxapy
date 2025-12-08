@@ -745,6 +745,33 @@ class Request:
             return {"count": app_state.counter}
         ```
         """
+    @property
+    def query(self) -> builtins.dict[builtins.str, builtins.str]:
+        r"""
+        Parse and return the query parameters from the request URI.
+        
+        Args:
+            None
+        
+        Returns:
+            dict: Dictionary of query parameters
+        
+        Raises:
+            Exception: If the URI cannot be parsed
+        
+        Example:
+        ```python
+        from oxapy import get
+        
+        # For a request to /api?name=John&age=30
+        @get("/api")
+        def api_handler(request):
+            query = request.query
+            name = query.get("name")
+            age = query.get("age")
+            return {"name": name, "age": age}
+        ```
+        """
     def __new__(cls, method: builtins.str, uri: builtins.str, headers: typing.Mapping[builtins.str, builtins.str]) -> Request:
         r"""
         Create a new Request instance.
@@ -782,32 +809,6 @@ class Request:
             data = request.json()
             value = data["key"]
             return {"received": value}
-        ```
-        """
-    def query(self) -> builtins.dict[builtins.str, builtins.str]:
-        r"""
-        Parse and return the query parameters from the request URI.
-        
-        Args:
-            None
-        
-        Returns:
-            dict: Dictionary of query parameters
-        
-        Raises:
-            Exception: If the URI cannot be parsed
-        
-        Example:
-        ```python
-        from oxapy import get
-        
-        # For a request to /api?name=John&age=30
-        @get("/api")
-        def api_handler(request):
-            query = request.query()
-            name = query.get("name")
-            age = query.get("age")
-            return {"name": name, "age": age}
         ```
         """
     def session(self) -> Session:
