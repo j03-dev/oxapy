@@ -692,7 +692,6 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(put, m)?)?;
     m.add_function(wrap_pyfunction!(head, m)?)?;
     m.add_function(wrap_pyfunction!(options, m)?)?;
-    m.add_function(wrap_pyfunction!(static_file, m)?)?;
     m.add_function(wrap_pyfunction!(catcher::catcher, m)?)?;
     m.add_function(wrap_pyfunction!(into_response::convert_to_response, m)?)?;
 

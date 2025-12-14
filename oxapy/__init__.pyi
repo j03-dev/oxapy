@@ -2062,24 +2062,3 @@ def render(request: Request, name: builtins.str, context: typing.Optional[dict] 
     ```
     """
 
-def static_file(path: builtins.str = '/static', directory: builtins.str = './static') -> Route:
-    r"""
-    Create a route for serving static files.
-    
-    Args:
-        directory (str): The directory containing static files.
-        path (str): The URL path at which to serve the files.
-    
-    Returns:
-        Route: A route configured to serve static files.
-    
-    Example:
-    ```python
-    from oxapy import Router, static_file
-    
-    router = Router()
-    router.route(static_file("/static", "./static"))
-    # This will serve files from ./static directory at /static URL path
-    ```
-    """
-

@@ -34,8 +34,7 @@ def count_handler(request):
 
 @get("/query")
 def query_handler(request):
-    query_params = request.query()
-    param = query_params.get("param", "default")
+    param = request.query.get("param", "default")
     return {"param": param}
 
 

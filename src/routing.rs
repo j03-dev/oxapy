@@ -1,7 +1,7 @@
 use std::{mem::transmute, sync::Arc};
 
 use ahash::HashMap;
-use pyo3::{ffi::c_str, prelude::*, types::PyDict, Py, PyAny};
+use pyo3::{prelude::*, Py, PyAny};
 use pyo3_stub_gen::derive::*;
 
 use crate::{middleware::Middleware, IntoPyException};
@@ -555,64 +555,4 @@ impl Router {
     fn __repr__(&self) -> String {
         format!("{:#?}", self)
     }
-}
-
-/// Create a route for serving static files.
-///
-/// Args:
-///     directory (str): The directory containing static files.
-///     path (str): The URL path at which to serve the files.
-///
-/// Returns:
-///     Route: A route configured to serve static files.
-///
-/// Example:
-/// ```python
-/// from oxapy import Router, static_file
-///
-/// router = Router()
-/// router.route(static_file("/static", "./static"))
-/// # This will serve files from ./static directory at /static URL path
-/// ```
-#[gen_stub_pyfunction]
-#[pyfunction]
-#[pyo3(signature=(path="/static", directory="./static"))]
-pub fn static_file(path: &str, directory: &str, py: Python<'_>) -> PyResult<Route> {
-    let pathlib = py.import("pathlib")?;
-    let oxapy = py.import("oxapy")?;
-    let mimetypes = py.import("mimetypes")?;
-
-    let globals = &PyDict::new(py);
-    globals.set_item("Path", pathlib.getattr("Path")?)?;
-    globals.set_item("directory", directory)?;
-    globals.set_item("Status", oxapy.getattr("Status")?)?;
-    globals.set_item("Response", oxapy.getattr("Response")?)?;
-    globals.set_item("mimetypes", mimetypes)?;
-
-    py.run(
-        c_str!(
-            r#"
-def static_file(request, path):
-    file_path = f"{directory}/{path}"
-    try:
-        with open(file_path, "rb") as f: content = f.read()
-        content_type, _ = mimetypes.guess_type(file_path)
-        return Response(content, content_type = content_type or "application/octet-stream")
-    except FileNotFoundError:
-        return Response("File not found", Status.NOT_FOUND)
-"#
-        ),
-        Some(globals),
-        None,
-    )?;
-
-    let handler = globals.get_item("static_file")?.unwrap();
-
-    let route = Route {
-        path: format!("{path}/{{*path}}"),
-        handler: Arc::new(handler.into()),
-        ..Default::default()
-    };
-
-    Ok(route)
 }
