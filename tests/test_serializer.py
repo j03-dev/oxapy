@@ -1,5 +1,6 @@
-from oxapy import serializer  # type: ignore
 import pytest
+
+from oxapy import serializer
 
 
 def test_serializer_basic():
@@ -24,7 +25,7 @@ def test_nested_serializer():
     class User(serializer.Serializer):
         email = serializer.EmailField()
         password = serializer.CharField(min_length=8)
-        dog = Dog(nullable=True)  # type: ignore
+        dog = Dog(nullable=True)
 
     user = User(
         '{"email": "test@gmail.com", "password": "password", "dog":{"name":"boby","toys":null}}'
@@ -34,9 +35,9 @@ def test_nested_serializer():
 
 def test_read_write_only_fields():
     class UserSerializer(serializer.Serializer):
-        id = serializer.CharField(read_only=True, nullable=True, required=False)  # type: ignore
+        id = serializer.CharField(read_only=True, nullable=True, required=False)
         name = serializer.CharField()
-        password = serializer.CharField(write_only=True)  # type: ignore
+        password = serializer.CharField(write_only=True)
 
     user_serializer = UserSerializer(
         '{"id": null, "name": "joe", "password": "password"}'

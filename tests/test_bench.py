@@ -1,5 +1,5 @@
 import time
-from oxapy import Response, serializer  # type: ignore
+from oxapy import Response, serializer
 
 
 def test_response_benchmark():

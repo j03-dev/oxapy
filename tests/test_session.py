@@ -1,4 +1,4 @@
-from oxapy import SessionStore, jwt  # type: ignore
+from oxapy import SessionStore, jwt
 
 
 def test_session_store():

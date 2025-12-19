@@ -209,11 +209,10 @@ impl Request {
     ///
     /// @get("/login")
     /// def login(request):
-    ///     session = request.session()
-    ///     session["user_id"] = 123
-    ///     session["is_authenticated"] = True
+    ///     request.session["is_authenticated"] = True
     ///     return "Logged in successfully"
     /// ```
+    #[getter]
     pub fn session(&self) -> PyResult<Session> {
         let message = "Session not available. Make sure you've configured SessionStore.";
         let session = self

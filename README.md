@@ -73,7 +73,7 @@ import asyncio
 @get("/")
 async def home(request):
     # Asynchronous operations are allowed here
-    data = await fetch_data_from_database()  # type: ignore
+    data = await fetch_data_from_database()  
     return "Hello, World!"
 
 async def main():

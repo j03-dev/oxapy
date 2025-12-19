@@ -772,6 +772,32 @@ class Request:
             return {"name": name, "age": age}
         ```
         """
+    @property
+    def session(self) -> Session:
+        r"""
+        Get the session object for the current request.
+        
+        Use this to access or modify session data that persists across requests.
+        
+        Args:
+            None
+        
+        Returns:
+            Session: The session instance for this request
+        
+        Raises:
+            AttributeError: If session store is not configured on the server
+        
+        Example:
+        ```python
+        from oxapy import get
+        
+        @get("/login")
+        def login(request):
+            request.session["is_authenticated"] = True
+            return "Logged in successfully"
+        ```
+        """
     def __new__(cls, method: builtins.str, uri: builtins.str, headers: typing.Mapping[builtins.str, builtins.str]) -> Request:
         r"""
         Create a new Request instance.
@@ -809,33 +835,6 @@ class Request:
             data = request.json()
             value = data["key"]
             return {"received": value}
-        ```
-        """
-    def session(self) -> Session:
-        r"""
-        Get the session object for the current request.
-        
-        Use this to access or modify session data that persists across requests.
-        
-        Args:
-            None
-        
-        Returns:
-            Session: The session instance for this request
-        
-        Raises:
-            AttributeError: If session store is not configured on the server
-        
-        Example:
-        ```python
-        from oxapy import get
-        
-        @get("/login")
-        def login(request):
-            session = request.session()
-            session["user_id"] = 123
-            session["is_authenticated"] = True
-            return "Logged in successfully"
         ```
         """
     def get_cookie(self, name: builtins.str) -> typing.Optional[builtins.str]: ...
