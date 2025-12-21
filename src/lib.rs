@@ -111,7 +111,7 @@ struct RequestContext {
 /// app.run()
 ///     ```
 #[gen_stub_pyclass]
-#[pyclass]
+#[pyclass(subclass)]
 #[derive(Clone)]
 struct HttpServer {
     addr: SocketAddr,
@@ -618,7 +618,6 @@ fn execute_route_handler(
 ) -> PyResult<Py<PyAny>> {
     Python::attach(|py| {
         let kwargs = build_route_params(py, &route.params)?;
-
         if layer.middlewares.is_empty() {
             route
                 .value

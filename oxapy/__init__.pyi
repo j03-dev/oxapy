@@ -326,7 +326,6 @@ class FileStreaming(Response):
         ```
         """
 
-@typing.final
 class HttpServer:
     r"""
     HTTP Server for handling web requests.
