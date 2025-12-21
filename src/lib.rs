@@ -472,6 +472,7 @@ impl HttpServer {
             while running.load(Ordering::SeqCst) {
                 let permit = max_connection.clone().acquire_owned().await.unwrap();
                 if let Ok((stream, _)) = listener.accept().await {
+                    let _ = stream.set_nodelay(true);
                     let io = hyper_util::rt::TokioIo::new(stream);
                     Self::spawn_request_handler(io, ctx.clone(), permit);
                 }
@@ -528,46 +529,15 @@ impl HttpServer {
     }
 
     async fn handle_request(&self, req: ProcessRequest) -> PyResult<()> {
-        let mut response =
+        let response =
             call_python_handler(&req.layer, &req.match_route, &req.request, self.is_async)
                 .await
-                .unwrap_or_else(Response::from);
-
-        response = self.apply_catcher(response, &req);
-        response = self.apply_session(response, &req.request);
-        response = self.apply_cors(response, &req.cors)?;
-
+                .unwrap_or_else(Response::from)
+                .apply_catcher(&req)
+                .apply_session(&req.request)
+                .apply_cors(&req.cors)?;
         let _ = req.tx.send(response).await;
         Ok(())
-    }
-
-    fn apply_catcher(&self, mut response: Response, req: &ProcessRequest) -> Response {
-        if let Some(catchers) = &req.catchers {
-            if let Some(handler) = catchers.get(&response.status) {
-                let request: Request = req.request.as_ref().clone();
-                response = Python::attach(|py| {
-                    let result = handler.call(py, (request, response), None)?;
-                    into_response::convert_to_response(result, py)
-                })
-                .unwrap_or_else(Response::from);
-            }
-        }
-        response
-    }
-
-    fn apply_session(&self, mut response: Response, request: &Arc<Request>) -> Response {
-        if let (Some(session), Some(store)) = (&request.session, &request.session_store) {
-            let cookie_header = store.get_cookie_header(session);
-            response.insert_or_append_cookie(cookie_header);
-        }
-        response
-    }
-
-    fn apply_cors(&self, mut response: Response, cors: &Option<Arc<Cors>>) -> PyResult<Response> {
-        if let Some(cors) = cors {
-            response = cors.apply_to_response(response)?;
-        }
-        Ok(response)
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::{json, status::Status, IntoPyException};
+use crate::{into_response, json, status::Status, IntoPyException, ProcessRequest};
 use futures_util::StreamExt;
 use http_body_util::combinators::BoxBody;
 use hyper::body::Frame;
@@ -20,6 +20,8 @@ use std::convert::Infallible;
 use std::io::Read;
 use std::sync::Arc;
 use std::{fs, str};
+use crate::cors::Cors;
+use crate::request::Request;
 
 pub type Body = BoxBody<Bytes, Infallible>;
 
@@ -233,6 +235,35 @@ impl Response {
             body: ResponseBody::Bytes(Bytes::from(json.clone())),
             headers: HeaderMap::from_iter([(CONTENT_TYPE, content_type)]),
         })
+    }
+
+    pub(crate) fn apply_catcher(mut self, req: &ProcessRequest) -> Self {
+        if let Some(catchers) = &req.catchers {
+            if let Some(handler) = catchers.get(&self.status) {
+                let request: Request = req.request.as_ref().clone();
+                self = Python::attach(|py| {
+                    let result = handler.call(py, (request, self), None)?;
+                    into_response::convert_to_response(result, py)
+                })
+                    .unwrap_or_else(Response::from);
+            }
+        }
+        self
+    }
+
+    pub(crate) fn apply_session(mut self, request: &Arc<Request>) -> Self {
+        if let (Some(session), Some(store)) = (&request.session, &request.session_store) {
+            let cookie_header = store.get_cookie_header(session);
+            self.insert_or_append_cookie(cookie_header);
+        }
+        self
+    }
+
+    pub(crate) fn apply_cors(mut self, cors: &Option<Arc<Cors>>) -> PyResult<Self> {
+        if let Some(cors) = cors {
+            self = cors.apply_to_response(self)?;
+        }
+        Ok(self)
     }
 }
 
