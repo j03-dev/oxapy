@@ -268,7 +268,6 @@ impl Request {
         if let Some(response) = self.try_handle_route(&ctx).await {
             return response;
         }
-
         self.handle_not_found(&ctx).await
     }
 
@@ -278,10 +277,10 @@ impl Request {
     ) -> Option<Result<hyper::Response<Body>, hyper::http::Error>> {
         for layer in &ctx.layers {
             if let Some(match_route) = layer.find(&self.method, &self.uri) {
-                return Some(
-                    self.process_matched_route(ctx, layer.clone(), match_route)
-                        .await,
-                );
+                let response = self
+                    .process_matched_route(ctx, layer.clone(), match_route)
+                    .await;
+                return Some(response);
             }
         }
         None
