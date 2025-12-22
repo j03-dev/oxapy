@@ -1,4 +1,3 @@
-use crate::{into_response, json, status::Status, IntoPyException, ProcessRequest};
 use futures_util::StreamExt;
 use http_body_util::combinators::BoxBody;
 use hyper::body::Frame;
@@ -16,12 +15,13 @@ use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
 use pyo3_stub_gen::derive::*;
+
 use std::convert::Infallible;
 use std::io::Read;
 use std::sync::Arc;
 use std::{fs, str};
-use crate::cors::Cors;
-use crate::request::Request;
+
+use crate::{into_response, json, status::Status, Cors, IntoPyException, ProcessRequest, Request};
 
 pub type Body = BoxBody<Bytes, Infallible>;
 
@@ -144,6 +144,8 @@ impl Response {
     /// ```
     #[getter]
     fn headers(&self) -> Vec<(&str, &str)> {
+        // we return vec of tuple over dictionary because,
+        // dict can't store diff value with same key
         self.headers
             .iter()
             .map(|(k, v)| (k.as_str(), v.to_str().unwrap()))
@@ -245,7 +247,7 @@ impl Response {
                     let result = handler.call(py, (request, self), None)?;
                     into_response::convert_to_response(result, py)
                 })
-                    .unwrap_or_else(Response::from);
+                .unwrap_or_else(Response::from);
             }
         }
         self

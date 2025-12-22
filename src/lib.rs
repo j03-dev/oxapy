@@ -503,7 +503,8 @@ impl HttpServer {
                             .build()
                             .await
                             .unwrap();
-                        request.process(ctx).await
+                        let response = request.process(ctx).await;
+                        response
                     }
                 }),
             );
