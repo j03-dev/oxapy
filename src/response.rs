@@ -21,7 +21,7 @@ use std::io::Read;
 use std::sync::Arc;
 use std::{fs, str};
 
-use crate::{into_response, json, status::Status, Cors, IntoPyException, ProcessRequest, Request};
+use crate::{convert_to_response, json, Cors, IntoPyException, ProcessRequest, Request, Status};
 
 pub type Body = BoxBody<Bytes, Infallible>;
 
@@ -245,7 +245,7 @@ impl Response {
                 let request: Request = req.request.as_ref().clone();
                 self = Python::attach(|py| {
                     let result = handler.call(py, (request, self), None)?;
-                    into_response::convert_to_response(result, py)
+                    convert_to_response(result, py)
                 })
                 .unwrap_or_else(Response::from);
             }

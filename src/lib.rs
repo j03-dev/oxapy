@@ -23,6 +23,7 @@ use std::sync::Arc;
 use crate::catcher::Catcher;
 use crate::cors::Cors;
 use crate::exceptions::IntoPyException;
+use crate::into_response::convert_to_response;
 use crate::middleware::MiddlewareChain;
 use crate::multipart::File;
 use crate::request::{Request, RequestBuilder};
@@ -43,6 +44,8 @@ use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::sync::Semaphore;
 
 use pyo3::prelude::*;
+
+pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
 
 struct ProcessRequest {
     request: Arc<Request>,
@@ -353,12 +356,10 @@ impl HttpServer {
         catchers: Vec<PyRef<Catcher>>,
         py: Python<'py>,
     ) -> PyRefMut<'py, Self> {
-        let mut map = HashMap::default();
-
-        for catcher in catchers {
-            map.insert(catcher.status, catcher.handler.clone_ref(py));
-        }
-
+        let map = catchers
+            .into_iter()
+            .map(|c| (c.status, c.handler.clone_ref(py)))
+            .collect();
         slf.catchers = Some(Arc::new(map));
         slf
     }
@@ -436,7 +437,6 @@ impl HttpServer {
     async fn run_server(&self) -> PyResult<()> {
         let (listener, shutdown) = self.setup_serve().await?;
         let (ctx, rx) = self.create_request_context();
-
         self.spawn_connection_handler(listener, Arc::new(ctx)).await;
         self.process_requests(shutdown, rx).await
     }
@@ -444,7 +444,6 @@ impl HttpServer {
     async fn setup_serve(&self) -> PyResult<(TcpListener, ShutDownSignal)> {
         let listener = TcpListener::bind(self.addr).await?;
         println!("Listening on {}", self.addr);
-
         let shutdown = ShutDownSignal::new()?;
         Ok((listener, shutdown))
     }
@@ -467,7 +466,6 @@ impl HttpServer {
     async fn spawn_connection_handler(&self, listener: TcpListener, ctx: Arc<RequestContext>) {
         let running = Arc::new(AtomicBool::new(true));
         let max_connection = self.max_connections.clone();
-
         tokio::spawn(async move {
             while running.load(Ordering::SeqCst) {
                 let permit = max_connection.clone().acquire_owned().await.unwrap();
@@ -508,7 +506,6 @@ impl HttpServer {
                     }
                 }),
             );
-
             if let Err(err) = conn.await {
                 eprintln!("server connection error: {err}!");
             }
@@ -550,14 +547,12 @@ impl ShutDownSignal {
     fn new() -> PyResult<Self> {
         let running = Arc::new(AtomicBool::new(true));
         let (tx, rx) = channel::<()>(1);
-
         ctrlc::set_handler(move || {
             println!("\nShutting Down...");
             running.store(false, Ordering::SeqCst);
             let _ = block_on(tx.send(()), None);
         })
         .into_py_exception()?;
-
         Ok(Self { rx })
     }
 
@@ -575,11 +570,9 @@ async fn call_python_handler<'l>(
     match (match_route, layer) {
         (Some(route), Some(layer)) => {
             let mut result = execute_route_handler(&route, &layer, request)?;
-
             if is_async {
                 result = Python::attach(|py| into_future(result.into_bound(py)))?.await?;
             }
-
             Python::attach(|py| into_response::convert_to_response(result, py))
         }
         _ => Ok(Status::NOT_FOUND.into()),
@@ -615,7 +608,6 @@ fn build_route_params<'py>(
     params: &matchit::Params,
 ) -> PyResult<Bound<'py, PyDict>> {
     let kwargs = PyDict::new(py);
-
     for (key, value) in params.iter() {
         match key.split_once(":") {
             Some((name, ty)) => {
@@ -644,36 +636,51 @@ fn block_on<F: std::future::Future>(future: F, workers: Option<usize>) -> F::Out
     runtime.enable_all().build().unwrap().block_on(future)
 }
 
-pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
+#[gen_stub_pyfunction]
+#[pyfunction]
+#[allow(unused_variables)]
+#[pyo3(signature=(path="/static", directory="./static"))]
+fn static_file(path: &str, directory: &str) -> Route {
+    todo!()
+}
+
+#[gen_stub_pyfunction]
+#[pyfunction]
+#[allow(unused_variables)]
+fn send_file(path: &str) -> Response {
+    todo!()
+}
 
 #[pymodule]
 fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<HttpServer>()?;
-    m.add_class::<Router>()?;
-    m.add_class::<Status>()?;
-    m.add_class::<Response>()?;
-    m.add_class::<Request>()?;
     m.add_class::<Cors>()?;
-    m.add_class::<Session>()?;
-    m.add_class::<SessionStore>()?;
-    m.add_class::<Redirect>()?;
     m.add_class::<File>()?;
     m.add_class::<FileStreaming>()?;
-    m.add_function(wrap_pyfunction!(get, m)?)?;
-    m.add_function(wrap_pyfunction!(post, m)?)?;
+    m.add_class::<HttpServer>()?;
+    m.add_class::<Redirect>()?;
+    m.add_class::<Request>()?;
+    m.add_class::<Response>()?;
+    m.add_class::<Router>()?;
+    m.add_class::<Session>()?;
+    m.add_class::<SessionStore>()?;
+    m.add_class::<Status>()?;
+    m.add_function(wrap_pyfunction!(catcher::catcher, m)?)?;
+    m.add_function(wrap_pyfunction!(convert_to_response, m)?)?;
     m.add_function(wrap_pyfunction!(delete, m)?)?;
-    m.add_function(wrap_pyfunction!(patch, m)?)?;
-    m.add_function(wrap_pyfunction!(put, m)?)?;
+    m.add_function(wrap_pyfunction!(get, m)?)?;
     m.add_function(wrap_pyfunction!(head, m)?)?;
     m.add_function(wrap_pyfunction!(options, m)?)?;
-    m.add_function(wrap_pyfunction!(catcher::catcher, m)?)?;
-    m.add_function(wrap_pyfunction!(into_response::convert_to_response, m)?)?;
+    m.add_function(wrap_pyfunction!(patch, m)?)?;
+    m.add_function(wrap_pyfunction!(post, m)?)?;
+    m.add_function(wrap_pyfunction!(put, m)?)?;
+    m.add_function(wrap_pyfunction!(send_file, m)?)?;
+    m.add_function(wrap_pyfunction!(static_file, m)?)?;
 
-    json::init_orjson(m.py())?;
-    templating::templating_submodule(m)?;
-    serializer::serializer_submodule(m)?;
     exceptions::exceptions(m)?;
+    json::init_orjson(m.py())?;
     jwt::jwt_submodule(m)?;
+    serializer::serializer_submodule(m)?;
+    templating::templating_submodule(m)?;
 
     Ok(())
 }

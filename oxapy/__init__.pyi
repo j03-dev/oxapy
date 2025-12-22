@@ -2060,3 +2060,7 @@ def render(request: Request, name: builtins.str, context: typing.Optional[dict] 
     ```
     """
 
+def send_file(path: builtins.str) -> Response: ...
+
+def static_file(path: builtins.str = '/static', directory: builtins.str = './static') -> Route: ...
+

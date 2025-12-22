@@ -4,6 +4,7 @@ use ahash::HashMap;
 use pyo3::{prelude::*, Py, PyAny};
 use pyo3_stub_gen::derive::*;
 
+use crate::response::Response;
 use crate::{middleware::Middleware, IntoPyException};
 
 pub type MatchRoute<'l> = matchit::Match<'l, 'l, &'l Route>;
