@@ -569,7 +569,7 @@ async fn call_python_handler<'l>(
 ) -> PyResult<Response> {
     match (match_route, layer) {
         (Some(route), Some(layer)) => {
-            let mut result = execute_route_handler(&route, &layer, request)?;
+            let mut result = execute_route_handler(route, layer, request)?;
             if is_async {
                 result = Python::attach(|py| into_future(result.into_bound(py)))?.await?;
             }
