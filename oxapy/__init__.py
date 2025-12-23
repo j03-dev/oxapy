@@ -21,7 +21,7 @@ def static_file(path: str = "/static", directory: str = "./static"):
     """
 
     @get(f"{path}/{{*path}}")
-    def handler(_request, path):
+    def handler(_request, path: str):
         file_path = f"{directory}/{path}"
         try:
             return send_file(file_path)

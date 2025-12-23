@@ -1757,6 +1757,31 @@ class Status(enum.Enum):
             int: The status code
         """
 
+def catcher(status: Status) -> CatcherBuilder:
+    r"""
+    Decorator for creating status code catchers.
+    
+    A catcher allows you to provide custom responses for specific HTTP status codes.
+    
+    Args:
+        status (Status): The HTTP status code to catch.
+    
+    Returns:
+        CatcherBuilder: A builder that creates a Catcher when called with a handler function.
+    
+    Example:
+    ```python
+    from oxapy import catcher, Status, Response
+    
+    @catcher(Status.NOT_FOUND)
+    def handle_404(request, response):
+        return Response("<h1>Page Not Found</h1>", content_type="text/html")
+    
+    # Add the catcher to your server
+    app.catchers([handle_404])
+    ```
+    """
+
 def convert_to_response(result: typing.Any) -> Response:
     r"""
     Convert a Python object into an OxAPY `Response`.

@@ -1,6 +1,6 @@
 use crate::Status;
 use pyo3::prelude::*;
-use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pymethods};
+use pyo3_stub_gen::derive::*;
 
 /// A catcher for handling specific HTTP status codes.
 ///
@@ -75,6 +75,7 @@ impl CatcherBuilder {
 /// # Add the catcher to your server
 /// app.catchers([handle_404])
 /// ```
+#[gen_stub_pyfunction]
 #[pyfunction]
 pub fn catcher(status: Status) -> CatcherBuilder {
     CatcherBuilder { status }

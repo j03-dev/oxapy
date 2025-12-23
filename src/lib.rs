@@ -35,7 +35,6 @@ use crate::templating::Template;
 
 use pyo3::exceptions::PyValueError;
 use pyo3::types::{PyDict, PyInt, PyString};
-use pyo3_async_runtimes::tokio::{future_into_py, into_future};
 use pyo3_stub_gen::derive::*;
 
 use ahash::HashMap;
@@ -423,13 +422,8 @@ impl HttpServer {
     /// ```
     #[pyo3(signature=(workers=None))]
     fn run<'py>(&self, workers: Option<usize>, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        let server = self.clone();
-        if self.is_async {
-            future_into_py(py, async move { server.run_server().await })
-        } else {
-            py.detach(move || block_on(server.run_server(), workers))?;
-            Ok(py.None().into_bound(py))
-        }
+        py.detach(move || block_on(self.run_server(), workers))?;
+        Ok(py.None().into_bound(py))
     }
 }
 
@@ -489,7 +483,7 @@ impl HttpServer {
             http.timer(hyper_util::rt::TokioTimer::new());
             http.half_close(true);
             http.writev(true);
-            let conn = http.serve_connection(
+            http.serve_connection(
                 io,
                 hyper::service::service_fn(move |req| {
                     let ctx = ctx.clone();
@@ -505,10 +499,9 @@ impl HttpServer {
                         response
                     }
                 }),
-            );
-            if let Err(err) = conn.await {
-                eprintln!("server connection error: {err}!");
-            }
+            )
+            .await
+            .ok();
         });
     }
 
@@ -568,13 +561,14 @@ async fn call_python_handler<'l>(
     is_async: bool,
 ) -> PyResult<Response> {
     match (match_route, layer) {
-        (Some(route), Some(layer)) => {
-            let mut result = execute_route_handler(route, layer, request)?;
+        (Some(route), Some(layer)) => Python::attach(|py| {
+            let mut result = execute_route_handler(route, layer, request, py)?;
             if is_async {
-                result = Python::attach(|py| into_future(result.into_bound(py)))?.await?;
+                let r = pyo3_async_runtimes::tokio::into_future(result.into_bound(py))?;
+                result = tokio::runtime::Handle::current().block_on(r)?;
             }
-            Python::attach(|py| into_response::convert_to_response(result, py))
-        }
+            into_response::convert_to_response(result, py)
+        }),
         _ => Ok(Status::NOT_FOUND.into()),
     }
 }
@@ -583,24 +577,23 @@ fn execute_route_handler(
     route: &MatchRoute,
     layer: &Layer,
     request: &Request,
+    py: Python<'_>,
 ) -> PyResult<Py<PyAny>> {
-    Python::attach(|py| {
-        let kwargs = build_route_params(py, &route.params)?;
-        if layer.middlewares.is_empty() {
-            route
-                .value
-                .handler
-                .call(py, (request.clone(),), Some(&kwargs))
-        } else {
-            let chain = MiddlewareChain::new(layer.middlewares.clone());
-            chain.execute(
-                py,
-                route.value.handler.deref(),
-                (request.clone(),),
-                kwargs.clone(),
-            )
-        }
-    })
+    let kwargs = build_route_params(py, &route.params)?;
+    if layer.middlewares.is_empty() {
+        route
+            .value
+            .handler
+            .call(py, (request.clone(),), Some(&kwargs))
+    } else {
+        let chain = MiddlewareChain::new(layer.middlewares.clone());
+        chain.execute(
+            py,
+            route.value.handler.deref(),
+            (request.clone(),),
+            kwargs.clone(),
+        )
+    }
 }
 
 fn build_route_params<'py>(
@@ -641,14 +634,16 @@ fn block_on<F: std::future::Future>(future: F, workers: Option<usize>) -> F::Out
 #[allow(unused_variables)]
 #[pyo3(signature=(path="/static", directory="./static"))]
 fn static_file(path: &str, directory: &str) -> Route {
-    todo!()
+    // the implementation of this function is in __init__.py
+    todo!("dummy static_file function")
 }
 
 #[gen_stub_pyfunction]
 #[pyfunction]
 #[allow(unused_variables)]
 fn send_file(path: &str) -> Response {
-    todo!()
+    // the implementation of this function is in __init__.py
+    todo!("dummy send_file function")
 }
 
 #[pymodule]
