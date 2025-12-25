@@ -33,6 +33,7 @@ use crate::session::{Session, SessionStore};
 use crate::status::Status;
 use crate::templating::Template;
 
+use once_cell::sync::OnceCell;
 use pyo3::exceptions::PyValueError;
 use pyo3::types::{PyDict, PyInt, PyString};
 use pyo3_stub_gen::derive::*;
@@ -422,8 +423,13 @@ impl HttpServer {
     /// ```
     #[pyo3(signature=(workers=None))]
     fn run<'py>(&self, workers: Option<usize>, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        py.detach(move || block_on(self.run_server(), workers))?;
+        let server = self.clone();
+        // if self.is_async {
+        // pyo3_async_runtimes::tokio::future_into_py(py, async move { server.run_server().await })
+        // } else {
+        py.detach(move || block_on(server.run_server(), workers))?;
         Ok(py.None().into_bound(py))
+        // }
     }
 }
 
@@ -520,13 +526,12 @@ impl HttpServer {
     }
 
     async fn handle_request(&self, req: ProcessRequest) -> PyResult<()> {
-        let response =
-            call_python_handler(&req.layer, &req.match_route, &req.request, self.is_async)
-                .await
-                .unwrap_or_else(Response::from)
-                .apply_catcher(&req)
-                .apply_session(&req.request)
-                .apply_cors(&req.cors)?;
+        let response = call_python_handler(&req.layer, &req.match_route, &req.request)
+            .await
+            .unwrap_or_else(Response::from)
+            .apply_catcher(&req)
+            .apply_session(&req.request)
+            .apply_cors(&req.cors)?;
         let _ = req.tx.send(response).await;
         Ok(())
     }
@@ -554,18 +559,22 @@ impl ShutDownSignal {
     }
 }
 
+static INSPECT: OnceCell<Py<PyModule>> = OnceCell::new();
+
 async fn call_python_handler<'l>(
     layer: &Option<Arc<Layer>>,
     match_route: &Option<MatchRoute<'l>>,
     request: &Request,
-    is_async: bool,
 ) -> PyResult<Response> {
     match (match_route, layer) {
         (Some(route), Some(layer)) => Python::attach(|py| {
             let mut result = execute_route_handler(route, layer, request, py)?;
-            if is_async {
-                let r = pyo3_async_runtimes::tokio::into_future(result.into_bound(py))?;
-                result = tokio::runtime::Handle::current().block_on(r)?;
+            let inspect = INSPECT.get_or_init(|| PyModule::import(py, "inspect").unwrap().into());
+            let is_awaitable = inspect
+                .call_method1(py, "iscoroutine", (&result,))?
+                .extract(py)?;
+            if is_awaitable {
+                result = pyo3_async_runtimes::tokio::into_future(result.into_bound(py)).await?;
             }
             into_response::convert_to_response(result, py)
         }),
@@ -672,7 +681,6 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(static_file, m)?)?;
 
     exceptions::exceptions(m)?;
-    json::init_orjson(m.py())?;
     jwt::jwt_submodule(m)?;
     serializer::serializer_submodule(m)?;
     templating::templating_submodule(m)?;
