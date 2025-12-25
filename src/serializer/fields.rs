@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 use pyo3_stub_gen::derive::*;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 /// Base class representing a JSON schema field.
 #[gen_stub_pyclass]
@@ -8,15 +8,15 @@ use serde_json::Value;
 #[derive(Debug, Clone, Default)]
 pub struct Field {
     #[pyo3(get, set)]
-    pub required: Option<bool>,
+    pub required: bool,
     #[pyo3(get, set)]
     pub ty: String,
     #[pyo3(get, set)]
-    pub nullable: Option<bool>,
+    pub nullable: bool,
     #[pyo3(get, set)]
     pub format: Option<String>,
     #[pyo3(get, set)]
-    pub many: Option<bool>,
+    pub many: bool,
     #[pyo3(get, set)]
     pub length: Option<usize>,
     #[pyo3(get, set)]
@@ -28,9 +28,9 @@ pub struct Field {
     #[pyo3(get, set)]
     pub enum_values: Option<Vec<String>>,
     #[pyo3(get, set)]
-    pub read_only: Option<bool>,
+    pub read_only: bool,
     #[pyo3(get, set)]
-    pub write_only: Option<bool>,
+    pub write_only: bool,
 }
 
 #[gen_stub_pymethods]
@@ -62,33 +62,33 @@ impl Field {
     /// ```
     #[pyo3(signature = (
         ty,
-        required = Some(true),
-        nullable = Some(false),
+        required = true,
+        nullable = false,
         format = None,
-        many = Some(false),
+        many = false,
         length = None,
         min_length = None,
         max_length = None,
         pattern = None,
         enum_values = None,
-        read_only = None,
-        write_only = None
+        read_only = false,
+        write_only = false
     ))]
     #[allow(clippy::too_many_arguments)]
     #[new]
     pub fn new(
         ty: String,
-        required: Option<bool>,
-        nullable: Option<bool>,
+        required: bool,
+        nullable: bool,
         format: Option<String>,
-        many: Option<bool>,
+        many: bool,
         length: Option<usize>,
         min_length: Option<usize>,
         max_length: Option<usize>,
         pattern: Option<String>,
         enum_values: Option<Vec<String>>,
-        read_only: Option<bool>,
-        write_only: Option<bool>,
+        read_only: bool,
+        write_only: bool,
     ) -> Self {
         Self {
             required,
@@ -118,54 +118,48 @@ impl Field {
 
         let mut schema = serde_json::Map::with_capacity(capacity);
 
-        if self.nullable.unwrap_or(false) {
-            schema.insert("type".to_string(), serde_json::json!([self.ty, "null"]));
+        if self.nullable {
+            schema.insert("type".to_string(), json!([self.ty, "null"]))
         } else {
-            schema.insert("type".to_string(), Value::String(self.ty.clone()));
+            schema.insert("type".to_string(), json!(self.ty))
+        };
+
+        if let Some(ref fmt) = self.format {
+            schema.insert("format".to_string(), json!(fmt));
         }
 
-        if let Some(fmt) = &self.format {
-            schema.insert("format".to_string(), Value::String(fmt.clone()));
-        }
-
-        if let Some(length) = self.length {
-            schema.insert("minLength".to_string(), Value::Number(length.into()));
-            schema.insert("maxLength".to_string(), Value::Number(length.into()));
+        if let Some(len) = self.length {
+            schema.insert("minLength".to_string(), json!(len));
+            schema.insert("maxLength".to_string(), json!(len));
         } else {
-            if let Some(min_length) = self.min_length {
-                schema.insert("minLength".to_string(), Value::Number(min_length.into()));
+            if let Some(min) = self.min_length {
+                schema.insert("minLength".to_string(), json!(min));
             }
-            if let Some(max_length) = self.max_length {
-                schema.insert("maxLength".to_string(), Value::Number(max_length.into()));
+            if let Some(max) = self.max_length {
+                schema.insert("maxLength".to_string(), json!(max));
             }
         }
 
-        if let Some(pattern) = &self.pattern {
-            schema.insert("pattern".to_string(), Value::String(pattern.clone()));
+        if let Some(ref p) = self.pattern {
+            schema.insert("pattern".to_string(), json!(p));
         }
 
-        if let Some(enum_values) = &self.enum_values {
-            let enum_array: Vec<Value> = enum_values
-                .iter()
-                .map(|v| Value::String(v.clone()))
-                .collect();
-            schema.insert("enum".to_string(), Value::Array(enum_array));
+        if let Some(ref e) = self.enum_values {
+            schema.insert("enum".to_string(), json!(e));
         }
 
-        if self.many.unwrap_or(false) {
+        if self.many {
             let mut array_schema = serde_json::Map::with_capacity(2);
-
-            if self.nullable.unwrap_or(false) {
-                array_schema.insert("type".to_string(), serde_json::json!(["array", "null"]));
+            if self.nullable {
+                array_schema.insert("type".to_string(), json!(["array", "null"]))
             } else {
-                array_schema.insert("type".to_string(), Value::String("array".to_string()));
-            }
-
-            array_schema.insert("items".to_string(), Value::Object(schema));
-            return Value::Object(array_schema);
+                array_schema.insert("type".to_string(), json!("array"))
+            };
+            array_schema.insert("items".to_string(), json!(schema));
+            return json!(array_schema);
         }
 
-        Value::Object(schema)
+        json!(schema)
     }
 }
 
@@ -201,30 +195,30 @@ macro_rules! define_fields {
                 ///     write_only (bool, optional): If `True`, the field will be excluded when serializing.
                 #[new]
                 #[pyo3(signature=(
-                    required=Some(true),
-                    nullable=Some(false),
+                    required=true,
+                    nullable=false,
                     format=$default_format,
-                    many=Some(false),
+                    many=false,
                     length=None,
                     min_length=None,
                     max_length=None,
                     pattern=None,
                     enum_values=None,
-                    read_only=None,
-                    write_only=None
+                    read_only=false,
+                    write_only=false
                 ))]
                 fn new(
-                    required: Option<bool>,
-                    nullable: Option<bool>,
+                    required: bool,
+                    nullable: bool,
                     format: Option<String>,
-                    many: Option<bool>,
+                    many: bool,
                     length: Option<usize>,
                     min_length: Option<usize>,
                     max_length: Option<usize>,
                     pattern: Option<String>,
                     enum_values: Option<Vec<String>>,
-                    read_only: Option<bool>,
-                    write_only: Option<bool>
+                    read_only: bool,
+                    write_only: bool
                 ) -> ($class, Field) {
                     (
                         Self,
