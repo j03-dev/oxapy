@@ -1,15 +1,16 @@
-use once_cell::sync::OnceCell;
+use once_cell::sync::Lazy;
 use pyo3::{prelude::*, types::PyDict};
 use serde::{Deserialize, Serialize};
 
-static ORJSON: OnceCell<Py<PyModule>> = OnceCell::new();
+// assuming orjson is already imported by oxapy
+static ORJSON: Lazy<Py<PyModule>> =
+    Lazy::new(|| Python::attach(|py| PyModule::import(py, "orjson").unwrap().into()));
 
 #[inline]
 pub fn dumps(data: &Py<PyAny>) -> PyResult<String> {
     Python::attach(|py| {
-        let orjson = ORJSON.get_or_init(|| PyModule::import(py, "orjson").unwrap().into());
         let serialized_data =
-            orjson
+            ORJSON
                 .call_method1(py, "dumps", (data,))?
                 .call_method1(py, "decode", ("utf-8",))?;
         Ok(serialized_data.extract(py)?)
@@ -19,8 +20,7 @@ pub fn dumps(data: &Py<PyAny>) -> PyResult<String> {
 #[inline]
 pub fn loads(data: &str) -> PyResult<Py<PyDict>> {
     Python::attach(|py| {
-        let orjson = ORJSON.get_or_init(|| PyModule::import(py, "orjson").unwrap().into());
-        let deserialized_data = orjson.call_method1(py, "loads", (data,))?;
+        let deserialized_data = ORJSON.call_method1(py, "loads", (data,))?;
         Ok(deserialized_data.extract(py)?)
     })
 }

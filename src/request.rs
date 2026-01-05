@@ -15,11 +15,10 @@ use url::form_urlencoded;
 use crate::routing::MatchRoute;
 use crate::status::Status;
 use crate::{
-    json,
+    IntoPyException, ProcessRequest, RequestContext, json,
     multipart::File,
     session::{Session, SessionStore},
     templating::Template,
-    IntoPyException, ProcessRequest, RequestContext,
 };
 use crate::{multipart::parse_multipart, response::Body};
 use crate::{response::Response, routing::Layer};
@@ -214,11 +213,11 @@ impl Request {
     /// ```
     #[getter]
     pub fn session(&self) -> PyResult<Session> {
-        let message = "Session not available. Make sure you've configured SessionStore.";
-        let session = self
-            .session
-            .as_ref()
-            .ok_or_else(|| PyAttributeError::new_err(message))?;
+        let session = self.session.as_ref().ok_or_else(|| {
+            PyAttributeError::new_err(
+                "Session not available. Make sure you've configured SessionStore.",
+            )
+        })?;
         Ok(session.as_ref().clone())
     }
 
@@ -331,13 +330,12 @@ impl Request {
         process_request: ProcessRequest,
         mut rx: tokio::sync::mpsc::Receiver<Response>,
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
-        if ctx.request_sender.send(process_request).await.is_ok() {
-            if let Some(response) = rx.recv().await {
-                return response.try_into();
-            }
+        if ctx.request_sender.send(process_request).await.is_ok()
+            && let Some(response) = rx.recv().await
+        {
+            return response.try_into();
         }
-        let response: Response = Status::NOT_FOUND.into();
-        response.try_into()
+        Response::from(Status::NOT_FOUND).try_into()
     }
 }
 

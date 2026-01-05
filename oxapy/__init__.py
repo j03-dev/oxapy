@@ -1,5 +1,6 @@
 from .oxapy import *
 
+import os
 import mimetypes
 
 
@@ -23,10 +24,7 @@ def static_file(path: str = "/static", directory: str = "./static"):
     @get(f"{path}/{{*path}}")
     def handler(_request, path: str):
         file_path = f"{directory}/{path}"
-        try:
-            return send_file(file_path)
-        except FileNotFoundError:
-            return Response("File not found", Status.NOT_FOUND)
+        return send_file(file_path)
 
     return handler
 
@@ -40,6 +38,8 @@ def send_file(path: str) -> Response:
     Returns:
         Response: A Response with file content
     """
+    if not os.path.exists(path):
+        raise exceptions.NotFoundError(f"The file at {path} is not found.")
     with open(path, "rb") as f:
         content = f.read()
     content_type, _ = mimetypes.guess_type(path)

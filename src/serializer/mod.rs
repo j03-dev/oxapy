@@ -6,18 +6,18 @@ use std::{
 };
 
 use self::fields::*;
-use crate::{exceptions::ClientError, json, IntoPyException};
+use crate::{IntoPyException, exceptions::ClientError, json};
 
 use once_cell::sync::{Lazy, OnceCell};
 use pyo3::{
+    IntoPyObjectExt,
     exceptions::PyException,
     impl_exception_boilerplate,
     prelude::*,
     types::{PyDict, PyList, PyType},
-    IntoPyObjectExt,
 };
 use pyo3_stub_gen::derive::*;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 static SQL_ALCHEMY_INSPECT: OnceCell<Py<PyAny>> = OnceCell::new();
 
@@ -205,11 +205,11 @@ impl Serializer {
 
         for k in attr.keys() {
             let key = k.to_string();
-            if let Ok(field) = slf.getattr(&key) {
-                let field = field.extract::<Field>()?;
-                if field.read_only {
-                    attr.del_item(&key)?;
-                }
+            if let Ok(f) = slf.getattr(&key)
+                && let Ok(field) = f.extract::<Field>()
+                && field.read_only
+            {
+                attr.del_item(&key)?;
             }
         }
 
@@ -408,10 +408,10 @@ impl Serializer {
 
         for c in columns {
             let col = c?.getattr("name")?.to_string();
-            if let Ok(field) = slf.getattr(&col) {
-                if !field.extract::<Field>()?.write_only {
-                    dict.set_item(&col, instance.getattr(&col)?)?;
-                }
+            if let Ok(field) = slf.getattr(&col)
+                && !field.extract::<Field>()?.write_only
+            {
+                dict.set_item(&col, instance.getattr(&col)?)?;
             }
         }
 
@@ -422,13 +422,13 @@ impl Serializer {
 
         for r in relationships {
             let key = r?.getattr("key")?.to_string();
-            if let Ok(field) = slf.getattr(&key) {
-                if !field.extract::<Field>()?.write_only {
-                    slf.getattr("context")
-                        .and_then(|ctx| field.setattr("context", ctx))?;
-                    field.setattr("instance", instance.getattr(&key)?)?;
-                    dict.set_item(key, field.getattr("data")?)?;
-                }
+            if let Ok(field) = slf.getattr(&key)
+                && !field.extract::<Field>()?.write_only
+            {
+                slf.getattr("context")
+                    .and_then(|ctx| field.setattr("context", ctx))?;
+                field.setattr("instance", instance.getattr(&key)?)?;
+                dict.set_item(key, field.getattr("data")?)?;
             }
         }
         Ok(dict)
