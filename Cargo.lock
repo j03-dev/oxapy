@@ -1598,7 +1598,6 @@ dependencies = [
  "matchit",
  "minijinja",
  "multer",
- "once_cell",
  "pyo3",
  "pyo3-async-runtimes",
  "pyo3-stub-gen",

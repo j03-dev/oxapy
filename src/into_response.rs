@@ -96,7 +96,7 @@ impl From<PyErr> for Response {
                     Status::INTERNAL_SERVER_ERROR
                 }
             };
-            let response: Response = status.into();
+            let response = Response::from(status);
             response.set_body(format!(
                 r#"{{"detail": "{}"}}"#,
                 value.value(py).to_string().replace('"', "'")
@@ -106,9 +106,9 @@ impl From<PyErr> for Response {
 }
 
 impl From<Cors> for Response {
-    fn from(val: Cors) -> Self {
-        let mut response = Status::NO_CONTENT.into();
-        val.apply_headers(&mut response);
+    fn from(cors: Cors) -> Self {
+        let mut response = Response::from(Status::NO_CONTENT);
+        cors.apply_headers(&mut response);
         response
     }
 }

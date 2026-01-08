@@ -34,15 +34,19 @@ pub struct Cors {
     /// List of allowed origins, default is ["*"] (all origins)
     #[pyo3(get, set)]
     pub origins: Vec<String>,
+
     /// List of allowed HTTP methods, default includes common methods
     #[pyo3(get, set)]
     pub methods: Vec<String>,
+
     /// List of allowed HTTP headers, default includes common headers
     #[pyo3(get, set)]
     pub headers: Vec<String>,
+
     /// Whether to allow credentials (cookies, authorization headers), default is true
     #[pyo3(get, set)]
     pub allow_credentials: bool,
+
     /// Maximum age of preflight requests in seconds, default is 86400 (1 day)
     #[pyo3(get, set)]
     pub max_age: u32,
@@ -52,8 +56,20 @@ impl Default for Cors {
     fn default() -> Self {
         Self {
             origins: vec!["*".to_string()],
-            methods: vec!["GET, POST, PUT, DELETE, PATCH, OPTIONS".to_string()],
-            headers: vec!["Content-Type, Authorization, X-Requested-With, Accept".to_string()],
+            methods: vec![
+                "DELETE".to_string(),
+                "GET".to_string(),
+                "OPTIONS".to_string(),
+                "PATCH".to_string(),
+                "POST".to_string(),
+                "PUT".to_string(),
+            ],
+            headers: vec![
+                "Accept".to_string(),
+                "Authorization".to_string(),
+                "Content-Type".to_string(),
+                "X-Requested-With".to_string(),
+            ],
             allow_credentials: true,
             max_age: 86400,
         }

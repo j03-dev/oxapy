@@ -1,17 +1,15 @@
-use once_cell::sync::OnceCell;
-use pyo3::{prelude::*, types::PyDict};
+use pyo3::{prelude::*, sync::PyOnceLock, types::PyDict};
 use serde::{Deserialize, Serialize};
 
-static ORJSON: OnceCell<Py<PyModule>> = OnceCell::new();
+static ORJSON: PyOnceLock<Py<PyModule>> = PyOnceLock::new();
 
 #[inline]
 pub fn dumps(data: &Py<PyAny>) -> PyResult<String> {
     Python::attach(|py| {
-        let orjson = ORJSON.get_or_init(|| PyModule::import(py, "orjson").unwrap().into());
-        let serialized_data =
-            orjson
-                .call_method1(py, "dumps", (data,))?
-                .call_method1(py, "decode", ("utf-8",))?;
+        let serialized_data = ORJSON
+            .get_or_try_init(py, || PyModule::import(py, "orjson").map(|m| m.into()))?
+            .call_method1(py, "dumps", (data,))?
+            .call_method1(py, "decode", ("utf-8",))?;
         Ok(serialized_data.extract(py)?)
     })
 }
@@ -19,8 +17,9 @@ pub fn dumps(data: &Py<PyAny>) -> PyResult<String> {
 #[inline]
 pub fn loads(data: &str) -> PyResult<Py<PyDict>> {
     Python::attach(|py| {
-        let orjson = ORJSON.get_or_init(|| PyModule::import(py, "orjson").unwrap().into());
-        let deserialized_data = orjson.call_method1(py, "loads", (data,))?;
+        let deserialized_data = ORJSON
+            .get_or_try_init(py, || PyModule::import(py, "orjson").map(|m| m.into()))?
+            .call_method1(py, "loads", (data,))?;
         Ok(deserialized_data.extract(py)?)
     })
 }

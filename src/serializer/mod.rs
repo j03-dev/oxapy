@@ -6,20 +6,19 @@ use std::{
 };
 
 use self::fields::*;
-use crate::{exceptions::ClientError, json, IntoPyException};
+use crate::{IntoPyException, exceptions::ClientError, json};
 
-use once_cell::sync::{Lazy, OnceCell};
 use pyo3::{
-    exceptions::PyException,
-    impl_exception_boilerplate,
-    prelude::*,
-    types::{PyDict, PyList, PyType},
     IntoPyObjectExt,
+    exceptions::PyException,
+    prelude::*,
+    sync::PyOnceLock,
+    types::{PyDict, PyList, PyType},
 };
 use pyo3_stub_gen::derive::*;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
-static SQL_ALCHEMY_INSPECT: OnceCell<Py<PyAny>> = OnceCell::new();
+static SQL_ALCHEMY_INSPECT: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
 
 #[gen_stub_pyclass]
 #[pyclass(module="oxapy.serializer", subclass, extends=Field)]
@@ -32,7 +31,7 @@ struct Serializer {
     #[pyo3(get, set)]
     raw_data: Option<String>,
     #[pyo3(get, set)]
-    context: Option<Py<PyDict>>,
+    context: Py<PyDict>,
 }
 
 #[gen_stub_pymethods]
@@ -96,7 +95,7 @@ impl Serializer {
                 validated_data: PyDict::new(py).into(),
                 raw_data: data,
                 instance,
-                context,
+                context: context.unwrap_or_else(|| PyDict::new(py).into()),
             },
             Field {
                 required,
@@ -129,8 +128,8 @@ impl Serializer {
     /// print(schema)
     /// ```
     #[pyo3(signature=())]
-    fn schema(slf: Bound<'_, Self>) -> PyResult<Py<PyDict>> {
-        let schema_value = Self::json_schema_value(&slf.get_type(), false)?;
+    fn schema(slf: Bound<'_, Self>, py: Python<'_>) -> PyResult<Py<PyDict>> {
+        let schema_value = Self::json_schema_value(&slf.get_type(), false, py)?;
         json::loads(&schema_value.to_string())
     }
 
@@ -189,10 +188,14 @@ impl Serializer {
     /// serializer.validate({"email": "user@example.com"})
     /// ```
     #[pyo3(signature=(attr))]
-    fn validate<'a>(slf: Bound<'a, Self>, attr: Bound<'a, PyDict>) -> PyResult<Bound<'a, PyDict>> {
+    fn validate<'a>(
+        slf: Bound<'a, Self>,
+        attr: Bound<'a, PyDict>,
+        py: Python<'a>,
+    ) -> PyResult<Bound<'a, PyDict>> {
         let json::Wrap(json_value) = attr.clone().try_into()?;
 
-        let schema_value = Self::json_schema_value(&slf.get_type(), false)?;
+        let schema_value = Self::json_schema_value(&slf.get_type(), false, py)?;
 
         let validator = jsonschema::options()
             .should_validate_formats(true)
@@ -205,11 +208,11 @@ impl Serializer {
 
         for k in attr.keys() {
             let key = k.to_string();
-            if let Ok(field) = slf.getattr(&key) {
-                let field = field.extract::<Field>()?;
-                if field.read_only {
-                    attr.del_item(&key)?;
-                }
+            if let Ok(f) = slf.getattr(&key)
+                && let Ok(field) = f.extract::<Field>()
+                && field.read_only
+            {
+                attr.del_item(&key)?;
             }
         }
 
@@ -394,13 +397,11 @@ impl Serializer {
     ) -> PyResult<Bound<'l, PyDict>> {
         let dict = PyDict::new(py);
 
-        let inspect = SQL_ALCHEMY_INSPECT.get_or_init(|| {
-            let sqlalchemy =
-                PyModule::import(py, "sqlalchemy").expect("sqlalchemy is not installed!");
-            let inspection = sqlalchemy.getattr("inspection").unwrap();
-            let inspect = inspection.getattr("inspect").unwrap();
-            inspect.into()
-        });
+        let inspect = SQL_ALCHEMY_INSPECT.get_or_try_init(py, || {
+            let sqlalchemy = PyModule::import(py, "sqlalchemy")?;
+            let inspection = sqlalchemy.getattr("inspection")?;
+            inspection.getattr("inspect").map(|i| i.into())
+        })?;
 
         let mapper = inspect.call1(py, (instance.get_type(),))?;
 
@@ -408,10 +409,10 @@ impl Serializer {
 
         for c in columns {
             let col = c?.getattr("name")?.to_string();
-            if let Ok(field) = slf.getattr(&col) {
-                if !field.extract::<Field>()?.write_only {
-                    dict.set_item(&col, instance.getattr(&col)?)?;
-                }
+            if let Ok(field) = slf.getattr(&col)
+                && !field.extract::<Field>()?.write_only
+            {
+                dict.set_item(&col, instance.getattr(&col)?)?;
             }
         }
 
@@ -422,30 +423,37 @@ impl Serializer {
 
         for r in relationships {
             let key = r?.getattr("key")?.to_string();
-            if let Ok(field) = slf.getattr(&key) {
-                if !field.extract::<Field>()?.write_only {
-                    slf.getattr("context")
-                        .and_then(|ctx| field.setattr("context", ctx))?;
-                    field.setattr("instance", instance.getattr(&key)?)?;
-                    dict.set_item(key, field.getattr("data")?)?;
-                }
+            if let Ok(field) = slf.getattr(&key)
+                && !field.extract::<Field>()?.write_only
+            {
+                slf.getattr("context")
+                    .and_then(|ctx| field.setattr("context", ctx))?;
+                field.setattr("instance", instance.getattr(&key)?)?;
+                dict.set_item(key, field.getattr("data")?)?;
             }
         }
         Ok(dict)
     }
 }
 
-static CACHES_JSON_SCHEMA_VALUE: Lazy<Arc<Mutex<HashMap<String, Value>>>> =
-    Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
+static CACHE: PyOnceLock<Arc<Mutex<HashMap<String, Value>>>> = PyOnceLock::new();
+
+fn cache(py: Python<'_>) -> &Arc<Mutex<HashMap<String, Value>>> {
+    CACHE.get_or_init(py, || Arc::new(Mutex::new(HashMap::new())))
+}
 
 impl Serializer {
-    fn json_schema_value(cls: &Bound<'_, PyType>, nullable: bool) -> PyResult<Value> {
+    fn json_schema_value(
+        cls: &Bound<'_, PyType>,
+        nullable: bool,
+        py: Python<'_>,
+    ) -> PyResult<Value> {
         let mut properties = serde_json::Map::with_capacity(16);
         let mut required_fields = Vec::with_capacity(8);
 
         let class_name = cls.name()?;
 
-        if let Some(value) = CACHES_JSON_SCHEMA_VALUE
+        if let Some(value) = cache(py)
             .lock()
             .into_py_exception()?
             .get(&class_name.to_string())
@@ -469,7 +477,7 @@ impl Serializer {
                         .required
                         .then(|| required_fields.push(attr_name.clone()));
                     let nested_schema =
-                        Self::json_schema_value(&attr_obj.get_type(), field.nullable)?;
+                        Self::json_schema_value(&attr_obj.get_type(), field.nullable, py)?;
 
                     if field.many {
                         let mut array_schema = serde_json::Map::with_capacity(2);
@@ -505,7 +513,7 @@ impl Serializer {
 
         let final_schema = json!(schema);
 
-        CACHES_JSON_SCHEMA_VALUE
+        cache(py)
             .lock()
             .into_py_exception()?
             .insert(class_name.to_string(), final_schema.clone());
@@ -522,8 +530,6 @@ impl Serializer {
 #[gen_stub_pyclass]
 #[pyclass(module = "oxapy.serializer", extends=ClientError)]
 pub struct ValidationException;
-
-impl_exception_boilerplate!(ValidationException);
 extend_exception!(ValidationException, ClientError);
 
 pub fn serializer_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {

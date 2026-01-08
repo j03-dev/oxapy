@@ -4,9 +4,9 @@ use std::{
 };
 
 use ahash::HashMap;
-use pyo3::{prelude::*, types::PyTuple, IntoPyObjectExt};
+use pyo3::{IntoPyObjectExt, prelude::*, types::PyTuple};
 use pyo3_stub_gen::derive::*;
-use rand::{distr::Alphanumeric, Rng};
+use rand::{Rng, distr::Alphanumeric};
 
 use crate::IntoPyException;
 
@@ -395,15 +395,15 @@ impl SessionStore {
     pub fn get_session(&self, session_id: Option<&str>) -> PyResult<Session> {
         let mut sessions = self.sessions.write().into_py_exception()?;
 
-        if let Some(id) = session_id {
-            if let Some(session) = sessions.get(id) {
-                *session.last_accessed.lock().unwrap() = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .into_py_exception()?
-                    .as_secs();
+        if let Some(id) = session_id
+            && let Some(session) = sessions.get(id)
+        {
+            *session.last_accessed.lock().unwrap() = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .into_py_exception()?
+                .as_secs();
 
-                return Ok(session.as_ref().clone());
-            }
+            return Ok(session.as_ref().clone());
         }
 
         let session = Session::new(None)?;

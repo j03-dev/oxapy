@@ -1,6 +1,17 @@
 from .oxapy import *
 
+import os
 import mimetypes
+
+
+def secure_join(base: str, *paths: str) -> str:
+    base = os.path.realpath(base)
+    target = os.path.realpath(os.path.join(base, *paths))
+
+    if target != base and not target.startswith(base + os.sep):
+        raise exceptions.ForbiddenError("Access denied")
+
+    return target
 
 
 def static_file(path: str = "/static", directory: str = "./static"):
@@ -22,11 +33,8 @@ def static_file(path: str = "/static", directory: str = "./static"):
 
     @get(f"{path}/{{*path}}")
     def handler(_request, path: str):
-        file_path = f"{directory}/{path}"
-        try:
-            return send_file(file_path)
-        except FileNotFoundError:
-            return Response("File not found", Status.NOT_FOUND)
+        file_path = secure_join(directory, path)
+        return send_file(file_path)
 
     return handler
 
@@ -40,6 +48,12 @@ def send_file(path: str) -> Response:
     Returns:
         Response: A Response with file content
     """
+    if not os.path.exists(path):
+        raise exceptions.NotFoundError("Requested file not found")
+
+    if not os.path.isfile(path):
+        raise exceptions.ForbiddenError("Not a file")
+
     with open(path, "rb") as f:
         content = f.read()
     content_type, _ = mimetypes.guess_type(path)

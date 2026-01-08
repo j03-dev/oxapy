@@ -3,9 +3,9 @@ use http_body_util::combinators::BoxBody;
 use hyper::body::Frame;
 use hyper::http::HeaderValue;
 use hyper::{
-    body::Bytes,
-    header::{HeaderName, CONTENT_TYPE, LOCATION},
     HeaderMap,
+    body::Bytes,
+    header::{CONTENT_TYPE, HeaderName, LOCATION},
 };
 
 use futures_util::stream;
@@ -17,11 +17,12 @@ use pyo3::types::{PyBytes, PyString};
 use pyo3_stub_gen::derive::*;
 
 use std::convert::Infallible;
+use std::fs;
 use std::io::Read;
+use std::str::{self, FromStr};
 use std::sync::Arc;
-use std::{fs, str};
 
-use crate::{convert_to_response, json, Cors, IntoPyException, ProcessRequest, Request, Status};
+use crate::{Cors, IntoPyException, ProcessRequest, Request, Status, convert_to_response, json};
 
 pub type Body = BoxBody<Bytes, Infallible>;
 
@@ -117,7 +118,7 @@ impl Response {
     fn body(&self) -> PyResult<String> {
         match &self.body {
             ResponseBody::Bytes(b) => {
-                let s = str::from_utf8(b.as_ref()).into_py_exception()?;
+                let s = str::from_utf8(&b).into_py_exception()?;
                 Ok(s.to_string())
             }
             _ => {
@@ -167,10 +168,8 @@ impl Response {
     /// response.insert_header("Cache-Control", "no-cache")
     /// ```
     pub fn insert_header(&mut self, key: &str, value: String) {
-        self.headers.insert(
-            HeaderName::from_bytes(key.as_bytes()).unwrap(),
-            value.parse().unwrap(),
-        );
+        self.headers
+            .insert(HeaderName::from_str(key).unwrap(), value.parse().unwrap());
     }
 
     /// Append a header to the response.
@@ -193,10 +192,8 @@ impl Response {
     /// response.append_header("Set-Cookie", "theme=dark")
     /// ```
     pub fn append_header(&mut self, key: &str, value: String) {
-        self.headers.append(
-            HeaderName::from_bytes(key.as_bytes()).unwrap(),
-            value.parse().unwrap(),
-        );
+        self.headers
+            .append(HeaderName::from_str(key).unwrap(), value.parse().unwrap());
     }
 }
 
@@ -231,24 +228,23 @@ impl Response {
     }
 
     fn from_json(obj: Bound<PyAny>, status: Status, content_type: HeaderValue) -> PyResult<Self> {
-        let json = json::dumps(&obj.into())?;
         Ok(Self {
             status,
-            body: ResponseBody::Bytes(Bytes::from(json.clone())),
+            body: ResponseBody::Bytes(Bytes::from(json::dumps(&obj.into())?)),
             headers: HeaderMap::from_iter([(CONTENT_TYPE, content_type)]),
         })
     }
 
     pub(crate) fn apply_catcher(mut self, req: &ProcessRequest) -> Self {
-        if let Some(catchers) = &req.catchers {
-            if let Some(handler) = catchers.get(&self.status) {
-                let request: Request = req.request.as_ref().clone();
-                self = Python::attach(|py| {
-                    let result = handler.call(py, (request, self), None)?;
-                    convert_to_response(result, py)
-                })
-                .unwrap_or_else(Response::from);
-            }
+        if let Some(catchers) = &req.catchers
+            && let Some(handler) = catchers.get(&self.status)
+        {
+            let request = req.request.as_ref().clone();
+            self = Python::attach(|py| {
+                let result = handler.call(py, (request, self), None)?;
+                convert_to_response(result, py)
+            })
+            .unwrap_or_else(Response::from);
         }
         self
     }
