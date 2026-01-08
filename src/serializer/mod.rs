@@ -31,7 +31,7 @@ struct Serializer {
     #[pyo3(get, set)]
     raw_data: Option<String>,
     #[pyo3(get, set)]
-    context: Option<Py<PyDict>>,
+    context: Py<PyDict>,
 }
 
 #[gen_stub_pymethods]
@@ -95,7 +95,7 @@ impl Serializer {
                 validated_data: PyDict::new(py).into(),
                 raw_data: data,
                 instance,
-                context,
+                context: context.unwrap_or_else(|| PyDict::new(py).into()),
             },
             Field {
                 required,
