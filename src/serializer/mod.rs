@@ -8,7 +8,6 @@ use std::{
 use self::fields::*;
 use crate::{IntoPyException, exceptions::ClientError, json};
 
-use once_cell::sync::Lazy;
 use pyo3::{
     IntoPyObjectExt,
     exceptions::PyException,
@@ -129,8 +128,8 @@ impl Serializer {
     /// print(schema)
     /// ```
     #[pyo3(signature=())]
-    fn schema(slf: Bound<'_, Self>) -> PyResult<Py<PyDict>> {
-        let schema_value = Self::json_schema_value(&slf.get_type(), false)?;
+    fn schema(slf: Bound<'_, Self>, py: Python<'_>) -> PyResult<Py<PyDict>> {
+        let schema_value = Self::json_schema_value(&slf.get_type(), false, py)?;
         json::loads(&schema_value.to_string())
     }
 
@@ -189,10 +188,14 @@ impl Serializer {
     /// serializer.validate({"email": "user@example.com"})
     /// ```
     #[pyo3(signature=(attr))]
-    fn validate<'a>(slf: Bound<'a, Self>, attr: Bound<'a, PyDict>) -> PyResult<Bound<'a, PyDict>> {
+    fn validate<'a>(
+        slf: Bound<'a, Self>,
+        attr: Bound<'a, PyDict>,
+        py: Python<'a>,
+    ) -> PyResult<Bound<'a, PyDict>> {
         let json::Wrap(json_value) = attr.clone().try_into()?;
 
-        let schema_value = Self::json_schema_value(&slf.get_type(), false)?;
+        let schema_value = Self::json_schema_value(&slf.get_type(), false, py)?;
 
         let validator = jsonschema::options()
             .should_validate_formats(true)
@@ -433,17 +436,24 @@ impl Serializer {
     }
 }
 
-static CACHES_JSON_SCHEMA_VALUE: Lazy<Arc<Mutex<HashMap<String, Value>>>> =
-    Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
+static CACHE: PyOnceLock<Arc<Mutex<HashMap<String, Value>>>> = PyOnceLock::new();
+
+fn cache(py: Python<'_>) -> &Arc<Mutex<HashMap<String, Value>>> {
+    CACHE.get_or_init(py, || Arc::new(Mutex::new(HashMap::new())))
+}
 
 impl Serializer {
-    fn json_schema_value(cls: &Bound<'_, PyType>, nullable: bool) -> PyResult<Value> {
+    fn json_schema_value(
+        cls: &Bound<'_, PyType>,
+        nullable: bool,
+        py: Python<'_>,
+    ) -> PyResult<Value> {
         let mut properties = serde_json::Map::with_capacity(16);
         let mut required_fields = Vec::with_capacity(8);
 
         let class_name = cls.name()?;
 
-        if let Some(value) = CACHES_JSON_SCHEMA_VALUE
+        if let Some(value) = cache(py)
             .lock()
             .into_py_exception()?
             .get(&class_name.to_string())
@@ -467,7 +477,7 @@ impl Serializer {
                         .required
                         .then(|| required_fields.push(attr_name.clone()));
                     let nested_schema =
-                        Self::json_schema_value(&attr_obj.get_type(), field.nullable)?;
+                        Self::json_schema_value(&attr_obj.get_type(), field.nullable, py)?;
 
                     if field.many {
                         let mut array_schema = serde_json::Map::with_capacity(2);
@@ -503,7 +513,7 @@ impl Serializer {
 
         let final_schema = json!(schema);
 
-        CACHES_JSON_SCHEMA_VALUE
+        cache(py)
             .lock()
             .into_py_exception()?
             .insert(class_name.to_string(), final_schema.clone());
