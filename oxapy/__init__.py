@@ -6,7 +6,7 @@ import mimetypes
 
 def secure_join(base: str, user_path: str) -> str:
     base = os.path.abspath(base)
-    target = os.path.abspath(os.path.join(base, user_path))
+    target = os.path.normpath(os.path.join(base, user_path))
 
     if not target.startswith(base + os.sep):
         raise exceptions.ForbiddenError("Access denied")
