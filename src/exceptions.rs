@@ -1,5 +1,5 @@
 use pyo3::exceptions::PyException;
-use pyo3::{impl_exception_boilerplate, prelude::*};
+use pyo3::prelude::*;
 use pyo3_stub_gen::derive::*;
 
 pub trait IntoPyException<T> {
@@ -13,7 +13,22 @@ impl<T, E: ToString> IntoPyException<T> for Result<T, E> {
 }
 
 macro_rules! extend_exception {
+    ($name:ident) => {
+        pyo3::impl_exception_boilerplate!($name);
+
+        #[pyo3_stub_gen::derive::gen_stub_pymethods]
+        #[pyo3::prelude::pymethods]
+        impl $name {
+            #[new]
+            fn new(e: pyo3::Py<pyo3::PyAny>) -> $name {
+                Self(e)
+            }
+        }
+    };
+
     ($name:ident, $extend:ident) => {
+        pyo3::impl_exception_boilerplate!($name);
+
         #[pyo3_stub_gen::derive::gen_stub_pymethods]
         #[pyo3::prelude::pymethods]
         impl $name {
@@ -36,17 +51,7 @@ macro_rules! extend_exception {
 #[gen_stub_pyclass]
 #[pyclass(subclass, extends=PyException, module="oxapy.exceptions")]
 pub struct ClientError(pub Py<PyAny>);
-
-impl_exception_boilerplate!(ClientError);
-
-#[gen_stub_pymethods]
-#[pymethods]
-impl ClientError {
-    #[new]
-    fn new(e: Py<PyAny>) -> ClientError {
-        Self(e)
-    }
-}
+extend_exception!(ClientError);
 
 /// HTTP 400 Bad Request error exception.
 ///
@@ -58,8 +63,6 @@ impl ClientError {
 #[gen_stub_pyclass]
 #[pyclass(extends=ClientError, module="oxapy.exceptions")]
 pub struct BadRequestError;
-
-impl_exception_boilerplate!(BadRequestError);
 extend_exception!(BadRequestError, ClientError);
 
 /// HTTP 401 Unauthorized error exception.
@@ -71,8 +74,6 @@ extend_exception!(BadRequestError, ClientError);
 #[gen_stub_pyclass]
 #[pyclass(extends=ClientError, module="oxapy.exceptions")]
 pub struct UnauthorizedError;
-
-impl_exception_boilerplate!(UnauthorizedError);
 extend_exception!(UnauthorizedError, ClientError);
 
 /// HTTP 403 Forbidden error exception.
@@ -85,8 +86,6 @@ extend_exception!(UnauthorizedError, ClientError);
 #[gen_stub_pyclass]
 #[pyclass(extends=ClientError, module="oxapy.exceptions")]
 pub struct ForbiddenError;
-
-impl_exception_boilerplate!(ForbiddenError);
 extend_exception!(ForbiddenError, ClientError);
 
 /// HTTP 404 Not Found error exception.
@@ -99,8 +98,6 @@ extend_exception!(ForbiddenError, ClientError);
 #[gen_stub_pyclass]
 #[pyclass(extends=ClientError, module="oxapy.exceptions")]
 pub struct NotFoundError;
-
-impl_exception_boilerplate!(NotFoundError);
 extend_exception!(NotFoundError, ClientError);
 
 /// HTTP 409 Conflict error exception.
@@ -114,8 +111,6 @@ extend_exception!(NotFoundError, ClientError);
 #[gen_stub_pyclass]
 #[pyclass(extends=ClientError, module="oxapy.exceptions")]
 pub struct ConflictError;
-
-impl_exception_boilerplate!(ConflictError);
 extend_exception!(ConflictError, ClientError);
 
 /// HTTP 500 Internal Server Error exception.
@@ -129,17 +124,7 @@ extend_exception!(ConflictError, ClientError);
 #[pyclass(extends=PyException, module="oxapy.exceptions")]
 #[repr(transparent)]
 pub struct InternalError(Py<PyAny>);
-
-impl_exception_boilerplate!(InternalError);
-
-#[gen_stub_pymethods]
-#[pymethods]
-impl InternalError {
-    #[new]
-    fn new(e: Py<PyAny>) -> InternalError {
-        Self(e)
-    }
-}
+extend_exception!(InternalError);
 
 pub fn exceptions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let exceptions = PyModule::new(m.py(), "exceptions")?;

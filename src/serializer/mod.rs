@@ -12,7 +12,6 @@ use once_cell::sync::{Lazy, OnceCell};
 use pyo3::{
     IntoPyObjectExt,
     exceptions::PyException,
-    impl_exception_boilerplate,
     prelude::*,
     types::{PyDict, PyList, PyType},
 };
@@ -522,8 +521,6 @@ impl Serializer {
 #[gen_stub_pyclass]
 #[pyclass(module = "oxapy.serializer", extends=ClientError)]
 pub struct ValidationException;
-
-impl_exception_boilerplate!(ValidationException);
 extend_exception!(ValidationException, ClientError);
 
 pub fn serializer_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
