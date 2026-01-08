@@ -23,7 +23,7 @@ def static_file(path: str = "/static", directory: str = "./static"):
 
     @get(f"{path}/{{*path}}")
     def handler(_request, path: str):
-        file_path = f"{directory}/{path}"
+        file_path = os.path.join(directory, path)
         return send_file(file_path)
 
     return handler
