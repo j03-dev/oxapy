@@ -4,6 +4,16 @@ import os
 import mimetypes
 
 
+def secure_join(base: str, user_path: str) -> str:
+    base = os.path.abspath(base)
+    target = os.path.abspath(os.path.join(base, user_path))
+
+    if not target.startswith(base + os.sep):
+        raise exceptions.ForbiddenError("Access denied")
+
+    return target
+
+
 def static_file(path: str = "/static", directory: str = "./static"):
     r"""
     Create a route for serving static files.
@@ -23,7 +33,7 @@ def static_file(path: str = "/static", directory: str = "./static"):
 
     @get(f"{path}/{{*path}}")
     def handler(_request, path: str):
-        file_path = os.path.join(directory, path)
+        file_path = secure_join(directory, path)
         return send_file(file_path)
 
     return handler
@@ -40,6 +50,10 @@ def send_file(path: str) -> Response:
     """
     if not os.path.exists(path):
         raise exceptions.NotFoundError("Requested file not found")
+
+    if not os.path.isfile(path):
+        raise exceptions.ForbiddenError("Not a file")
+
     with open(path, "rb") as f:
         content = f.read()
     content_type, _ = mimetypes.guess_type(path)
