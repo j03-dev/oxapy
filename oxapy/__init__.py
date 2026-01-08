@@ -39,7 +39,7 @@ def send_file(path: str) -> Response:
         Response: A Response with file content
     """
     if not os.path.exists(path):
-        raise exceptions.NotFoundError(f"The file at {path} is not found.")
+        raise exceptions.NotFoundError("Requested file not found")
     with open(path, "rb") as f:
         content = f.read()
     content_type, _ = mimetypes.guess_type(path)
