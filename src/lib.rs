@@ -17,8 +17,19 @@ mod templating;
 
 use std::net::SocketAddr;
 use std::ops::Deref;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use pyo3::exceptions::PyValueError;
+use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyInt, PyString};
+use pyo3_async_runtimes::tokio::{future_into_py, into_future};
+use pyo3_stub_gen::derive::*;
+
+use ahash::HashMap;
+use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::Semaphore;
+use tokio::sync::mpsc::{Receiver, Sender, channel};
 
 use crate::catcher::Catcher;
 use crate::cors::Cors;
@@ -32,18 +43,6 @@ use crate::routing::*;
 use crate::session::{Session, SessionStore};
 use crate::status::Status;
 use crate::templating::Template;
-
-use pyo3::exceptions::PyValueError;
-use pyo3::types::{PyDict, PyInt, PyString};
-use pyo3_async_runtimes::tokio::{future_into_py, into_future};
-use pyo3_stub_gen::derive::*;
-
-use ahash::HashMap;
-use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::mpsc::{channel, Receiver, Sender};
-use tokio::sync::Semaphore;
-
-use pyo3::prelude::*;
 
 pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
 

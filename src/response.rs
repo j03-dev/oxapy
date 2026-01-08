@@ -228,10 +228,9 @@ impl Response {
     }
 
     fn from_json(obj: Bound<PyAny>, status: Status, content_type: HeaderValue) -> PyResult<Self> {
-        let json = json::dumps(&obj.into())?;
         Ok(Self {
             status,
-            body: ResponseBody::Bytes(Bytes::from(json)),
+            body: ResponseBody::Bytes(Bytes::from(json::dumps(&obj.into())?)),
             headers: HeaderMap::from_iter([(CONTENT_TYPE, content_type)]),
         })
     }
