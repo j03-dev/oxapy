@@ -47,12 +47,12 @@ use crate::templating::Template;
 pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
 
 struct ProcessRequest {
-    request: Arc<Request>,
+    catchers: Option<Arc<HashMap<Status, Py<PyAny>>>>,
+    cors: Option<Arc<Cors>>,
     layer: Option<Arc<Layer>>,
     match_route: Option<MatchRoute<'static>>,
+    request: Arc<Request>,
     tx: Sender<Response>,
-    cors: Option<Arc<Cors>>,
-    catchers: Option<Arc<HashMap<Status, Py<PyAny>>>>,
 }
 
 #[derive(Clone)]
@@ -61,8 +61,8 @@ struct RequestContext {
     catchers: Option<Arc<HashMap<Status, Py<PyAny>>>>,
     channel_capacity: usize,
     cors: Option<Arc<Cors>>,
-    request_sender: Sender<ProcessRequest>,
     layers: Vec<Arc<Layer>>,
+    request_sender: Sender<ProcessRequest>,
     session_store: Option<Arc<SessionStore>>,
     template: Option<Arc<Template>>,
 }
