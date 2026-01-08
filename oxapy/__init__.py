@@ -4,11 +4,11 @@ import os
 import mimetypes
 
 
-def secure_join(base: str, user_path: str) -> str:
-    base = os.path.abspath(base)
-    target = os.path.normpath(os.path.join(base, user_path))
+def secure_join(base: str, *paths: str) -> str:
+    base = os.path.realpath(base)
+    target = os.path.realpath(os.path.join(base, *paths))
 
-    if not target.startswith(base + os.sep):
+    if target != base and not target.startswith(base + os.sep):
         raise exceptions.ForbiddenError("Access denied")
 
     return target
