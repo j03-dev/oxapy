@@ -8,17 +8,18 @@ use std::{
 use self::fields::*;
 use crate::{IntoPyException, exceptions::ClientError, json};
 
-use once_cell::sync::{Lazy, OnceCell};
+use once_cell::sync::Lazy;
 use pyo3::{
     IntoPyObjectExt,
     exceptions::PyException,
     prelude::*,
+    sync::PyOnceLock,
     types::{PyDict, PyList, PyType},
 };
 use pyo3_stub_gen::derive::*;
 use serde_json::{Value, json};
 
-static SQL_ALCHEMY_INSPECT: OnceCell<Py<PyAny>> = OnceCell::new();
+static SQL_ALCHEMY_INSPECT: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
 
 #[gen_stub_pyclass]
 #[pyclass(module="oxapy.serializer", subclass, extends=Field)]
@@ -393,13 +394,11 @@ impl Serializer {
     ) -> PyResult<Bound<'l, PyDict>> {
         let dict = PyDict::new(py);
 
-        let inspect = SQL_ALCHEMY_INSPECT.get_or_init(|| {
-            let sqlalchemy =
-                PyModule::import(py, "sqlalchemy").expect("sqlalchemy is not installed!");
-            let inspection = sqlalchemy.getattr("inspection").unwrap();
-            let inspect = inspection.getattr("inspect").unwrap();
-            inspect.into()
-        });
+        let inspect = SQL_ALCHEMY_INSPECT.get_or_try_init(py, || {
+            let sqlalchemy = PyModule::import(py, "sqlalchemy")?;
+            let inspection = sqlalchemy.getattr("inspection")?;
+            inspection.getattr("inspect").map(|i| i.into())
+        })?;
 
         let mapper = inspect.call1(py, (instance.get_type(),))?;
 
