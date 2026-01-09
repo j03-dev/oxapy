@@ -1,4 +1,4 @@
-from .oxapy import *
+from .oxapy import *  # ty:ignore[unresolved-import]
 
 import os
 import mimetypes
@@ -9,7 +9,7 @@ def secure_join(base: str, *paths: str) -> str:
     target = os.path.realpath(os.path.join(base, *paths))
 
     if target != base and not target.startswith(base + os.sep):
-        raise exceptions.ForbiddenError("Access denied")
+        raise exceptions.ForbiddenError("Access denied")  # ty:ignore[unresolved-reference]
 
     return target
 
@@ -31,7 +31,7 @@ def static_file(path: str = "/static", directory: str = "./static"):
     ```
     """
 
-    @get(f"{path}/{{*path}}")
+    @get(f"{path}/{{*path}}")  # ty:ignore[unresolved-reference]
     def handler(_request, path: str):
         file_path = secure_join(directory, path)
         return send_file(file_path)
@@ -39,7 +39,7 @@ def static_file(path: str = "/static", directory: str = "./static"):
     return handler
 
 
-def send_file(path: str) -> Response:
+def send_file(path: str) -> Response:  # ty:ignore[unresolved-reference]
     r"""
     Create Response for sending file.
 
@@ -49,15 +49,15 @@ def send_file(path: str) -> Response:
         Response: A Response with file content
     """
     if not os.path.exists(path):
-        raise exceptions.NotFoundError("Requested file not found")
+        raise exceptions.NotFoundError("Requested file not found")  # ty:ignore[unresolved-reference]
 
     if not os.path.isfile(path):
-        raise exceptions.ForbiddenError("Not a file")
+        raise exceptions.ForbiddenError("Not a file")  # ty:ignore[unresolved-reference]
 
     with open(path, "rb") as f:
         content = f.read()
     content_type, _ = mimetypes.guess_type(path)
-    return Response(content, content_type=content_type or "application/octet-stream")
+    return Response(content, content_type=content_type or "application/octet-stream")  # ty:ignore[unresolved-reference]
 
 
 __all__ = (

@@ -123,12 +123,12 @@ impl Request {
     ///     value = data["key"]
     ///     return {"received": value}
     /// ```
-    pub fn json(&self) -> PyResult<Py<PyDict>> {
+    pub fn json(&self, py: Python<'_>) -> PyResult<Py<PyDict>> {
         let data = self
             .data
             .as_ref()
             .ok_or_else(|| PyException::new_err("The body is not present"))?;
-        json::loads(data)
+        json::loads(data, py)
     }
 
     /// Get application-wide data that was set with HttpServer.app_data.
