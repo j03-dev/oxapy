@@ -11,7 +11,7 @@ use std::str::FromStr;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::exceptions::IntoPyException;
-use crate::json::Wrap;
+use crate::json;
 
 /// Base class for all JWT related exceptions.
 #[gen_stub_pyclass]
@@ -148,7 +148,7 @@ impl Jwt {
             .ok_or_else(|| JwtError::new_err("Failed to compute expiration"))?;
         claims.set_item("exp", exp.as_secs())?;
 
-        let Wrap::<Claims>(claims) = claims.try_into()?;
+        let claims: Claims = json::from_pydict2rstruct(&claims, claims.py())?;
 
         let token = jsonwebtoken::encode(
             &Header::default(),
@@ -187,7 +187,7 @@ impl Jwt {
     ///     except jwt.JwtDecodingError:
     ///         raise exceptions.UnauthorizedError("Invalid or expired token")
     /// ```
-    pub fn verify_token(&self, token: &str) -> PyResult<Py<PyDict>> {
+    pub fn verify_token(&self, token: &str, py: Python<'_>) -> PyResult<Py<PyDict>> {
         let token_data = jsonwebtoken::decode::<Claims>(
             token,
             &DecodingKey::from_secret(self.secret.as_bytes()),
@@ -201,7 +201,8 @@ impl Jwt {
             ErrorKind::InvalidAlgorithm => JwtInvalidAlgorithm::new_err("Algorithm mismatch"),
             _ => JwtDecodingError::new_err(format!("JWT decoding error: {e}")),
         })?;
-        Wrap(token_data.claims).try_into()
+
+        crate::json::from_rstruct2pydict(token_data.claims, py)
     }
 }
 

@@ -3,51 +3,38 @@ use serde::{Deserialize, Serialize};
 
 static ORJSON: PyOnceLock<Py<PyModule>> = PyOnceLock::new();
 
-#[inline]
-pub fn dumps(data: &Py<PyAny>) -> PyResult<String> {
-    Python::attach(|py| {
-        let serialized_data = ORJSON
-            .get_or_try_init(py, || PyModule::import(py, "orjson").map(|m| m.into()))?
-            .call_method1(py, "dumps", (data,))?
-            .call_method1(py, "decode", ("utf-8",))?;
-        Ok(serialized_data.extract(py)?)
-    })
+fn orjson(py: Python<'_>) -> PyResult<&Py<PyModule>> {
+    ORJSON.get_or_try_init(py, || PyModule::import(py, "orjson").map(|m| m.into()))
 }
 
 #[inline]
-pub fn loads(data: &str) -> PyResult<Py<PyDict>> {
-    Python::attach(|py| {
-        let deserialized_data = ORJSON
-            .get_or_try_init(py, || PyModule::import(py, "orjson").map(|m| m.into()))?
-            .call_method1(py, "loads", (data,))?;
-        Ok(deserialized_data.extract(py)?)
-    })
+pub fn dumps(data: &Bound<PyAny>, py: Python<'_>) -> PyResult<String> {
+    let serialized_data = orjson(py)?
+        .call_method1(py, "dumps", (data,))?
+        .call_method1(py, "decode", ("utf-8",))?;
+    Ok(serialized_data.extract(py)?)
 }
 
-pub struct Wrap<T>(pub T);
+#[inline]
+pub fn loads(data: &str, py: Python<'_>) -> PyResult<Py<PyDict>> {
+    let deserialized_data = orjson(py)?.call_method1(py, "loads", (data,))?;
+    Ok(deserialized_data.extract(py)?)
+}
 
-impl<T> TryFrom<Bound<'_, PyDict>> for Wrap<T>
+pub fn from_pydict2rstruct<T>(dict: &Bound<'_, PyDict>, py: Python<'_>) -> PyResult<T>
 where
     T: for<'de> Deserialize<'de>,
 {
-    type Error = PyErr;
-
-    fn try_from(value: Bound<'_, PyDict>) -> Result<Self, Self::Error> {
-        let json_string = dumps(&value.into())?;
-        let value = serde_json::from_str(&json_string)
-            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
-        Ok(Wrap(value))
-    }
+    let json_string = dumps(&dict, py)?;
+    let value = serde_json::from_str(&json_string)
+        .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+    Ok(value)
 }
 
-impl<T> TryFrom<Wrap<T>> for Py<PyDict>
+pub fn from_rstruct2pydict<T>(rstruct: T, py: Python<'_>) -> PyResult<Py<PyDict>>
 where
     T: Serialize,
 {
-    type Error = PyErr;
-
-    fn try_from(value: Wrap<T>) -> Result<Self, Self::Error> {
-        let json_string = serde_json::json!(value.0).to_string();
-        loads(&json_string)
-    }
+    let json_string = serde_json::json!(rstruct).to_string();
+    loads(&json_string, py)
 }

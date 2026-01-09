@@ -130,7 +130,7 @@ impl Serializer {
     #[pyo3(signature=())]
     fn schema(slf: Bound<'_, Self>, py: Python<'_>) -> PyResult<Py<PyDict>> {
         let schema_value = Self::json_schema_value(&slf.get_type(), false, py)?;
-        json::loads(&schema_value.to_string())
+        json::loads(&schema_value.to_string(), py)
     }
 
     /// Validate the raw JSON data and store the result in `validated_data`.
@@ -152,13 +152,13 @@ impl Serializer {
     /// print(serializer.validated_data["email"])
     /// ```
     #[pyo3(signature=())]
-    fn is_valid(slf: &Bound<'_, Self>) -> PyResult<()> {
+    fn is_valid(slf: &Bound<'_, Self>, py: Python<'_>) -> PyResult<()> {
         let raw_data = slf
             .getattr("raw_data")?
             .extract::<Option<String>>()?
             .ok_or_else(|| ValidationException::new_err("data is empty"))?;
 
-        let attr = json::loads(&raw_data)?;
+        let attr = json::loads(&raw_data, py)?;
 
         let validated_data: Bound<PyDict> = slf.call_method1("validate", (attr,))?.extract()?;
 
@@ -193,7 +193,7 @@ impl Serializer {
         attr: Bound<'a, PyDict>,
         py: Python<'a>,
     ) -> PyResult<Bound<'a, PyDict>> {
-        let json::Wrap(json_value) = attr.clone().try_into()?;
+        let json_value = json::from_pydict2rstruct(&attr, py)?;
 
         let schema_value = Self::json_schema_value(&slf.get_type(), false, py)?;
 

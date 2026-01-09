@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use crate::json;
 use crate::IntoPyException;
+use crate::json;
 use ahash::HashMap;
 use pyo3::{prelude::*, types::PyDict};
 use pyo3_stub_gen::derive::*;
@@ -31,8 +31,9 @@ impl Tera {
     ) -> PyResult<String> {
         let mut tera_context = tera::Context::new();
         if let Some(context) = context {
-            let map: json::Wrap<HashMap<String, serde_json::Value>> = context.try_into()?;
-            for (key, value) in map.0 {
+            let map: HashMap<String, serde_json::Value> =
+                json::from_pydict2rstruct(&context, context.py())?;
+            for (key, value) in map {
                 tera_context.insert(key, &value);
             }
         }

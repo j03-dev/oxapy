@@ -1,9 +1,9 @@
-use hyper::{body::Bytes, header::CONTENT_TYPE, HeaderMap};
-use pyo3::{prelude::*, types::PyAny, Py};
+use hyper::{HeaderMap, body::Bytes, header::CONTENT_TYPE};
+use pyo3::{Py, prelude::*, types::PyAny};
 
 use crate::{
-    cors::Cors, exceptions::IntoPyException, exceptions::*, json, response::ResponseBody,
-    status::Status, Response,
+    Response, cors::Cors, exceptions::IntoPyException, exceptions::*, json, response::ResponseBody,
+    status::Status,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -22,16 +22,16 @@ impl TryFrom<String> for Response {
     }
 }
 
-impl TryFrom<Py<PyAny>> for Response {
+impl TryFrom<Bound<'_, PyAny>> for Response {
     type Error = Error;
 
-    fn try_from(val: Py<PyAny>) -> Result<Self, Self::Error> {
+    fn try_from(val: Bound<PyAny>) -> Result<Self, Self::Error> {
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, "application/json".parse()?);
         Ok(Response {
             status: Status::OK,
             headers,
-            body: ResponseBody::Bytes(json::dumps(&val)?.into()),
+            body: ResponseBody::Bytes(json::dumps(&val, val.py())?.into()),
         })
     }
 }
@@ -50,16 +50,16 @@ impl TryFrom<(String, Status)> for Response {
     }
 }
 
-impl TryFrom<(Py<PyAny>, Status)> for Response {
+impl TryFrom<(Bound<'_, PyAny>, Status)> for Response {
     type Error = Error;
 
-    fn try_from(val: (Py<PyAny>, Status)) -> Result<Self, Self::Error> {
+    fn try_from(val: (Bound<PyAny>, Status)) -> Result<Self, Self::Error> {
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, "application/json".parse()?);
         Ok(Response {
             status: val.1,
             headers,
-            body: ResponseBody::Bytes(json::dumps(&val.0)?.into()),
+            body: ResponseBody::Bytes(json::dumps(&val.0, val.0.py())?.into()),
         })
     }
 }
@@ -179,8 +179,8 @@ pub fn convert_to_response(result: Py<PyAny>, py: Python<'_>) -> PyResult<Respon
         Response,
         Status,
         (String, Status),
-        (Py<PyAny>, Status),
+        (Bound<PyAny>, Status),
         String,
-        Py<PyAny>
+        Bound<PyAny>
     )
 }
