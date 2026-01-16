@@ -221,6 +221,26 @@ impl Request {
         Ok(session.as_ref().clone())
     }
 
+    /// Get cookie value by the name from the request headers
+    ///
+    /// Retrieves the value of a specific cookie from the HTTP Cookie header.
+    /// Returns None if the cookie name is not found or if no Cookie header exists.
+    ///
+    /// Args:
+    ///     name (str): The name of the cookie to retrieve
+    ///
+    /// Returns:
+    ///     (str, optional): cookie's value and return none if name is presente
+    ///
+    /// Example
+    /// ```python
+    /// from oxapy import get, render
+    ///
+    /// @get("/")
+    /// def index(request):
+    ///     theme = request.get_cookie("theme") or "light"
+    ///     render(request, "index.html.j2", {"theme": theme})
+    /// ```
     fn get_cookie(&self, name: &str) -> Option<&str> {
         let cookie = self.headers.get("cookie")?;
         let cookies = cookie.split(';');
