@@ -148,7 +148,7 @@ impl Jwt {
             .ok_or_else(|| JwtError::new_err("Failed to compute expiration"))?;
         claims.set_item("exp", exp.as_secs())?;
 
-        let claims: Claims = json::from_pydict2rstruct(&claims, claims.py())?;
+        let claims: Claims = json::from_pydict2rstruct(&claims)?;
 
         let token = jsonwebtoken::encode(
             &Header::default(),

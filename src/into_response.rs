@@ -31,7 +31,7 @@ impl TryFrom<Bound<'_, PyAny>> for Response {
         Ok(Response {
             status: Status::OK,
             headers,
-            body: ResponseBody::Bytes(json::dumps(&val, val.py())?.into()),
+            body: ResponseBody::Bytes(json::dumps(&val)?.into()),
         })
     }
 }
@@ -59,7 +59,7 @@ impl TryFrom<(Bound<'_, PyAny>, Status)> for Response {
         Ok(Response {
             status: val.1,
             headers,
-            body: ResponseBody::Bytes(json::dumps(&val.0, val.0.py())?.into()),
+            body: ResponseBody::Bytes(json::dumps(&val.0)?.into()),
         })
     }
 }

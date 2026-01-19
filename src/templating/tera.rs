@@ -31,8 +31,7 @@ impl Tera {
     ) -> PyResult<String> {
         let mut tera_context = tera::Context::new();
         if let Some(context) = context {
-            let map: HashMap<String, serde_json::Value> =
-                json::from_pydict2rstruct(&context, context.py())?;
+            let map: HashMap<String, serde_json::Value> = json::from_pydict2rstruct(&context)?;
             for (key, value) in map {
                 tera_context.insert(key, &value);
             }

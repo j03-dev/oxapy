@@ -8,7 +8,8 @@ fn orjson(py: Python<'_>) -> PyResult<&Py<PyModule>> {
 }
 
 #[inline]
-pub fn dumps(data: &Bound<PyAny>, py: Python<'_>) -> PyResult<String> {
+pub fn dumps(data: &Bound<PyAny>) -> PyResult<String> {
+    let py = data.py();
     let serialized_data = orjson(py)?
         .call_method1(py, "dumps", (data,))?
         .call_method1(py, "decode", ("utf-8",))?;
@@ -21,11 +22,11 @@ pub fn loads(data: &str, py: Python<'_>) -> PyResult<Py<PyDict>> {
     Ok(deserialized_data.extract(py)?)
 }
 
-pub fn from_pydict2rstruct<T>(dict: &Bound<'_, PyDict>, py: Python<'_>) -> PyResult<T>
+pub fn from_pydict2rstruct<T>(dict: &Bound<'_, PyDict>) -> PyResult<T>
 where
     T: for<'de> Deserialize<'de>,
 {
-    let json_string = dumps(&dict, py)?;
+    let json_string = dumps(&dict)?;
     let value = serde_json::from_str(&json_string)
         .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
     Ok(value)
