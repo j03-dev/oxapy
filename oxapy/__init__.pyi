@@ -188,6 +188,7 @@ class File:
     def content_type(self) -> builtins.str: ...
     @content_type.setter
     def content_type(self, value: builtins.str) -> None: ...
+    @property
     def content(self) -> bytes:
         r"""
         Get the file content as bytes.
@@ -200,7 +201,7 @@ class File:
         
         Example:
         ```python
-        file_bytes = uploaded_file.content()
+        file_bytes = uploaded_file.content
         file_size = len(file_bytes)
         ```
         """
