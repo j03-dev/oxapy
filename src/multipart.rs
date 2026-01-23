@@ -67,9 +67,10 @@ impl File {
     ///
     /// Example:
     /// ```python
-    /// file_bytes = uploaded_file.content()
+    /// file_bytes = uploaded_file.content
     /// file_size = len(file_bytes)
     /// ```
+    #[getter]
     fn content<'py>(&'py self, py: Python<'py>) -> Bound<'py, PyBytes> {
         let data = &self.data.to_vec()[..];
         PyBytes::new(py, data)
