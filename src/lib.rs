@@ -500,8 +500,7 @@ impl HttpServer {
                             .build()
                             .await
                             .unwrap();
-                        let response = request.process(ctx).await;
-                        response
+                        request.process(ctx).await
                     }
                 }),
             )

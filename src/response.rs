@@ -118,7 +118,7 @@ impl Response {
     fn body(&self) -> PyResult<String> {
         match &self.body {
             ResponseBody::Bytes(b) => {
-                let s = str::from_utf8(&b).into_py_exception()?;
+                let s = str::from_utf8(b).into_py_exception()?;
                 Ok(s.to_string())
             }
             _ => {
@@ -213,7 +213,7 @@ impl Response {
 
     fn from_str(s: String, status: Status, content_type: HeaderValue) -> PyResult<Self> {
         Ok(Self {
-            body: ResponseBody::Bytes(Bytes::from(s.clone())),
+            body: ResponseBody::Bytes(Bytes::from(s)),
             status,
             headers: HeaderMap::from_iter([(CONTENT_TYPE, content_type)]),
         })
