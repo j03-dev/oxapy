@@ -1,4 +1,12 @@
-from oxapy import HttpServer, Router, get, post, static_file, Status, Response
+from oxapy import (
+    HttpServer,
+    Router,
+    get,
+    post,
+    static_file,
+    Status,
+    Response,
+)
 import threading
 import time
 import pytest
@@ -49,20 +57,44 @@ def protected_handler(request):
     return f"Hello, {request.user_name}!"
 
 
+@get("/ping")
+def ping(_request):
+    return {"message": "pong"}
+
+
+@post("/echo")
+def echo(request):
+    return {"echo": request.json()}
+
+
+@get("/redirect")
+def redirect_handler(_request):
+    from oxapy import Redirect
+
+    return Redirect("/api/v1/ping")
+
+
+@get("/error")
+def error_handler(_request):
+    return Status.INTERNAL_SERVER_ERROR
+
+
 def main(static_dir: Path):
     (
         HttpServer(("127.0.0.1", 9999))
         .app_data(AppState())
         .attach(
             Router("/api/v1")
-            .route(get("/ping", lambda _: {"message": "pong"}))
-            .route(post("/echo", lambda r: {"echo": r.json()}))
             .routes(
                 [
+                    ping,
+                    echo,
                     count_handler,
                     form,
                     hello,
                     query_handler,
+                    redirect_handler,
+                    error_handler,
                     static_file("/static", str(static_dir)),
                 ]
             )

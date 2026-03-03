@@ -91,3 +91,14 @@ def test_not_found_endpoint(oxapy_server):
 def test_method_not_allowed_returns_404(oxapy_server):
     res = requests.get(f"{oxapy_server}/api/v1/echo")
     assert res.status_code == 404
+
+
+def test_redirect_endpoint(oxapy_server):
+    res = requests.get(f"{oxapy_server}/api/v1/redirect", allow_redirects=False)
+    assert res.status_code == 301
+    assert "location" in res.headers
+
+
+def test_error_response(oxapy_server):
+    res = requests.get(f"{oxapy_server}/api/v1/error")
+    assert res.status_code == 500
