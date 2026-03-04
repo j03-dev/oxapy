@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 use pyo3_stub_gen::derive::*;
-use serde_json::{json, Value};
+use serde_json::{Map, Value, json};
 
 /// Base class representing a JSON schema field.
 #[gen_stub_pyclass]
@@ -109,14 +109,7 @@ impl Field {
 
 impl Field {
     pub fn to_json_schema_value(&self) -> Value {
-        let capacity = 1
-            + self.format.is_some() as usize
-            + self.min_length.is_some() as usize
-            + self.max_length.is_some() as usize
-            + self.pattern.is_some() as usize
-            + self.enum_values.is_some() as usize;
-
-        let mut schema = serde_json::Map::with_capacity(capacity);
+        let mut schema = Map::with_capacity(6);
 
         if self.nullable {
             schema.insert("type".to_string(), json!([self.ty, "null"]))
@@ -149,7 +142,7 @@ impl Field {
         }
 
         if self.many {
-            let mut array_schema = serde_json::Map::with_capacity(2);
+            let mut array_schema = Map::with_capacity(2);
             if self.nullable {
                 array_schema.insert("type".to_string(), json!(["array", "null"]))
             } else {

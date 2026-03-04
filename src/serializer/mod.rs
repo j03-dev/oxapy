@@ -1,9 +1,8 @@
 mod fields;
 
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
+
+use ahash::HashMap;
 
 use self::fields::*;
 use crate::{IntoPyException, exceptions::ClientError, json};
@@ -16,7 +15,7 @@ use pyo3::{
     types::{PyDict, PyList, PyType},
 };
 use pyo3_stub_gen::derive::*;
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 static SQL_ALCHEMY_INSPECT: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
 
@@ -439,7 +438,7 @@ impl Serializer {
 static CACHE: PyOnceLock<Arc<Mutex<HashMap<String, Value>>>> = PyOnceLock::new();
 
 fn cache(py: Python<'_>) -> &Arc<Mutex<HashMap<String, Value>>> {
-    CACHE.get_or_init(py, || Arc::new(Mutex::new(HashMap::new())))
+    CACHE.get_or_init(py, || Arc::new(Mutex::new(HashMap::default())))
 }
 
 impl Serializer {
@@ -448,7 +447,7 @@ impl Serializer {
         nullable: bool,
         py: Python<'_>,
     ) -> PyResult<Value> {
-        let mut properties = serde_json::Map::with_capacity(16);
+        let mut properties = Map::with_capacity(16);
         let mut required_fields = Vec::with_capacity(8);
 
         let class_name = cls.name()?;
@@ -480,7 +479,7 @@ impl Serializer {
                         Self::json_schema_value(&attr_obj.get_type(), field.nullable, py)?;
 
                     if field.many {
-                        let mut array_schema = serde_json::Map::with_capacity(2);
+                        let mut array_schema = Map::with_capacity(2);
                         if field.nullable {
                             array_schema.insert("type".to_string(), json!(["array", "null"]))
                         } else {
@@ -498,7 +497,7 @@ impl Serializer {
             }
         }
 
-        let mut schema = serde_json::Map::with_capacity(5);
+        let mut schema = Map::with_capacity(5);
         if nullable {
             schema.insert("type".to_string(), json!(["object", "null"]))
         } else {
