@@ -144,9 +144,10 @@ pub async fn parse_multipart(content_type: &str, body_stream: Bytes) -> PyResult
     let mut multipart = Multipart::default();
 
     while let Some(field) = multer_multipart.next_field().await.into_py_exception()? {
-        match (field.file_name(), field.content_type()) {
-            (Some(_), Some(_)) => multipart.parse_file(field).await?,
-            _ => multipart.parse_field(field).await?,
+        if field.file_name().is_some() && field.content_type().is_some() {
+            multipart.parse_file(field).await?;
+        } else {
+            multipart.parse_field(field).await?;
         }
     }
 
