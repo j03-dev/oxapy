@@ -1,5 +1,5 @@
 class Multipart:
-    boundary = "--------------------------735323031399963166993862"
+    boundary = "X-BOUNDARY"
 
     def __init__(self, form_data: dict):
         self.__form_data = form_data
