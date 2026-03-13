@@ -1,6 +1,7 @@
-use crate::Status;
 use pyo3::prelude::*;
 use pyo3_stub_gen::derive::*;
+
+use crate::Status;
 
 /// A catcher for handling specific HTTP status codes.
 ///

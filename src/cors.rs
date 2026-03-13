@@ -1,6 +1,7 @@
-use crate::response::Response;
 use pyo3::prelude::*;
 use pyo3_stub_gen::derive::*;
+
+use crate::response::Response;
 
 /// Cross-Origin Resource Sharing (CORS) configuration.
 ///

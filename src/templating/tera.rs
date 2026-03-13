@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
-use crate::IntoPyException;
-use crate::json;
 use ahash::HashMap;
 use pyo3::{prelude::*, types::PyDict};
 use pyo3_stub_gen::derive::*;
+
+use crate::IntoPyException;
+use crate::json;
 
 #[gen_stub_pyclass]
 #[pyclass(module = "oxapy.templating")]

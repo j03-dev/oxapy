@@ -1,26 +1,21 @@
-use futures_util::StreamExt;
-use http_body_util::combinators::BoxBody;
-use hyper::body::Frame;
-use hyper::http::HeaderValue;
-use hyper::{
-    HeaderMap,
-    body::Bytes,
-    header::{CONTENT_TYPE, HeaderName, LOCATION},
-};
-
-use futures_util::stream;
-use http_body_util::{BodyExt, Full, StreamBody};
-use hyper::header::CACHE_CONTROL;
-use pyo3::exceptions::PyTypeError;
-use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyString};
-use pyo3_stub_gen::derive::*;
-
 use std::convert::Infallible;
 use std::fs;
 use std::io::Read;
 use std::str::{self, FromStr};
 use std::sync::Arc;
+
+use futures_util::{StreamExt, stream};
+use http_body_util::{BodyExt, Full, StreamBody, combinators::BoxBody};
+use hyper::{
+    HeaderMap,
+    body::{Bytes, Frame},
+    header::{CACHE_CONTROL, CONTENT_TYPE, HeaderName, LOCATION},
+    http::HeaderValue,
+};
+use pyo3::exceptions::PyTypeError;
+use pyo3::prelude::*;
+use pyo3::types::{PyBytes, PyString};
+use pyo3_stub_gen::derive::*;
 
 use crate::{Cors, IntoPyException, ProcessRequest, Request, Status, convert_to_response, json};
 

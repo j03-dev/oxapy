@@ -1,16 +1,15 @@
+use std::str::FromStr;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
 use jsonwebtoken::errors::ErrorKind;
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use pyo3::exceptions::PyException;
+use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use pyo3::{exceptions::PyValueError, prelude::*};
 use pyo3_stub_gen::derive::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use std::str::FromStr;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-
-use crate::exceptions::IntoPyException;
 use crate::json;
 
 /// Base class for all JWT related exceptions.
@@ -90,11 +89,10 @@ impl Jwt {
     #[pyo3(signature = (secret, algorithm="HS256"))]
     pub fn new(secret: String, algorithm: &str) -> PyResult<Self> {
         if secret.is_empty() {
-            return Err(PyValueError::new_err("Secret key cannot be empty"));
+            return Err(JwtError::new_err("Secret key cannot be empty"));
         }
-
-        let algorithm = Algorithm::from_str(algorithm).into_py_exception()?;
-
+        let algorithm =
+            Algorithm::from_str(algorithm).map_err(|err| JwtError::new_err(err.to_string()))?;
         Ok(Self { secret, algorithm })
     }
 

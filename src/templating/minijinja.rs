@@ -1,9 +1,9 @@
-use ahash::HashMap;
+use std::sync::Arc;
 
+use ahash::HashMap;
 use minijinja::Environment;
 use pyo3::{prelude::*, types::PyDict};
 use pyo3_stub_gen::derive::*;
-use std::sync::Arc;
 
 use crate::IntoPyException;
 use crate::json;

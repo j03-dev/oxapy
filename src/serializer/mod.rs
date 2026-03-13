@@ -1,12 +1,6 @@
-mod fields;
-
 use std::sync::{Arc, Mutex};
 
 use ahash::HashMap;
-
-use self::fields::*;
-use crate::{IntoPyException, exceptions::ClientError, json};
-
 use pyo3::{
     IntoPyObjectExt,
     exceptions::PyException,
@@ -16,6 +10,11 @@ use pyo3::{
 };
 use pyo3_stub_gen::derive::*;
 use serde_json::{Map, Value, json};
+
+use self::fields::*;
+use crate::{IntoPyException, exceptions::ClientError, json};
+
+mod fields;
 
 static SQL_ALCHEMY_INSPECT: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
 

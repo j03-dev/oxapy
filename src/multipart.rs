@@ -1,9 +1,10 @@
-use crate::IntoPyException;
 use ahash::HashMap;
 use futures_util::stream;
 use hyper::body::Bytes;
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyBytes};
 use pyo3_stub_gen::derive::*;
+
+use crate::IntoPyException;
 
 /// Represents an uploaded file in a multipart/form-data request.
 ///

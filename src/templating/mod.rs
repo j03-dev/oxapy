@@ -1,16 +1,17 @@
+use hyper::{HeaderMap, header::CONTENT_TYPE};
+use pyo3::{
+    Bound, PyResult,
+    exceptions::{PyException, PyValueError},
+    prelude::*,
+    types::{PyDict, PyModule, PyModuleMethods},
+};
+use pyo3_stub_gen::derive::*;
+
 use crate::{
     request::Request,
     response::{Response, ResponseBody},
     status::Status,
 };
-use hyper::{header::CONTENT_TYPE, HeaderMap};
-use pyo3::{
-    exceptions::{PyException, PyValueError},
-    prelude::*,
-    types::{PyDict, PyModule, PyModuleMethods},
-    Bound, PyResult,
-};
-use pyo3_stub_gen::derive::*;
 
 mod minijinja;
 mod tera;
