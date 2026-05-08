@@ -33,7 +33,7 @@ matchit = { git = "https://github.com/ibraheemdev/matchit", branch = "master" }
 # Serialization / Data formats
 serde = "1.0.228"
 serde_json = "1.0.145"
-jsonschema = "0.46.4"
+jsonschema = { version = "0.46.4", default-features = false, features = ["reqwest", "tls-ring"] }
 
 # Template engines
 minijinja = "2.14.0"
