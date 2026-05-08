@@ -112,7 +112,7 @@ struct RequestContext {
 /// app.run()
 ///     ```
 #[gen_stub_pyclass]
-#[pyclass(subclass)]
+#[pyclass(from_py_object, subclass)]
 #[derive(Clone)]
 struct HttpServer {
     addr: SocketAddr,

@@ -49,7 +49,7 @@ pub enum ResponseBody {
 /// response = Response("<h1>Not Found</h1>", Status.NOT_FOUND, "text/html")
 /// `
 #[gen_stub_pyclass]
-#[pyclass(subclass)]
+#[pyclass(from_py_object, subclass)]
 #[derive(Clone)]
 pub struct Response {
     #[pyo3(get, set)]

@@ -57,7 +57,7 @@ struct Claims {
 
 /// Python class for generating and verifying JWT tokens
 #[gen_stub_pyclass]
-#[pyclass(module = "oxapy.jwt")]
+#[pyclass(from_py_object, module = "oxapy.jwt")]
 #[derive(Clone)]
 pub struct Jwt {
     secret: String,

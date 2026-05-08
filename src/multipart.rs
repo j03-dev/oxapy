@@ -36,7 +36,7 @@ use crate::IntoPyException;
 /// ```
 #[derive(Clone, Debug)]
 #[gen_stub_pyclass]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct File {
     #[pyo3(get)]
     pub name: String,

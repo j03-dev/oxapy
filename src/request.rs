@@ -49,7 +49,7 @@ use crate::{response::Response, routing::Layer};
 ///     return f"Hello from {user_agent}"
 /// ```
 #[gen_stub_pyclass]
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Debug, Default)]
 pub struct Request {
     /// The HTTP method of the request (e.g., GET, POST, PUT).

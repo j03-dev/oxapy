@@ -1,10 +1,10 @@
 use std::{mem::transmute, sync::Arc};
 
 use ahash::HashMap;
-use pyo3::{prelude::*, Py, PyAny};
+use pyo3::{Py, PyAny, prelude::*};
 use pyo3_stub_gen::derive::*;
 
-use crate::{middleware::Middleware, IntoPyException};
+use crate::{IntoPyException, middleware::Middleware};
 
 pub type MatchRoute<'l> = matchit::Match<'l, 'l, &'l Route>;
 
@@ -28,7 +28,7 @@ pub type MatchRoute<'l> = matchit::Match<'l, 'l, &'l Route>;
 /// route = route(handler)  # Attach the handler
 /// ```
 #[gen_stub_pyclass]
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Debug)]
 pub struct Route {
     pub method: String,
@@ -352,7 +352,7 @@ impl Layer {
 /// # The route will be /api/v1/hello/{name}
 /// ```
 #[gen_stub_pyclass]
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Default, Clone, Debug)]
 pub struct Router {
     pub base_path: Option<String>,

@@ -27,7 +27,7 @@ use pyo3_stub_gen::derive::*;
 ///     return resource
 /// ```
 #[gen_stub_pyclass_enum]
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 pub enum Status {

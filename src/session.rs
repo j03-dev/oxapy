@@ -6,7 +6,7 @@ use std::{
 use ahash::HashMap;
 use pyo3::{IntoPyObjectExt, prelude::*, types::PyTuple};
 use pyo3_stub_gen::derive::*;
-use rand::{Rng, distr::Alphanumeric};
+use rand::{RngExt, distr::Alphanumeric};
 
 use crate::IntoPyException;
 
@@ -44,7 +44,7 @@ pub fn generate_session_id() -> String {
 /// ```
 #[derive(Clone, Debug)]
 #[gen_stub_pyclass]
-#[pyclass]
+#[pyclass(from_py_object)]
 pub struct Session {
     #[pyo3(get)]
     id: String,
@@ -302,7 +302,7 @@ impl Session {
 /// app.session_store(store)
 /// ```
 #[gen_stub_pyclass]
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Debug)]
 pub struct SessionStore {
     sessions: Arc<RwLock<HashMap<String, Arc<Session>>>>,

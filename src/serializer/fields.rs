@@ -4,7 +4,7 @@ use serde_json::{Map, Value, json};
 
 /// Base class representing a JSON schema field.
 #[gen_stub_pyclass]
-#[pyclass(subclass, module = "oxapy.serializer")]
+#[pyclass(from_py_object, subclass, module = "oxapy.serializer")]
 #[derive(Debug, Clone, Default)]
 pub struct Field {
     #[pyo3(get, set)]

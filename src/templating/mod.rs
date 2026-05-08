@@ -44,7 +44,7 @@ mod tera;
 /// app.template(templating.Template("./views/**/*.html", "tera"))
 /// ```
 #[gen_stub_pyclass_enum]
-#[pyclass(module = "oxapy.templating")]
+#[pyclass(from_py_object, module = "oxapy.templating")]
 #[derive(Clone, Debug)]
 pub enum Template {
     Jinja(minijinja::Jinja),

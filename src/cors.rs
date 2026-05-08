@@ -29,7 +29,7 @@ use crate::response::Response;
 /// app.cors(cors)
 /// ```
 #[gen_stub_pyclass]
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Debug)]
 pub struct Cors {
     /// List of allowed origins, default is ["*"] (all origins)

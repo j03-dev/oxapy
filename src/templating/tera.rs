@@ -8,7 +8,7 @@ use crate::IntoPyException;
 use crate::json;
 
 #[gen_stub_pyclass]
-#[pyclass(module = "oxapy.templating")]
+#[pyclass(from_py_object, module = "oxapy.templating")]
 #[derive(Debug, Clone)]
 pub struct Tera {
     engine: Arc<tera::Tera>,
