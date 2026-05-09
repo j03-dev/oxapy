@@ -787,9 +787,9 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
-version = "0.17.0"
+version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f467dd6dccf739c208452f8014c75c18bb8301b050ad1cfb27153803edb0f51"
+checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 
 [[package]]
 name = "heck"
@@ -1073,7 +1073,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d466e9454f08e4a911e14806c24e16fba1b4c121d1ea474396f396069cf949d9"
 dependencies = [
  "equivalent",
- "hashbrown 0.17.0",
+ "hashbrown 0.17.1",
  "serde",
  "serde_core",
 ]
@@ -1469,7 +1469,7 @@ dependencies = [
  "num-integer",
  "num-traits",
  "pyo3",
- "pyo3-build-config",
+ "pyo3-build-config 0.28.3",
  "rustc-hash 2.1.2",
 ]
 
@@ -1801,7 +1801,7 @@ dependencies = [
  "libc",
  "once_cell",
  "portable-atomic",
- "pyo3-build-config",
+ "pyo3-build-config 0.28.3",
  "pyo3-ffi",
  "pyo3-macros",
 ]
@@ -1822,6 +1822,15 @@ dependencies = [
 
 [[package]]
 name = "pyo3-build-config"
+version = "0.26.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4fc6ddaf24947d12a9aa31ac65431fb1b851b8f4365426e182901eabfb87df5f"
+dependencies = [
+ "target-lexicon",
+]
+
+[[package]]
+name = "pyo3-build-config"
 version = "0.28.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e368e7ddfdeb98c9bca7f8383be1648fd84ab466bf2bc015e94008db6d35611e"
@@ -1836,7 +1845,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f29e10af80b1f7ccaf7f69eace800a03ecd13e883acfacc1e5d0988605f651e"
 dependencies = [
  "libc",
- "pyo3-build-config",
+ "pyo3-build-config 0.28.3",
 ]
 
 [[package]]
@@ -1859,7 +1868,7 @@ checksum = "c4cdc218d835738f81c2338f822078af45b4afdf8b2e33cbb5916f108b813acb"
 dependencies = [
  "heck",
  "proc-macro2",
- "pyo3-build-config",
+ "pyo3-build-config 0.28.3",
  "quote",
  "syn",
 ]
@@ -1867,7 +1876,7 @@ dependencies = [
 [[package]]
 name = "pyo3-stub-gen"
 version = "0.22.3"
-source = "git+https://github.com/j03-dev/pyo3-stub-gen?branch=fix%2Fpep703-incompatibility-305#5a045358086be2a46044e4605d82187409f50cbd"
+source = "git+https://github.com/j03-dev/pyo3-stub-gen?branch=fix%2Fpypy-graalpy-initialization-error#e545a7b421c11dda67a0b01056976ab558bb56cc"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1881,6 +1890,7 @@ dependencies = [
  "numpy",
  "ordered-float",
  "pyo3",
+ "pyo3-build-config 0.26.0",
  "pyo3-stub-gen-derive",
  "rustpython-parser",
  "serde",
@@ -1892,7 +1902,7 @@ dependencies = [
 [[package]]
 name = "pyo3-stub-gen-derive"
 version = "0.22.3"
-source = "git+https://github.com/j03-dev/pyo3-stub-gen?branch=fix%2Fpep703-incompatibility-305#5a045358086be2a46044e4605d82187409f50cbd"
+source = "git+https://github.com/j03-dev/pyo3-stub-gen?branch=fix%2Fpypy-graalpy-initialization-error#e545a7b421c11dda67a0b01056976ab558bb56cc"
 dependencies = [
  "heck",
  "indexmap",
@@ -2516,9 +2526,9 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.52.2"
+version = "1.52.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "110a78583f19d5cdb2c5ccf321d1290344e71313c6c37d43520d386027d18386"
+checksum = "8fc7f01b389ac15039e4dc9531aa973a135d7a4135281b12d7c1bc79fd57fffe"
 dependencies = [
  "bytes",
  "libc",

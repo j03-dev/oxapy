@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use pyo3::{call::PyCallArgs, ffi::c_str, prelude::*, types::PyDict, Py, PyAny, PyResult, Python};
+use pyo3::{Py, PyAny, PyResult, Python, call::PyCallArgs, prelude::*, types::PyDict};
 
 #[derive(Clone, Debug)]
 pub struct Middleware {
@@ -52,9 +52,11 @@ impl MiddlewareChain {
         let globals = PyDict::new(py);
         globals.set_item("middleware", middleware.handler.clone_ref(py))?;
         globals.set_item("next", next)?;
-        let wrapper_code =
-            c_str!(r#"lambda *args, **kwargs: middleware(next=next, *args, **kwargs)"#);
-        let wrapper = py.eval(wrapper_code, Some(&globals), None)?;
+        let wrapper = py.eval(
+            c"lambda *args, **kwargs: middleware(next=next, *args, **kwargs)",
+            Some(&globals),
+            None,
+        )?;
         Ok(wrapper.into())
     }
 }

@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
-cargo run --bin stub_gen --features="stub-gen"
+cargo run --bin stub_gen
 ./.venv/bin/maturin dev --release
