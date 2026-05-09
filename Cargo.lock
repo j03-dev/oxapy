@@ -1876,7 +1876,7 @@ dependencies = [
 [[package]]
 name = "pyo3-stub-gen"
 version = "0.22.3"
-source = "git+https://github.com/j03-dev/pyo3-stub-gen?branch=fix%2Fpypy-graalpy-initialization-error#e545a7b421c11dda67a0b01056976ab558bb56cc"
+source = "git+https://github.com/j03-dev/pyo3-stub-gen?branch=fix%2Fpypy-graalpy-initialization-error#04bb1add3e8fcf0db645e584d6f346fe6a9d296a"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1902,7 +1902,7 @@ dependencies = [
 [[package]]
 name = "pyo3-stub-gen-derive"
 version = "0.22.3"
-source = "git+https://github.com/j03-dev/pyo3-stub-gen?branch=fix%2Fpypy-graalpy-initialization-error#e545a7b421c11dda67a0b01056976ab558bb56cc"
+source = "git+https://github.com/j03-dev/pyo3-stub-gen?branch=fix%2Fpypy-graalpy-initialization-error#04bb1add3e8fcf0db645e584d6f346fe6a9d296a"
 dependencies = [
  "heck",
  "indexmap",
