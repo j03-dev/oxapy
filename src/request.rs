@@ -245,7 +245,7 @@ impl Request {
         let cookie = self.headers.get("cookie")?;
         let cookies = cookie.split(';');
         for c in cookies {
-            let (k, v) = c.split_once('=')?;
+            let (k, v) = c.trim().split_once('=')?;
             if k == name {
                 return Some(v);
             }
