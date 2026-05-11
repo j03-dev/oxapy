@@ -17,7 +17,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
 use pyo3_stub_gen::derive::*;
 
-use crate::{Cors, IntoPyException, ProcessRequest, Request, Status, convert_to_response, json};
+use crate::{Cors, IntoPyException, ProcessRequest, Status, convert_to_response, json};
 
 pub type Body = BoxBody<Bytes, Infallible>;
 
@@ -240,14 +240,6 @@ impl Response {
                 convert_to_response(result, py)
             })
             .unwrap_or_else(Response::from);
-        }
-        self
-    }
-
-    pub(crate) fn apply_session(mut self, request: &Arc<Request>) -> Self {
-        if let (Some(session), Some(store)) = (&request.session, &request.session_store) {
-            let cookie_header = store.get_cookie_header(session);
-            self.insert_or_append_cookie(cookie_header);
         }
         self
     }

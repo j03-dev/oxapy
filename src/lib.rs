@@ -1,3 +1,5 @@
+#![allow(unused_variables, non_snake_case)]
+
 use std::net::SocketAddr;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -6,7 +8,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use ahash::HashMap;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyInt, PyString};
+use pyo3::types::{PyBytes, PyDict, PyInt, PyString};
 use pyo3_async_runtimes::tokio::{future_into_py, into_future};
 use pyo3_stub_gen::derive::*;
 use tokio::net::{TcpListener, TcpStream};
@@ -22,7 +24,6 @@ use multipart::File;
 use request::{Request, RequestBuilder};
 use response::{FileStreaming, Redirect, Response};
 use routing::*;
-use session::{Session, SessionStore};
 use status::Status;
 use templating::Template;
 
@@ -39,7 +40,6 @@ mod request;
 mod response;
 mod routing;
 mod serializer;
-mod session;
 mod status;
 mod templating;
 
@@ -62,7 +62,6 @@ struct RequestContext {
     cors: Option<Arc<Cors>>,
     layers: Vec<Arc<Layer>>,
     request_sender: Sender<ProcessRequest>,
-    session_store: Option<Arc<SessionStore>>,
     template: Option<Arc<Template>>,
 }
 
@@ -123,7 +122,6 @@ struct HttpServer {
     is_async: bool,
     layers: Vec<Arc<Layer>>,
     max_connections: Arc<Semaphore>,
-    session_store: Option<Arc<SessionStore>>,
     template: Option<Arc<Template>>,
 }
 
@@ -154,7 +152,6 @@ impl HttpServer {
             is_async: false,
             layers: Vec::new(),
             max_connections: Arc::new(Semaphore::new(100)),
-            session_store: None,
             template: None,
         })
     }
@@ -230,28 +227,6 @@ impl HttpServer {
     fn attach(mut slf: PyRefMut<'_, Self>, router: Router) -> PyRefMut<'_, Self> {
         let arc_layers = router.layers.into_iter().map(Arc::new);
         slf.layers.extend(arc_layers);
-        slf
-    }
-
-    /// Set up a session store for managing user sessions.
-    ///
-    /// When configured, session data will be available in request handlers.
-    ///
-    /// Args:
-    ///     session_store (SessionStore): The session store instance to use.
-    ///
-    /// Returns:
-    ///     None
-    ///
-    /// Example:
-    /// ```python
-    /// server.session_store(SessionStore())
-    /// ```
-    fn session_store(
-        mut slf: PyRefMut<'_, Self>,
-        session_store: SessionStore,
-    ) -> PyRefMut<'_, Self> {
-        slf.session_store = Some(Arc::new(session_store));
         slf
     }
 
@@ -455,7 +430,6 @@ impl HttpServer {
             cors: self.cors.clone(),
             layers: self.layers.clone(),
             request_sender: tx,
-            session_store: self.session_store.clone(),
             template: self.template.clone(),
         };
         (ctx, rx)
@@ -495,7 +469,6 @@ impl HttpServer {
                         let request = RequestBuilder::new(req)
                             .with_app_data(&ctx.app_data)
                             .with_template(&ctx.template)
-                            .with_session_store(&ctx.session_store)
                             .build()
                             .await
                             .unwrap();
@@ -528,7 +501,6 @@ impl HttpServer {
                 .await
                 .unwrap_or_else(Response::from)
                 .apply_catcher(&req)
-                .apply_session(&req.request)
                 .apply_cors(&req.cors)?;
         let _ = req.tx.send(response).await;
         Ok(())
@@ -634,7 +606,6 @@ fn block_on<F: std::future::Future>(future: F, workers: Option<usize>) -> F::Out
 
 #[gen_stub_pyfunction]
 #[pyfunction]
-#[allow(unused_variables)]
 #[pyo3(signature=(path="/static", directory="./static"))]
 fn static_file(path: &str, directory: &str) -> Route {
     // the implementation of this function is in __init__.py
@@ -643,10 +614,17 @@ fn static_file(path: &str, directory: &str) -> Route {
 
 #[gen_stub_pyfunction]
 #[pyfunction]
-#[allow(unused_variables)]
 fn send_file(path: &str) -> Response {
     // the implementation of this function is in __init__.py
     todo!("dummy send_file function")
+}
+
+#[gen_stub_pyfunction]
+#[pyfunction]
+#[pyo3(signature=(secret, max_age = 3600 * 24 * 7))]
+fn Session(secret: Py<PyBytes>, max_age: i32) -> Response {
+    // the implementation of this function is in __init__.py
+    todo!("dummy session_middleware fonction")
 }
 
 #[pymodule]
@@ -659,8 +637,6 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Request>()?;
     m.add_class::<Response>()?;
     m.add_class::<Router>()?;
-    m.add_class::<Session>()?;
-    m.add_class::<SessionStore>()?;
     m.add_class::<Status>()?;
     m.add_function(wrap_pyfunction!(catcher::catcher, m)?)?;
     m.add_function(wrap_pyfunction!(convert_to_response, m)?)?;
@@ -673,6 +649,7 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(put, m)?)?;
     m.add_function(wrap_pyfunction!(send_file, m)?)?;
     m.add_function(wrap_pyfunction!(static_file, m)?)?;
+    m.add_function(wrap_pyfunction!(Session, m)?)?;
 
     exceptions::exceptions(m)?;
     jwt::jwt_submodule(m)?;

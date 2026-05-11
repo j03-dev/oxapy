@@ -15,10 +15,7 @@ use url::form_urlencoded;
 use crate::routing::MatchRoute;
 use crate::status::Status;
 use crate::{
-    IntoPyException, ProcessRequest, RequestContext, json,
-    multipart::File,
-    session::{Session, SessionStore},
-    templating::Template,
+    IntoPyException, ProcessRequest, RequestContext, json, multipart::File, templating::Template,
 };
 use crate::{multipart::parse_multipart, response::Body};
 use crate::{response::Response, routing::Layer};
@@ -73,8 +70,6 @@ pub struct Request {
     pub app_data: Option<Arc<Py<PyAny>>>,
     pub template: Option<Arc<Template>>,
     pub ext: HashMap<String, Arc<Py<PyAny>>>,
-    pub session: Option<Arc<Session>>,
-    pub session_store: Option<Arc<SessionStore>>,
 }
 
 #[gen_stub_pymethods]
@@ -187,38 +182,6 @@ impl Request {
             return Ok(parsed_query);
         }
         Ok(HashMap::default())
-    }
-
-    /// Get the session object for the current request.
-    ///
-    /// Use this to access or modify session data that persists across requests.
-    ///
-    /// Args:
-    ///     None
-    ///
-    /// Returns:
-    ///     Session: The session instance for this request
-    ///
-    /// Raises:
-    ///     AttributeError: If session store is not configured on the server
-    ///
-    /// Example:
-    /// ```python
-    /// from oxapy import get
-    ///
-    /// @get("/login")
-    /// def login(request):
-    ///     request.session["is_authenticated"] = True
-    ///     return "Logged in successfully"
-    /// ```
-    #[getter]
-    pub fn session(&self) -> PyResult<Session> {
-        let session = self.session.as_ref().ok_or_else(|| {
-            PyAttributeError::new_err(
-                "Session not available. Make sure you've configured SessionStore.",
-            )
-        })?;
-        Ok(session.as_ref().clone())
     }
 
     /// Get cookie value by the name from the request headers
@@ -365,7 +328,6 @@ pub struct RequestBuilder {
     headers: HashMap<String, String>,
     app_data: Option<Arc<Py<PyAny>>>,
     template: Option<Arc<Template>>,
-    session_store: Option<Arc<SessionStore>>,
     req: hyper::Request<hyper::body::Incoming>,
 }
 
@@ -382,7 +344,6 @@ impl RequestBuilder {
             req,
             app_data: None,
             template: None,
-            session_store: None,
         }
     }
 
@@ -393,11 +354,6 @@ impl RequestBuilder {
 
     pub fn with_template(mut self, template: &Option<Arc<Template>>) -> Self {
         self.template = template.clone();
-        self
-    }
-
-    pub fn with_session_store(mut self, session_store: &Option<Arc<SessionStore>>) -> Self {
-        self.session_store = session_store.clone();
         self
     }
 
@@ -419,13 +375,6 @@ impl RequestBuilder {
                     request.data = Some(body.clone());
                 }
             }
-        }
-
-        if let Some(store) = self.session_store {
-            let session_id = request.get_cookie(&store.cookie_name);
-            let session = store.get_session(session_id)?;
-            request.session = Some(Arc::new(session));
-            request.session_store = Some(store.clone());
         }
 
         request.app_data = self.app_data;

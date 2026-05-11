@@ -21,7 +21,6 @@ __all__ = [
     "Route",
     "Router",
     "Session",
-    "SessionStore",
     "Status",
     "catcher",
     "convert_to_response",
@@ -490,23 +489,6 @@ class HttpServer:
         server.attach(router)
         ```
         """
-    def session_store(self, session_store: SessionStore) -> HttpServer:
-        r"""
-        Set up a session store for managing user sessions.
-        
-        When configured, session data will be available in request handlers.
-        
-        Args:
-            session_store (SessionStore): The session store instance to use.
-        
-        Returns:
-            None
-        
-        Example:
-        ```python
-        server.session_store(SessionStore())
-        ```
-        """
     def template(self, template: templating.Template) -> HttpServer:
         r"""
         Enable template rendering for the server.
@@ -801,32 +783,6 @@ class Request:
             name = query.get("name")
             age = query.get("age")
             return {"name": name, "age": age}
-        ```
-        """
-    @property
-    def session(self) -> Session:
-        r"""
-        Get the session object for the current request.
-        
-        Use this to access or modify session data that persists across requests.
-        
-        Args:
-            None
-        
-        Returns:
-            Session: The session instance for this request
-        
-        Raises:
-            AttributeError: If session store is not configured on the server
-        
-        Example:
-        ```python
-        from oxapy import get
-        
-        @get("/login")
-        def login(request):
-            request.session["is_authenticated"] = True
-            return "Logged in successfully"
         ```
         """
     def __new__(cls, method: builtins.str, uri: builtins.str, headers: typing.Mapping[builtins.str, builtins.str]) -> Request:
@@ -1228,288 +1184,6 @@ class Router:
     def __repr__(self) -> builtins.str: ...
 
 @typing.final
-class Session:
-    r"""
-    Session storage for maintaining state between requests.
-    
-    The Session class provides a dictionary-like interface for storing data
-    that persists across multiple requests from the same client.
-    
-    Args:
-        id (str, optional): Custom session ID. If not provided, a random ID will be generated.
-    
-    Returns:
-        Session: A new session instance.
-    
-    Example:
-    ```python
-    from oxapy import get
-    
-    # Sessions are typically accessed from the request object:
-    @get("/profile")
-    def profile(request):
-        session = request.session()
-        session["last_visit"] = "today"
-        return {"user_id": session.get("user_id")}
-    ```
-    """
-    @property
-    def id(self) -> builtins.str: ...
-    @property
-    def create_at(self) -> builtins.int: ...
-    def __new__(cls, id: typing.Optional[builtins.str]) -> Session:
-        r"""
-        Create a new Session instance.
-        
-        Args:
-            id (str, optional): Custom session ID. If not provided, a random ID will be generated.
-        
-        Returns:
-            Session: A new session instance.
-        
-        Example:
-        ```python
-        # Manual session creation (normally handled by the framework)
-        session = Session()
-        ```
-        """
-    def get(self, key: builtins.str) -> typing.Any:
-        r"""
-        Get a value from the session by key.
-        
-        Args:
-            key (str): The key to look up in the session.
-        
-        Returns:
-            any: The value associated with the key, or None if the key doesn't exist.
-        
-        Example:
-        ```python
-        user_id = session.get("user_id")
-        if user_id is not None:
-            # User is logged in
-        ```
-        """
-    def set(self, key: builtins.str, value: typing.Any) -> None:
-        r"""
-        Set a value in the session.
-        
-        Args:
-            key (str): The key to store the value under.
-            value (any): The value to store in the session.
-        
-        Returns:
-            None
-        
-        Example:
-        ```python
-        # Store user information in the session
-        session.set("user_id", 123)
-        session.set("is_admin", False)
-        ```
-        """
-    def remove(self, key: builtins.str) -> None:
-        r"""
-        Remove a key-value pair from the session.
-        
-        Args:
-            key (str): The key to remove.
-        
-        Returns:
-            None
-        
-        Example:
-        ```python
-        # Log user out by removing their session data
-        session.remove("user_id")
-        session.remove("is_admin")
-        ```
-        """
-    def clear(self) -> None:
-        r"""
-        Remove all data from the session.
-        
-        Args:
-            None
-        
-        Returns:
-            None
-        
-        Example:
-        ```python
-        # Clear all session data (e.g., during logout)
-        session.clear()
-        ```
-        """
-    def keys(self) -> typing.Any:
-        r"""
-        Get all keys in the session.
-        
-        Args:
-            None
-        
-        Returns:
-            list: A list of all keys in the session.
-        
-        Example:
-        ```python
-        # Check what data is stored in the session
-        for key in session.keys():
-            print(f"Session contains: {key}")
-        ```
-        """
-    def values(self) -> typing.Any: ...
-    def items(self) -> typing.Any: ...
-    def __contains__(self, key: builtins.str) -> builtins.bool: ...
-    def __iter__(self) -> typing.Any: ...
-    def __getitem__(self, key: builtins.str) -> typing.Any: ...
-    def __setitem__(self, key: builtins.str, value: typing.Any) -> None: ...
-    def __delitem__(self, key: builtins.str) -> None: ...
-    def __len__(self) -> builtins.int: ...
-    def __repr__(self) -> builtins.str: ...
-    def __str__(self) -> builtins.str: ...
-
-@typing.final
-class SessionStore:
-    r"""
-    Manages sessions for the application.
-    
-    The SessionStore maintains all active sessions and handles their serialization
-    and deserialization via cookies.
-    
-    Args:
-        cookie_name (str, optional): Name of the cookie used for session tracking (default: "session").
-        cookie_max_age (int, optional): Max age of the cookie in seconds (default: None).
-        cookie_path (str, optional): Path for the cookie (default: "/").
-        cookie_secure (bool, optional): Whether the cookie should only be sent over HTTPS (default: False).
-        cookie_http_only (bool, optional): Whether the cookie is inaccessible to JavaScript (default: True).
-        cookie_same_site (str, optional): SameSite cookie policy ("Lax", "Strict", or "None") (default: "Lax").
-        expiry_seconds (int, optional): How long sessions should last in seconds (default: 86400 - one day).
-    
-    Returns:
-        SessionStore: A new session store instance.
-    
-    Example:
-    ```python
-    from oxapy import HttpServer, SessionStore
-    
-    app = HttpServer(("127.0.0.1", 8000))
-    
-    # Configure sessions with custom settings
-    store = SessionStore(
-        cookie_name="my_app_session",
-        cookie_secure=True,
-        expiry_seconds=3600  # 1 hour
-    )
-    app.session_store(store)
-    ```
-    """
-    @property
-    def cookie_name(self) -> builtins.str: ...
-    @cookie_name.setter
-    def cookie_name(self, value: builtins.str) -> None: ...
-    @property
-    def cookie_max_age(self) -> typing.Optional[builtins.int]: ...
-    @cookie_max_age.setter
-    def cookie_max_age(self, value: typing.Optional[builtins.int]) -> None: ...
-    @property
-    def cookie_path(self) -> builtins.str: ...
-    @cookie_path.setter
-    def cookie_path(self, value: builtins.str) -> None: ...
-    @property
-    def cookie_secure(self) -> builtins.bool: ...
-    @cookie_secure.setter
-    def cookie_secure(self, value: builtins.bool) -> None: ...
-    @property
-    def cookie_http_only(self) -> builtins.bool: ...
-    @cookie_http_only.setter
-    def cookie_http_only(self, value: builtins.bool) -> None: ...
-    @property
-    def cookie_same_site(self) -> builtins.str: ...
-    @cookie_same_site.setter
-    def cookie_same_site(self, value: builtins.str) -> None: ...
-    @property
-    def expiry_seconds(self) -> typing.Optional[builtins.int]: ...
-    @expiry_seconds.setter
-    def expiry_seconds(self, value: typing.Optional[builtins.int]) -> None: ...
-    def __new__(cls, cookie_name: builtins.str = 'session', cookie_max_age: typing.Optional[builtins.int] = None, cookie_path: builtins.str = '/', cookie_secure: builtins.bool = False, cookie_http_only: builtins.bool = True, cookie_same_site: builtins.str = 'Lax', expiry_seconds: typing.Optional[builtins.int] = 86400) -> SessionStore:
-        r"""
-        Create a new SessionStore.
-        
-        Args:
-            cookie_name (str, optional): Name of the cookie used for session tracking (default: "session").
-            cookie_max_age (int, optional): Max age of the cookie in seconds (default: None).
-            cookie_path (str, optional): Path for the cookie (default: "/").
-            cookie_secure (bool, optional): Whether the cookie should only be sent over HTTPS (default: False).
-            cookie_http_only (bool, optional): Whether the cookie is inaccessible to JavaScript (default: True).
-            cookie_same_site (str, optional): SameSite cookie policy ("Lax", "Strict", or "None") (default: "Lax").
-            expiry_seconds (int, optional): How long sessions should last in seconds (default: 86400 - one day).
-        
-        Returns:
-            SessionStore: A new session store instance.
-        
-        Example:
-        ```python
-        # Create a session store with default settings
-        store = SessionStore()
-        
-        # Create a session store with custom settings
-        secure_store = SessionStore(
-            cookie_name="secure_session",
-            cookie_secure=True,
-            cookie_same_site="Strict"
-        )
-        ```
-        """
-    def get_session(self, session_id: typing.Optional[builtins.str]) -> Session:
-        r"""
-        Get a session by ID or create a new one if not found.
-        
-        Args:
-            session_id (str, optional): The session ID to look up.
-        
-        Returns:
-            Session: The existing session if found, or a new session otherwise.
-        
-        Note:
-            This method is primarily used internally by the framework.
-        """
-    def clear_session(self, session_id: builtins.str) -> builtins.bool:
-        r"""
-        Remove a session from the store.
-        
-        Args:
-            session_id (str): The ID of the session to remove.
-        
-        Returns:
-            bool: True if the session was found and removed, False otherwise.
-        
-        Example:
-        ```python
-        # Clear a specific session
-        session_store.clear_session("abcd1234")
-        ```
-        """
-    def session_count(self) -> builtins.int:
-        r"""
-        Get the total number of active sessions.
-        
-        Args:
-            None
-        
-        Returns:
-            int: The number of active sessions in the store.
-        
-        Example:
-        ```python
-        # Check how many active sessions exist
-        count = session_store.session_count()
-        print(f"Active sessions: {count}")
-        ```
-        """
-    def get_cookie_header(self, session: Session) -> builtins.str: ...
-
-@typing.final
 class Status(enum.Enum):
     r"""
     HTTP status codes enumeration.
@@ -1810,6 +1484,8 @@ class Status(enum.Enum):
         Returns:
             int: The status code
         """
+
+def Session(secret: bytes, max_age: builtins.int = 604800) -> Response: ...
 
 def catcher(status: Status) -> CatcherBuilder:
     r"""
