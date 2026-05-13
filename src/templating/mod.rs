@@ -121,15 +121,25 @@ fn render(
     request: Request,
     name: String,
     context: Option<Bound<'_, PyDict>>,
+    py: Python<'_>,
 ) -> PyResult<Response> {
     let template = request
         .template
         .as_ref()
         .ok_or_else(|| PyValueError::new_err("Not template"))?;
 
+    let ctx = match context {
+        Some(dict) => dict.copy()?,
+        None => PyDict::new(py),
+    };
+
+    if let Some(session) = request.ext.get("session") {
+        ctx.set_item("session", session.clone_ref(py))?;
+    }
+
     let body = match template.as_ref() {
-        Template::Jinja(engine) => engine.render(name, context)?,
-        Template::Tera(engine) => engine.render(name, context)?,
+        Template::Jinja(engine) => engine.render(name, Some(ctx))?,
+        Template::Tera(engine) => engine.render(name, Some(ctx))?,
     };
 
     let mut headers = HeaderMap::new();
