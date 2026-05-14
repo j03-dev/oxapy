@@ -128,10 +128,7 @@ fn render(
         .as_ref()
         .ok_or_else(|| PyValueError::new_err("Not template"))?;
 
-    let ctx = match context {
-        Some(dict) => dict.copy()?,
-        None => PyDict::new(py),
-    };
+    let ctx = context.unwrap_or(PyDict::new(py));
 
     if let Some(session) = request.ext.get("session") {
         ctx.set_item("session", session.clone_ref(py))?;
