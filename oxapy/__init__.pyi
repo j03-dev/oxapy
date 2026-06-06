@@ -315,7 +315,7 @@ class FileStreaming(Response):
         )
     ```
     """
-    def __new__(cls, path: builtins.str, buf_size: builtins.int = 8192, status: Status = Status.OK, content_type: builtins.str = 'application/octet-stream') -> FileStreaming:
+    def __new__(cls, path: builtins.str, buf_size: builtins.int = 8192, status: Status = Status.OK, content_type: builtins.str = 'application/octet-stream') -> typing.Self:
         r"""
         Create a new FileStreaming response.
         
@@ -655,7 +655,7 @@ class Redirect(Response):
     return Redirect("https://example.com")
     ```
     """
-    def __new__(cls, location: builtins.str) -> Redirect:
+    def __new__(cls, location: builtins.str) -> typing.Self:
         r"""
         Create a new HTTP redirect response.
         

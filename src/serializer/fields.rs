@@ -200,6 +200,7 @@ macro_rules! define_fields {
                     read_only=false,
                     write_only=false
                 ))]
+                #[gen_stub(override_return_type(type_repr = "typing.Self"))]
                 fn new(
                     required: bool,
                     nullable: bool,

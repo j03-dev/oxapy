@@ -108,14 +108,14 @@ class JwtDecodingError(JwtError):
     r"""
     Occurs when there's an error during JWT decoding/verification.
     """
-    def __new__(cls, e: typing.Any) -> JwtDecodingError: ...
+    def __new__(cls, e: typing.Any) -> typing.Self: ...
 
 @typing.final
 class JwtEncodingError(JwtError):
     r"""
     Occurs when there's an error during JWT encoding.
     """
-    def __new__(cls, e: typing.Any) -> JwtEncodingError: ...
+    def __new__(cls, e: typing.Any) -> typing.Self: ...
 
 class JwtError(builtins.Exception):
     r"""
@@ -128,12 +128,12 @@ class JwtInvalidAlgorithm(JwtError):
     r"""
     Occurs when the JWT algorithm is invalid or not supported.
     """
-    def __new__(cls, e: typing.Any) -> JwtInvalidAlgorithm: ...
+    def __new__(cls, e: typing.Any) -> typing.Self: ...
 
 @typing.final
 class JwtInvalidClaim(JwtError):
     r"""
     Occurs when a JWT claim is invalid (e.g., wrong format).
     """
-    def __new__(cls, e: typing.Any) -> JwtInvalidClaim: ...
+    def __new__(cls, e: typing.Any) -> typing.Self: ...
 

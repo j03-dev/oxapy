@@ -76,6 +76,7 @@ impl Serializer {
         read_only= false,
         write_only = false,
     ))]
+    #[gen_stub(override_return_type(type_repr = "typing.Self"))]
     #[allow(clippy::too_many_arguments)]
     fn new(
         data: Option<String>,

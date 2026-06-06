@@ -296,6 +296,7 @@ impl Redirect {
     ///     return Redirect("/thank-you")
     /// ```
     #[new]
+    #[gen_stub(override_return_type(type_repr = "typing.Self"))]
     fn new(location: String) -> (Redirect, Response) {
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, "text/html".parse().unwrap());
@@ -434,6 +435,7 @@ impl FileStreaming {
     /// ```
     #[new]
     #[pyo3(signature=(path, buf_size=8192, status=Status::OK, content_type="application/octet-stream"))]
+    #[gen_stub(override_return_type(type_repr = "typing.Self"))]
     fn new(
         path: &str,
         buf_size: usize,
