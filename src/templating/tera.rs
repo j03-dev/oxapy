@@ -18,6 +18,7 @@ pub struct Tera {
 #[pymethods]
 impl Tera {
     #[new]
+    #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
     pub fn new(dir: String) -> PyResult<Self> {
         Ok(Self {
             engine: Arc::new(tera::Tera::new(&dir).into_py_exception()?),

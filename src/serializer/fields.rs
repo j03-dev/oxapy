@@ -76,6 +76,7 @@ impl Field {
     ))]
     #[allow(clippy::too_many_arguments)]
     #[new]
+    #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
     pub fn new(
         ty: String,
         required: bool,
@@ -200,7 +201,7 @@ macro_rules! define_fields {
                     read_only=false,
                     write_only=false
                 ))]
-                #[gen_stub(override_return_type(type_repr = "typing.Self"))]
+                #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
                 fn new(
                     required: bool,
                     nullable: bool,

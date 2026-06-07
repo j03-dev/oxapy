@@ -95,6 +95,7 @@ impl Cors {
     /// cors.allow_credentials = False
     /// ```
     #[new]
+    #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
     fn new() -> Self {
         Self::default()
     }

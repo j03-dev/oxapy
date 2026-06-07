@@ -4,6 +4,7 @@
 import builtins
 import enum
 import typing
+import typing_extensions
 from . import exceptions
 from . import jwt
 from . import serializer
@@ -26,6 +27,7 @@ __all__ = [
     "convert_to_response",
     "delete",
     "exceptions",
+    "from typing_extensions import Self",
     "get",
     "head",
     "jwt",
@@ -161,7 +163,7 @@ class Cors:
         r"""
         Maximum age of preflight requests in seconds, default is 86400 (1 day)
         """
-    def __new__(cls) -> Cors:
+    def __new__(cls) -> typing_extensions.Self:
         r"""
         Create a new CORS configuration with default settings.
         
@@ -315,7 +317,7 @@ class FileStreaming(Response):
         )
     ```
     """
-    def __new__(cls, path: builtins.str, buf_size: builtins.int = 8192, status: Status = Status.OK, content_type: builtins.str = 'application/octet-stream') -> typing.Self:
+    def __new__(cls, path: builtins.str, buf_size: builtins.int = 8192, status: Status = Status.OK, content_type: builtins.str = 'application/octet-stream') -> typing_extensions.Self:
         r"""
         Create a new FileStreaming response.
         
@@ -405,7 +407,7 @@ class HttpServer:
     app.run()
         ```
     """
-    def __new__(cls, addr: tuple[builtins.str, builtins.int]) -> HttpServer:
+    def __new__(cls, addr: tuple[builtins.str, builtins.int]) -> typing_extensions.Self:
         r"""
         Create a new instance of HttpServer.
         
@@ -655,7 +657,7 @@ class Redirect(Response):
     return Redirect("https://example.com")
     ```
     """
-    def __new__(cls, location: builtins.str) -> typing.Self:
+    def __new__(cls, location: builtins.str) -> typing_extensions.Self:
         r"""
         Create a new HTTP redirect response.
         
@@ -785,7 +787,7 @@ class Request:
             return {"name": name, "age": age}
         ```
         """
-    def __new__(cls, method: builtins.str, uri: builtins.str, headers: typing.Mapping[builtins.str, builtins.str]) -> Request:
+    def __new__(cls, method: builtins.str, uri: builtins.str, headers: typing.Mapping[builtins.str, builtins.str]) -> typing_extensions.Self:
         r"""
         Create a new Request instance.
         
@@ -909,7 +911,7 @@ class Response:
             print(f"{name}: {value}")
         ```
         """
-    def __new__(cls, body: typing.Any, status: Status = Status.OK, content_type: builtins.str = 'application/json') -> Response:
+    def __new__(cls, body: typing.Any, status: Status = Status.OK, content_type: builtins.str = 'application/json') -> typing_extensions.Self:
         r"""
         Create a new Response instance.
         
@@ -996,7 +998,7 @@ class Route:
     route = route(handler)  # Attach the handler
     ```
     """
-    def __new__(cls, path: builtins.str, method: typing.Optional[builtins.str] = None) -> Route: ...
+    def __new__(cls, path: builtins.str, method: typing.Optional[builtins.str] = None) -> typing_extensions.Self: ...
     def __call__(self, handler: typing.Any) -> Route: ...
     def __repr__(self) -> builtins.str: ...
 
@@ -1029,7 +1031,7 @@ class Router:
     # The route will be /api/v1/hello/{name}
     ```
     """
-    def __new__(cls, base_path: typing.Optional[builtins.str] = None) -> Router:
+    def __new__(cls, base_path: typing.Optional[builtins.str] = None) -> typing_extensions.Self:
         r"""
         Create a new Router instance.
         

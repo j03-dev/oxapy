@@ -87,6 +87,7 @@ impl Jwt {
     /// ```
     #[new]
     #[pyo3(signature = (secret, algorithm="HS256"))]
+    #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
     pub fn new(secret: String, algorithm: &str) -> PyResult<Self> {
         if secret.is_empty() {
             return Err(JwtError::new_err("Secret key cannot be empty"));

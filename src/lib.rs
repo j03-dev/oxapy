@@ -43,6 +43,7 @@ mod serializer;
 mod status;
 mod templating;
 
+pyo3_stub_gen::export_verbatim!("oxapy", "from typing_extensions import Self");
 pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
 
 struct ProcessRequest {
@@ -141,6 +142,7 @@ impl HttpServer {
     /// server = HttpServer(("127.0.0.1", 5555))
     /// ```
     #[new]
+    #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
     fn new(addr: (String, u16)) -> PyResult<Self> {
         let (ip, port) = addr;
         Ok(Self {

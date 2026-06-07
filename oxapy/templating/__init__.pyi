@@ -4,6 +4,7 @@
 import builtins
 import enum
 import typing
+import typing_extensions
 __all__ = [
     "Jinja",
     "Template",
@@ -12,12 +13,12 @@ __all__ = [
 
 @typing.final
 class Jinja:
-    def __new__(cls, dir: builtins.str) -> Jinja: ...
+    def __new__(cls, dir: builtins.str) -> typing_extensions.Self: ...
     def render(self, template_name: builtins.str, context: typing.Optional[dict] = None) -> builtins.str: ...
 
 @typing.final
 class Tera:
-    def __new__(cls, dir: builtins.str) -> Tera: ...
+    def __new__(cls, dir: builtins.str) -> typing_extensions.Self: ...
     def render(self, template_name: builtins.str, context: typing.Optional[dict] = None) -> builtins.str: ...
 
 @typing.final
@@ -54,7 +55,7 @@ class Template(enum.Enum):
     Jinja = ...
     Tera = ...
 
-    def __new__(cls, dir: builtins.str = './templates/**/*.html', engine: builtins.str = 'jinja') -> Template:
+    def __new__(cls, dir: builtins.str = './templates/**/*.html', engine: builtins.str = 'jinja') -> typing_extensions.Self:
         r"""
         Create a new Template instance.
         

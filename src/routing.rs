@@ -51,6 +51,7 @@ impl Default for Route {
 impl Route {
     #[new]
     #[pyo3(signature=(path, method=None))]
+    #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
     pub fn new(path: String, method: Option<String>) -> Self {
         Route {
             method: method.unwrap_or("GET".to_string()),
@@ -380,6 +381,7 @@ impl Router {
     ///
     #[new]
     #[pyo3(signature=(base_path = None))]
+    #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
     pub fn new(base_path: Option<String>) -> Self {
         Router {
             base_path,

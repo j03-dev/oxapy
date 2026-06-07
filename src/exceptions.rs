@@ -20,6 +20,7 @@ macro_rules! extend_exception {
         #[pyo3::prelude::pymethods]
         impl $name {
             #[new]
+            #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
             fn new(e: pyo3::Py<pyo3::PyAny>) -> $name {
                 Self(e)
             }
@@ -33,7 +34,7 @@ macro_rules! extend_exception {
         #[pyo3::prelude::pymethods]
         impl $name {
             #[new]
-            #[gen_stub(override_return_type(type_repr = "typing.Self"))]
+            #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
             fn new(e: pyo3::Py<pyo3::PyAny>) -> ($name, $extend) {
                 ($name, $extend(e))
             }

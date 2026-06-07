@@ -78,6 +78,7 @@ impl Template {
     /// ```
     #[new]
     #[pyo3(signature=(dir="./templates/**/*.html", engine="jinja"))]
+    #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
     fn new(dir: &str, engine: &str) -> PyResult<Template> {
         match engine {
             "jinja" => Ok(Template::Jinja(minijinja::Jinja::new(dir.to_string())?)),

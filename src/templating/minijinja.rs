@@ -19,6 +19,7 @@ pub struct Jinja {
 #[pymethods]
 impl Jinja {
     #[new]
+    #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
     pub fn new(dir: String) -> PyResult<Self> {
         let mut env = Environment::new();
 

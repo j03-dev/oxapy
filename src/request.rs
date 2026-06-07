@@ -88,6 +88,7 @@ impl Request {
     /// Returns:
     ///     Request: A new request object
     #[new]
+    #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
     pub fn new(method: String, uri: String, headers: HashMap<String, String>) -> Self {
         Self {
             method,

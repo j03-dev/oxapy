@@ -84,6 +84,7 @@ impl Response {
     /// ```
     #[new]
     #[pyo3(signature=(body, status = Status::OK , content_type="application/json"))]
+    #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
     pub fn new(body: Bound<PyAny>, status: Status, content_type: &str) -> PyResult<Self> {
         let content_type = HeaderValue::from_str(content_type).into_py_exception()?;
 
@@ -296,7 +297,7 @@ impl Redirect {
     ///     return Redirect("/thank-you")
     /// ```
     #[new]
-    #[gen_stub(override_return_type(type_repr = "typing.Self"))]
+    #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
     fn new(location: String) -> (Redirect, Response) {
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, "text/html".parse().unwrap());
@@ -435,7 +436,7 @@ impl FileStreaming {
     /// ```
     #[new]
     #[pyo3(signature=(path, buf_size=8192, status=Status::OK, content_type="application/octet-stream"))]
-    #[gen_stub(override_return_type(type_repr = "typing.Self"))]
+    #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
     fn new(
         path: &str,
         buf_size: usize,

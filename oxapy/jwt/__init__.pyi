@@ -3,6 +3,7 @@
 
 import builtins
 import typing
+import typing_extensions
 __all__ = [
     "Jwt",
     "JwtDecodingError",
@@ -17,7 +18,7 @@ class Jwt:
     r"""
     Python class for generating and verifying JWT tokens
     """
-    def __new__(cls, secret: builtins.str, algorithm: builtins.str = 'HS256') -> Jwt:
+    def __new__(cls, secret: builtins.str, algorithm: builtins.str = 'HS256') -> typing_extensions.Self:
         r"""
         Create a new JWT
         
@@ -108,32 +109,32 @@ class JwtDecodingError(JwtError):
     r"""
     Occurs when there's an error during JWT decoding/verification.
     """
-    def __new__(cls, e: typing.Any) -> typing.Self: ...
+    def __new__(cls, e: typing.Any) -> typing_extensions.Self: ...
 
 @typing.final
 class JwtEncodingError(JwtError):
     r"""
     Occurs when there's an error during JWT encoding.
     """
-    def __new__(cls, e: typing.Any) -> typing.Self: ...
+    def __new__(cls, e: typing.Any) -> typing_extensions.Self: ...
 
 class JwtError(builtins.Exception):
     r"""
     Base class for all JWT related exceptions.
     """
-    def __new__(cls, e: typing.Any) -> JwtError: ...
+    def __new__(cls, e: typing.Any) -> typing_extensions.Self: ...
 
 @typing.final
 class JwtInvalidAlgorithm(JwtError):
     r"""
     Occurs when the JWT algorithm is invalid or not supported.
     """
-    def __new__(cls, e: typing.Any) -> typing.Self: ...
+    def __new__(cls, e: typing.Any) -> typing_extensions.Self: ...
 
 @typing.final
 class JwtInvalidClaim(JwtError):
     r"""
     Occurs when a JWT claim is invalid (e.g., wrong format).
     """
-    def __new__(cls, e: typing.Any) -> typing.Self: ...
+    def __new__(cls, e: typing.Any) -> typing_extensions.Self: ...
 
