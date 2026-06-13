@@ -1,5 +1,4 @@
 import requests
-from tests.utils import Multipart
 
 
 def test_ping_endpoint(oxapy_server):
@@ -63,10 +62,7 @@ def test_static_file_not_found(oxapy_server):
 
 def test_form(oxapy_server):
     form_data = {"username": "John Does", "email": "johndoes@email.com"}
-    multipart = Multipart(form_data)
-    res = requests.post(
-        f"{oxapy_server}/api/v1/form", data=multipart.data, headers=multipart.headers
-    )
+    res = requests.post(f"{oxapy_server}/api/v1/form", data=form_data)
     assert res.status_code == 200
     assert res.json() == form_data
 

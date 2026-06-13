@@ -370,6 +370,13 @@ impl RequestBuilder {
                     .into_py_exception()?;
                 request.form = parsed_multipart.fields;
                 request.files = parsed_multipart.files;
+            } else if content_type.starts_with("application/x-www-form-urlencoded") {
+                let form = String::from_utf8_lossy(&bytes).to_string();
+                if !form.is_empty() {
+                    request.form = form_urlencoded::parse(form.as_bytes())
+                        .map(|(k, v)| (k.to_string(), v.to_string()))
+                        .collect();
+                }
             } else {
                 let body = String::from_utf8_lossy(&bytes).to_string();
                 if !body.is_empty() {

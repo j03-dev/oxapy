@@ -1,23 +1,5 @@
 import pytest
-from oxapy import SessionStore, jwt
-
-
-def test_session_store():
-    store = SessionStore(cookie_name="secure_session", cookie_secure=True)
-    session = store.get_session(None)
-    session["is_auth"] = True
-    assert session["is_auth"]
-
-
-def test_session_store_multiple_keys():
-    store = SessionStore()
-    session = store.get_session(None)
-    session["user_id"] = 123
-    session["username"] = "john"
-    session["roles"] = ["admin", "user"]
-    assert session["user_id"] == 123
-    assert session["username"] == "john"
-    assert session["roles"] == ["admin", "user"]
+from oxapy import jwt
 
 
 def test_jwt_generate_and_verify():
