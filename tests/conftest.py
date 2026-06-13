@@ -62,6 +62,12 @@ def ping(_request):
     return {"message": "pong"}
 
 
+@post("/ping")
+def ping_post(request):
+    body = request.json()
+    return {"message": "pong", "body": body}
+
+
 @post("/echo")
 def echo(request):
     return {"echo": request.json()}
@@ -72,6 +78,18 @@ def redirect_handler(_request):
     from oxapy import Redirect
 
     return Redirect("/api/v1/ping")
+
+
+@post("/upload")
+def upload_handler(request):
+    files_info = {}
+    for name, file in request.files.items():
+        files_info[name] = {
+            "filename": file.name,
+            "content_type": file.content_type,
+            "size": len(file.content),
+        }
+    return {"files": files_info, "form": dict(request.form)}
 
 
 @get("/error")
@@ -88,7 +106,9 @@ def main(static_dir: Path):
             .routes(
                 [
                     ping,
+                    ping_post,
                     echo,
+                    upload_handler,
                     count_handler,
                     form,
                     hello,

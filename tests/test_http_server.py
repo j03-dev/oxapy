@@ -8,6 +8,13 @@ def test_ping_endpoint(oxapy_server):
     assert res.json()["message"] == "pong"
     assert "application/json" in res.headers["Content-Type"]
 
+    body = {"foo": "bar"}
+    res = requests.post(f"{oxapy_server}/api/v1/ping", json=body)
+    assert res.status_code == 200
+    assert res.json()["message"] == "pong"
+    assert res.json()["body"] == body
+    assert "application/json" in res.headers["Content-Type"]
+
 
 def test_echo_endpoint(oxapy_server):
     payload = {"msg": "hello"}
@@ -69,6 +76,31 @@ def test_form(oxapy_server):
     )
     assert res.status_code == 200
     assert res.json() == form_data
+
+
+def test_urlencoded_form(oxapy_server):
+    form_data = {"username": "John Does", "email": "johndoes@email.com"}
+    res = requests.post(
+        f"{oxapy_server}/api/v1/form",
+        data=form_data,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert res.status_code == 200
+    assert res.json() == form_data
+
+
+def test_multipart_file_upload(oxapy_server):
+    res = requests.post(
+        f"{oxapy_server}/api/v1/upload",
+        files={"document": ("hello.txt", b"Hello, World!", "text/plain")},
+        data={"description": "test file"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["files"]["document"]["filename"] == "hello.txt"
+    assert data["files"]["document"]["content_type"] == "text/plain"
+    assert data["files"]["document"]["size"] == 13
+    assert data["form"]["description"] == "test file"
 
 
 def test_protected_route_unauthorized(oxapy_server):
