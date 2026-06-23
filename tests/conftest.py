@@ -6,6 +6,7 @@ from oxapy import (
     static_file,
     Status,
     Response,
+    Redirect,
 )
 import threading
 import time
@@ -75,8 +76,6 @@ def echo(request):
 
 @get("/redirect")
 def redirect_handler(_request):
-    from oxapy import Redirect
-
     return Redirect("/api/v1/ping")
 
 
