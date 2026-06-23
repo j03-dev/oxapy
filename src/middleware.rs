@@ -5,12 +5,14 @@ use pyo3::{Py, PyAny, PyResult, Python, call::PyCallArgs, prelude::*, types::PyD
 #[derive(Clone, Debug)]
 pub struct Middleware {
     handler: Arc<Py<PyAny>>,
+    sequence: usize,
 }
 
 impl Middleware {
-    pub fn new(handler: Py<PyAny>) -> Self {
+    pub fn new(handler: Py<PyAny>, sequence: usize) -> Self {
         Self {
             handler: Arc::new(handler),
+            sequence,
         }
     }
 }
@@ -27,6 +29,7 @@ impl MiddlewareChain {
     pub fn execute<'py, A>(
         &self,
         py: Python<'py>,
+        route_sequence: usize,
         route_handler: &Py<PyAny>,
         args: A,
         kwargs: Bound<'py, PyDict>,
@@ -34,13 +37,14 @@ impl MiddlewareChain {
     where
         A: PyCallArgs<'py>,
     {
-        let handler = self.build_middleware_chain(py, route_handler, 0)?;
+        let handler = self.build_middleware_chain(py, route_sequence, route_handler, 0)?;
         handler.call(py, args, Some(&kwargs))
     }
 
     fn build_middleware_chain(
         &self,
         py: Python<'_>,
+        route_sequence: usize,
         route_handler: &Py<PyAny>,
         index: usize,
     ) -> PyResult<Py<PyAny>> {
@@ -48,7 +52,10 @@ impl MiddlewareChain {
             return Ok(route_handler.clone_ref(py));
         }
         let middleware = &self.middlewares[index];
-        let next = self.build_middleware_chain(py, route_handler, index + 1)?;
+        if middleware.sequence > route_sequence {
+            return Ok(route_handler.clone_ref(py));
+        }
+        let next = self.build_middleware_chain(py, route_sequence, route_handler, index + 1)?;
         let globals = PyDict::new(py);
         globals.set_item("middleware", middleware.handler.clone_ref(py))?;
         globals.set_item("next", next)?;

@@ -18,7 +18,7 @@ use crate::{
     IntoPyException, ProcessRequest, RequestContext, json, multipart::File, templating::Template,
 };
 use crate::{multipart::parse_multipart, response::Body};
-use crate::{response::Response, routing::Layer};
+use crate::{response::Response, routing::Router};
 
 /// HTTP request object containing information about the incoming request.
 ///
@@ -258,10 +258,10 @@ impl Request {
         &self,
         ctx: &RequestContext,
     ) -> Option<Result<hyper::Response<Body>, hyper::http::Error>> {
-        for layer in &ctx.layers {
-            if let Some(match_route) = layer.find(&self.method, &self.uri) {
+        for router in &ctx.routers {
+            if let Some(match_route) = router.find(&self.method, &self.uri) {
                 let response = self
-                    .process_matched_route(ctx, layer.clone(), match_route)
+                    .process_matched_route(ctx, router.clone(), match_route)
                     .await;
                 return Some(response);
             }
@@ -272,7 +272,7 @@ impl Request {
     async fn process_matched_route(
         &self,
         ctx: &RequestContext,
-        layer: Arc<Layer>,
+        router: Arc<Router>,
         match_route: MatchRoute<'_>,
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
         let (tx, rx) = tokio::sync::mpsc::channel(ctx.channel_capacity);
@@ -281,7 +281,7 @@ impl Request {
 
         let process_request = ProcessRequest {
             request: Arc::new(self.clone()),
-            layer: Some(layer),
+            router: Some(router),
             match_route: Some(transmutate_route),
             tx,
             cors: ctx.cors.clone(),
@@ -299,7 +299,7 @@ impl Request {
 
         let process_request = ProcessRequest {
             request: Arc::new(self),
-            layer: None,
+            router: None,
             match_route: None,
             tx,
             cors: ctx.cors.clone(),
