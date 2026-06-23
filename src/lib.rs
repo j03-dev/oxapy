@@ -49,7 +49,7 @@ pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
 struct ProcessRequest {
     catchers: Option<Arc<HashMap<Status, Py<PyAny>>>>,
     cors: Option<Arc<Cors>>,
-    layer: Option<Arc<Layer>>,
+    router: Option<Arc<Router>>,
     match_route: Option<MatchRoute<'static>>,
     request: Arc<Request>,
     tx: Sender<Response>,
@@ -61,7 +61,7 @@ struct RequestContext {
     catchers: Option<Arc<HashMap<Status, Py<PyAny>>>>,
     channel_capacity: usize,
     cors: Option<Arc<Cors>>,
-    layers: Vec<Arc<Layer>>,
+    routers: Vec<Arc<Router>>,
     request_sender: Sender<ProcessRequest>,
     template: Option<Arc<Template>>,
 }
@@ -121,7 +121,7 @@ struct HttpServer {
     channel_capacity: usize,
     cors: Option<Arc<Cors>>,
     is_async: bool,
-    layers: Vec<Arc<Layer>>,
+    routers: Vec<Arc<Router>>,
     max_connections: Arc<Semaphore>,
     template: Option<Arc<Template>>,
 }
@@ -152,7 +152,7 @@ impl HttpServer {
             channel_capacity: 100,
             cors: None,
             is_async: false,
-            layers: Vec::new(),
+            routers: Vec::new(),
             max_connections: Arc::new(Semaphore::new(100)),
             template: None,
         })
@@ -227,8 +227,7 @@ impl HttpServer {
     /// server.attach(router)
     /// ```
     fn attach(mut slf: PyRefMut<'_, Self>, router: Router) -> PyRefMut<'_, Self> {
-        let arc_layers = router.layers.into_iter().map(Arc::new);
-        slf.layers.extend(arc_layers);
+        slf.routers.push(Arc::new(router));
         slf
     }
 
@@ -430,7 +429,7 @@ impl HttpServer {
             catchers: self.catchers.clone(),
             channel_capacity: self.channel_capacity,
             cors: self.cors.clone(),
-            layers: self.layers.clone(),
+            routers: self.routers.clone(),
             request_sender: tx,
             template: self.template.clone(),
         };
@@ -499,7 +498,7 @@ impl HttpServer {
 
     async fn handle_request(&self, req: ProcessRequest) -> PyResult<()> {
         let response =
-            call_python_handler(&req.layer, &req.match_route, &req.request, self.is_async)
+            call_python_handler(&req.router, &req.match_route, &req.request, self.is_async)
                 .await
                 .unwrap_or_else(Response::from)
                 .apply_catcher(&req)
@@ -532,14 +531,14 @@ impl ShutDownSignal {
 }
 
 async fn call_python_handler<'l>(
-    layer: &Option<Arc<Layer>>,
+    router: &Option<Arc<Router>>,
     match_route: &Option<MatchRoute<'l>>,
     request: &Request,
     is_async: bool,
 ) -> PyResult<Response> {
-    match (match_route, layer) {
-        (Some(route), Some(layer)) => {
-            let mut result = execute_route_handler(route, layer, request)?;
+    match (match_route, router) {
+        (Some(route), Some(router)) => {
+            let mut result = execute_route_handler(route, router, request)?;
             if is_async {
                 result = Python::attach(|py| into_future(result.into_bound(py)))?.await?;
             }
@@ -550,22 +549,22 @@ async fn call_python_handler<'l>(
 }
 
 fn execute_route_handler(
-    route: &MatchRoute,
-    layer: &Layer,
+    match_route: &MatchRoute,
+    router: &Router,
     request: &Request,
 ) -> PyResult<Py<PyAny>> {
     Python::attach(|py| {
-        let kwargs = build_route_params(py, &route.params)?;
-        if layer.middlewares.is_empty() {
-            route
-                .value
-                .handler
-                .call(py, (request.clone(),), Some(&kwargs))
+        let route = match_route.value;
+        let params = &match_route.params;
+        let kwargs = build_route_params(py, params)?;
+        if router.middlewares.is_empty() {
+            route.handler.call(py, (request.clone(),), Some(&kwargs))
         } else {
-            let chain = MiddlewareChain::new(layer.middlewares.clone());
+            let chain = MiddlewareChain::new(router.middlewares.clone());
             chain.execute(
                 py,
-                route.value.handler.deref(),
+                route.sequence,
+                route.handler.deref(),
                 (request.clone(),),
                 kwargs.clone(),
             )

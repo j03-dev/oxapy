@@ -118,7 +118,6 @@ def main(static_dir: Path):
                     static_file("/static", str(static_dir)),
                 ]
             )
-            .scope()
             .middleware(auth_middleware)
             .route(protected_handler)
         )

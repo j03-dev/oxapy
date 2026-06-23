@@ -34,6 +34,7 @@ pub struct Route {
     pub method: String,
     pub path: String,
     pub handler: Arc<Py<PyAny>>,
+    pub sequence: usize,
 }
 
 impl Default for Route {
@@ -42,6 +43,7 @@ impl Default for Route {
             method: "GET".to_string(),
             path: String::default(),
             handler: Arc::new(py.None()),
+            sequence: 0,
         })
     }
 }
@@ -88,6 +90,7 @@ macro_rules! method_decorator {
                 Route {
                     method: stringify!($method).to_string().to_uppercase(),
                     path,
+                    sequence: 0,
                     handler: Arc::new(handler.unwrap_or(py.None()))
                 }
             }
@@ -311,22 +314,6 @@ method_decorator!(
     options;
 );
 
-#[derive(Default, Clone, Debug)]
-pub struct Layer {
-    pub routes: HashMap<String, matchit::Router<Route>>,
-    pub middlewares: Vec<Middleware>,
-}
-
-impl Layer {
-    pub fn find<'l>(&'l self, method: &str, uri: &'l str) -> Option<MatchRoute<'l>> {
-        let path = uri.split('?').next().unwrap_or(uri);
-        let router = self.routes.get(method)?;
-        let route = router.at(path).ok()?;
-        let route: MatchRoute = unsafe { transmute(route) };
-        Some(route)
-    }
-}
-
 /// A router for handling HTTP routes.
 ///
 /// The Router is responsible for registering routes and handling HTTP requests.
@@ -356,8 +343,20 @@ impl Layer {
 #[pyclass(from_py_object)]
 #[derive(Default, Clone, Debug)]
 pub struct Router {
+    pub count: usize,
     pub base_path: Option<String>,
-    pub layers: Vec<Layer>,
+    pub routes: HashMap<String, matchit::Router<Route>>,
+    pub middlewares: Vec<Middleware>,
+}
+
+impl Router {
+    pub fn find<'l>(&'l self, method: &str, uri: &'l str) -> Option<MatchRoute<'l>> {
+        let path = uri.split('?').next().unwrap_or(uri);
+        let router = self.routes.get(method)?;
+        let route = router.at(path).ok()?;
+        let route: MatchRoute = unsafe { transmute(route) };
+        Some(route)
+    }
 }
 
 #[gen_stub_pymethods]
@@ -385,7 +384,9 @@ impl Router {
     pub fn new(base_path: Option<String>) -> Self {
         Router {
             base_path,
-            layers: vec![Layer::default()],
+            count: 0,
+            routes: HashMap::default(),
+            middlewares: Vec::new(),
         }
     }
 
@@ -433,9 +434,9 @@ impl Router {
     /// # - The middleware from the first scope does not affect the second scope.
     /// ```
     fn middleware(mut slf: PyRefMut<'_, Self>, middleware: Py<PyAny>) -> PyRefMut<'_, Self> {
-        let middleware = Middleware::new(middleware);
-        let current_layer = slf.layers.last_mut().unwrap();
-        current_layer.middlewares.push(middleware);
+        let middleware = Middleware::new(middleware, slf.count);
+        slf.count += 1;
+        slf.middlewares.push(middleware);
         slf
     }
 
@@ -460,13 +461,10 @@ impl Router {
     /// route = get("/hello", hello_handler)
     /// router.route(route)
     /// ```
-    fn route(&mut self, route: &Route) -> PyResult<Self> {
-        let current_layer = self.layers.last_mut().unwrap();
-
-        let method_router = current_layer
-            .routes
-            .entry(route.method.clone())
-            .or_default();
+    fn route(&mut self, mut route: Route) -> PyResult<Self> {
+        route.sequence = self.count;
+        let method_router = self.routes.entry(route.method.clone()).or_default();
+        self.count += 1;
 
         let full_path = match self.base_path {
             Some(ref base_path) => {
@@ -512,46 +510,10 @@ impl Router {
     /// router.routes(routes)
     /// ```
     fn routes(mut slf: PyRefMut<'_, Self>, routes: Vec<Route>) -> PyResult<PyRefMut<'_, Self>> {
-        for ref route in routes {
+        for route in routes {
             slf.route(route)?;
         }
         Ok(slf)
-    }
-
-    /// Create a new routing layer (scope).
-    ///
-    /// Scopes are used to group routes with a specific set of middleware.
-    /// Middleware applied to a scope will only affect routes defined within that scope.
-    ///
-    /// Returns:
-    ///     Router: The router instance, allowing for method chaining.
-    ///
-    /// Example:
-    /// ```python
-    /// from oxapy import Router, get
-    ///
-    /// def middleware_a(request, next, **kwargs):
-    ///     print("Middleware A")
-    ///     return next(request, **kwargs)
-    ///
-    /// def middleware_b(request, next, **kwargs):
-    ///     print("Middleware B")
-    ///     return next(request, **kwargs)
-    ///
-    /// router = (
-    ///     Router()
-    ///     .route(get("/route1", lambda r: "Route 1"))
-    ///     .middleware(middleware_a)
-    ///     .scope()
-    ///     .route(get("/route2", lambda r: "Route 2"))
-    ///     .middleware(middleware_b)
-    /// )
-    /// # /route1 is affected by middleware_a.
-    /// # /route2 is affected by middleware_b, but not middleware_a.
-    /// ```
-    fn scope(mut slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
-        slf.layers.push(Layer::default());
-        slf
     }
 
     fn __repr__(&self) -> String {
