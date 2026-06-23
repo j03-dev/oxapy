@@ -319,6 +319,10 @@ method_decorator!(
 /// The Router is responsible for registering routes and handling HTTP requests.
 /// It supports path parameters, middleware, and different HTTP methods.
 ///
+/// Middleware applies to all routes registered **after** it within the same router.
+/// To isolate middleware to specific groups, create separate `Router` instances
+/// and attach each one to the server.
+///
 /// A `base_path` can be provided to prepend a path to all routes.
 ///
 /// Returns:
@@ -378,6 +382,11 @@ impl Router {
     /// # Router without a base path
     /// router = Router()
     ///
+    /// # To isolate middleware groups, create separate routers:
+    /// public_routes = Router()
+    /// protected_routes = Router()
+    /// server.attach(public_routes).attach(protected_routes)
+    ///```
     #[new]
     #[pyo3(signature=(base_path = None))]
     #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
@@ -390,48 +399,28 @@ impl Router {
         }
     }
 
-    /// Add middleware to the current routing layer.
+    /// Add a middleware to the router.
     ///
-    /// Middleware is applied to all routes defined in the current layer (scope).
-    /// To create a new layer with a separate set of middleware, use the `.scope()` method.
+    /// Middleware only applies to routes registered **after** it within the same router.
+    /// This lets you layer middleware naturally by registration order.
+    /// Use separate `Router` instances for full middleware isolation across groups.
     /// Middleware functions are executed in the order they are added.
     ///
     /// Args:
-    ///     middleware (callable): A function that will process requests before route handlers in the current layer.
+    ///     middleware (callable): A function that will process requests before route handlers.
     ///
     /// Returns:
     ///     Router: The router instance, allowing for method chaining.
     ///
     /// Example:
     /// ```python
-    /// from oxapy import Status, Router, get
-    ///
-    /// def log_middleware(request, next, **kwargs):
-    ///     print(f"Request: {request.method} {request.path}")
-    ///     return next(request, **kwargs)
-    ///
-    /// def auth_middleware(request, next, **kwargs):
-    ///     if "authorization" not in request.headers:
-    ///         return Status.UNAUTHORIZED
-    ///     return next(request, **kwargs)
-    ///
-    /// router = (
-    ///     Router()
-    ///     # Scope 1: public routes with logging
-    ///     .route(get("/status", lambda r: "OK"))
-    ///     .middleware(log_middleware)
-    ///
-    ///     # Scope 2: protected routes with logging and auth
-    ///     .scope()
-    ///     .route(get("/admin", lambda r: "Admin Area"))
-    ///     .middleware(log_middleware)
+    /// router = Router()
+    ///     .route(get("/health", lambda _: "OK"))
+    ///     .middleware(session_middleware)
+    ///     .middleware(db_middleware)
+    ///     .route(get("/login", login))
     ///     .middleware(auth_middleware)
-    /// )
-    ///
-    /// # In this example:
-    /// # - Requests to /status will go through log_middleware.
-    /// # - Requests to /admin will go through log_middleware and then auth_middleware.
-    /// # - The middleware from the first scope does not affect the second scope.
+    ///     .route(get("/dashboard", dashboard))
     /// ```
     fn middleware(mut slf: PyRefMut<'_, Self>, middleware: Py<PyAny>) -> PyRefMut<'_, Self> {
         let middleware = Middleware::new(middleware, slf.count);

@@ -196,6 +196,9 @@ impl HttpServer {
 
     /// Attach a router to the server.
     ///
+    /// Multiple routers can be attached and are checked in order until a matching route is found.
+    /// This is the recommended way to group routes with different middleware.
+    ///
     /// Args:
     ///     router (Router): The router instance to attach.
     ///
@@ -206,24 +209,20 @@ impl HttpServer {
     /// ```python
     /// from oxapy import Router, get, post
     ///
-    /// # Define a simple hello world handler
     /// @get("/")
     /// def hello(request):
     ///     return "Hello, World!"
     ///
-    /// # Handler with path parameters
     /// @get("/users/{user_id}")
     /// def get_user(request, user_id: int):
     ///     return f"User ID: {user_id}"
     ///
-    /// # Handler that returns JSON
     /// @post("/api/data")
     /// def get_data(request):
     ///     return {"message": "Success", "data": [1, 2, 3]}
     ///
     /// router = Router()
     /// router.routes([hello, get_user, get_data])
-    /// # Attach the router to the server
     /// server.attach(router)
     /// ```
     fn attach(mut slf: PyRefMut<'_, Self>, router: Router) -> PyRefMut<'_, Self> {

@@ -177,5 +177,6 @@ Use `requests` library for HTTP assertions in tests.
 
 - The project uses `ahash` instead of standard `HashMap` for performance
 - Path parameters in routes use `{param_name}` syntax
-- Middleware applies to all routes in the same scope; use `.scope()` to create new middleware groups
+- Middleware applies to all routes registered **after** it within the same router; use separate `Router` instances to isolate middleware groups
+- Multiple routers can be attached to the server and are checked in order until a matching route is found
 - Application state is shared via `request.app_data`

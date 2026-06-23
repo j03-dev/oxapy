@@ -460,6 +460,9 @@ class HttpServer:
         r"""
         Attach a router to the server.
         
+        Multiple routers can be attached and are checked in order until a matching route is found.
+        This is the recommended way to group routes with different middleware.
+        
         Args:
             router (Router): The router instance to attach.
         
@@ -470,24 +473,20 @@ class HttpServer:
         ```python
         from oxapy import Router, get, post
         
-        # Define a simple hello world handler
         @get("/")
         def hello(request):
             return "Hello, World!"
         
-        # Handler with path parameters
         @get("/users/{user_id}")
         def get_user(request, user_id: int):
             return f"User ID: {user_id}"
         
-        # Handler that returns JSON
         @post("/api/data")
         def get_data(request):
             return {"message": "Success", "data": [1, 2, 3]}
         
         router = Router()
         router.routes([hello, get_user, get_data])
-        # Attach the router to the server
         server.attach(router)
         ```
         """
@@ -1010,6 +1009,10 @@ class Router:
     The Router is responsible for registering routes and handling HTTP requests.
     It supports path parameters, middleware, and different HTTP methods.
     
+    Middleware applies to all routes registered **after** it within the same router.
+    To isolate middleware to specific groups, create separate `Router` instances
+    and attach each one to the server.
+    
     A `base_path` can be provided to prepend a path to all routes.
     
     Returns:
@@ -1048,51 +1051,37 @@ class Router:
         
         # Router without a base path
         router = Router()
+        
+        # To isolate middleware groups, create separate routers:
+        public_routes = Router()
+        protected_routes = Router()
+        server.attach(public_routes).attach(protected_routes)
+        ```
         """
     def middleware(self, middleware: typing.Any) -> Router:
         r"""
-        Add middleware to the current routing layer.
+        Add a middleware to the router.
         
-        Middleware is applied to all routes defined in the current layer (scope).
-        To create a new layer with a separate set of middleware, use the `.scope()` method.
+        Middleware only applies to routes registered **after** it within the same router.
+        This lets you layer middleware naturally by registration order.
+        Use separate `Router` instances for full middleware isolation across groups.
         Middleware functions are executed in the order they are added.
         
         Args:
-            middleware (callable): A function that will process requests before route handlers in the current layer.
+            middleware (callable): A function that will process requests before route handlers.
         
         Returns:
             Router: The router instance, allowing for method chaining.
         
         Example:
         ```python
-        from oxapy import Status, Router, get
-        
-        def log_middleware(request, next, **kwargs):
-            print(f"Request: {request.method} {request.path}")
-            return next(request, **kwargs)
-        
-        def auth_middleware(request, next, **kwargs):
-            if "authorization" not in request.headers:
-                return Status.UNAUTHORIZED
-            return next(request, **kwargs)
-        
-        router = (
-            Router()
-            # Scope 1: public routes with logging
-            .route(get("/status", lambda r: "OK"))
-            .middleware(log_middleware)
-        
-            # Scope 2: protected routes with logging and auth
-            .scope()
-            .route(get("/admin", lambda r: "Admin Area"))
-            .middleware(log_middleware)
+        router = Router()
+            .route(get("/health", lambda _: "OK"))
+            .middleware(session_middleware)
+            .middleware(db_middleware)
+            .route(get("/login", login))
             .middleware(auth_middleware)
-        )
-        
-        # In this example:
-        # - Requests to /status will go through log_middleware.
-        # - Requests to /admin will go through log_middleware and then auth_middleware.
-        # - The middleware from the first scope does not affect the second scope.
+            .route(get("/dashboard", dashboard))
         ```
         """
     def route(self, route: Route) -> Router:
@@ -1147,40 +1136,6 @@ class Router:
             post("/submit", submit_handler)
         ]
         router.routes(routes)
-        ```
-        """
-    def scope(self) -> Router:
-        r"""
-        Create a new routing layer (scope).
-        
-        Scopes are used to group routes with a specific set of middleware.
-        Middleware applied to a scope will only affect routes defined within that scope.
-        
-        Returns:
-            Router: The router instance, allowing for method chaining.
-        
-        Example:
-        ```python
-        from oxapy import Router, get
-        
-        def middleware_a(request, next, **kwargs):
-            print("Middleware A")
-            return next(request, **kwargs)
-        
-        def middleware_b(request, next, **kwargs):
-            print("Middleware B")
-            return next(request, **kwargs)
-        
-        router = (
-            Router()
-            .route(get("/route1", lambda r: "Route 1"))
-            .middleware(middleware_a)
-            .scope()
-            .route(get("/route2", lambda r: "Route 2"))
-            .middleware(middleware_b)
-        )
-        # /route1 is affected by middleware_a.
-        # /route2 is affected by middleware_b, but not middleware_a.
         ```
         """
     def __repr__(self) -> builtins.str: ...

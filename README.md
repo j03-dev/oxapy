@@ -90,56 +90,102 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## Middleware Example
+## Middleware
 
-OxAPY's middleware system is designed to be flexible and powerful. Middleware is applied to all routes within the same **scope**. You can use the `.scope()` method to create new scopes, allowing you to group routes with different middleware. This allows for building complex routing structures where different sets of middleware apply to different groups of routes.
+OxAPY offers two paradigms for organizing middleware. You can use one or combine both.
 
-### Best Practices
+### 1. Sequence Paradigm (same router)
 
-- **Order Matters**: Middleware is executed in the order it is defined within a scope.
-- **Scoping**: Use `.scope()` to create logical separation between groups of routes and their middleware. For example, you can have one scope for public endpoints and another for authenticated endpoints.
-- **Clarity**: Be mindful that middleware applies to all routes defined in the current scope, both before and after the middleware is added.
+Middleware only applies to routes registered **after** it within the same router. Routes before it get no middleware.
 
 ```python
-from oxapy import Status, Router, get, HttpServer
+# Simple: one middleware layer
+Router()
+.route(get("/health", lambda _: "OK"))       # no middleware
+.middleware(auth)
+.route(get("/dashboard", dashboard))          # auth only
+.route(get("/account", account))              # auth only
+```
 
-def log_middleware(request, next, **kwargs):
-    print(f"Request: {request.method} {request.uri}")
-    return next(request, **kwargs)
+```python
+# Multiple layers: each middleware applies to everything after it
+Router()
+.route(get("/health", lambda _: "OK"))        # no middleware
+.route(static_file())                         # no middleware
+.middleware(session)
+.route(get("/login", login))                  # session
+.route(get("/register", register))            # session
+.middleware(db_session)
+.route(get("/search", search))                # session + db_session
+.route(get("/profile", profile))              # session + db_session
+.middleware(protect_page)
+.route(get("/admin", admin))                  # session + db_session + protect_page
+```
 
-def auth_middleware(request, next, **kwargs):
-    if "authorization" not in request.headers:
-        return Status.UNAUTHORIZED
-    return next(request, **kwargs)
+### 2. Multi-Router Paradigm (separate routers)
 
-@get("/public")
-def public(request):
-    return "This is a public route."
+Each router has its own independent middleware stack. Routers are checked in order until a match is found. Use this when groups share no middleware.
 
-@get("/protected")
-def protected(request):
-    return "This is a protected route."
+```python
+# Simple: two isolated groups
+HttpServer(("127.0.0.1", 5555))
+.attach(
+    Router()
+    .route(get("/health", lambda _: "OK"))
+    .route(static_file())
+)
+.attach(
+    Router()
+    .middleware(auth)
+    .route(get("/dashboard", dashboard))
+    .route(get("/account", account))
+)
+```
 
-def main():
-    (
-        HttpServer(("127.0.0.1", 5555))
-        .attach(
-            Router()
-            # First scope: public routes with logging
-            .route(public)
-            .middleware(log_middleware)
+```python
+# Multiple isolated groups with different middleware stacks
+HttpServer(("127.0.0.1", 5555))
+.attach(
+    Router()
+    .route(static_file())
+    .route(get("/health", lambda _: "Good!"))
+)
+.attach(
+    Router()
+    .middleware(session)
+    .middleware(db_session)
+    .routes([login_user, register_user, show_login_page])
+)
+.attach(
+    Router()
+    .middleware(session)
+    .middleware(db_session)
+    .middleware(protect_page)
+    .routes([show_dashboard, show_account, logout_user])
+)
+```
 
-            # Second scope: protected routes with logging and authentication
-            .scope()
-            .route(protected)
-            .middleware(log_middleware)
-            .middleware(auth_middleware)
-        )
-        .run()
-    )
+### 3. Combined (both paradigms)
 
-if __name__ == "__main__":
-    main()
+Use sequence layering inside a router alongside separate routers.
+
+```python
+HttpServer(("127.0.0.1", 5555))
+.attach(
+    Router()
+    .route(get("/health", lambda _: "OK"))         # no middleware
+    .middleware(rate_limit)
+    .route(get("/login", login))                    # rate_limit
+    .route(get("/register", register))              # rate_limit
+)
+.attach(
+    Router()
+    .middleware(session)
+    .middleware(db_session)
+    .route(get("/dashboard", dashboard))            # session + db_session
+    .middleware(protect_page)
+    .route(get("/admin", admin))                    # session + db_session + protect_page
+)
 ```
 
 ## Static Files
