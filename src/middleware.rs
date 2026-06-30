@@ -48,13 +48,13 @@ impl MiddlewareChain {
         route_handler: &Py<PyAny>,
         index: usize,
     ) -> PyResult<Py<PyAny>> {
-        if index >= self.middlewares.len() {
+        let Some(middleware) = self
+            .middlewares
+            .get(index)
+            .filter(|m| m.sequence <= route_sequence)
+        else {
             return Ok(route_handler.clone_ref(py));
-        }
-        let middleware = &self.middlewares[index];
-        if middleware.sequence > route_sequence {
-            return Ok(route_handler.clone_ref(py));
-        }
+        };
         let next = self.build_middleware_chain(py, route_sequence, route_handler, index + 1)?;
         let globals = PyDict::new(py);
         globals.set_item("middleware", middleware.handler.clone_ref(py))?;

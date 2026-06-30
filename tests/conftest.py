@@ -9,7 +9,6 @@ from oxapy import (
     Redirect,
 )
 import threading
-import time
 import pytest
 from pathlib import Path
 
@@ -136,5 +135,4 @@ def oxapy_server(static_files_dir):
     """Run a mock Oxapy HTTP server for integration tests."""
     thread = threading.Thread(target=lambda: main(static_files_dir), daemon=True)
     thread.start()
-    time.sleep(2)
     yield "http://127.0.0.1:9999"

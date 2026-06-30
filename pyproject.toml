@@ -16,6 +16,14 @@ authors = [
 ]
 description = "OxAPY is http server for python build in rust"
 dependencies = ["orjson>=3.11.9"]
+
+[project.optional-dependencies]
+dev = [
+  "maturin>=1.9,<2.0",
+  "pytest",
+  "requests"
+]
+
 [tool.maturin]
 python-source="."
 features = ["pyo3/extension-module"]
