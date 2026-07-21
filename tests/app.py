@@ -8,7 +8,7 @@ def greet(_r, name: str):
 
 def main():
     oxapy = Oxapy(("0.0.0.0", 5555))
-    oxapy.attach(Router().route(greet))
+    oxapy.attach(Router().route(greet).route(get("/health", lambda _: "Good")))
     oxapy.run(reload=True)
 
 

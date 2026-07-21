@@ -19,6 +19,7 @@ from .oxapy import *
 
 
 class Oxapy(HttpServer):
+    patterns = ["*.py"]
     watch_dir = "."
 
     def run(self, reload: bool = False, workers: typing.Optional[int] = None):
@@ -40,7 +41,7 @@ class Oxapy(HttpServer):
             reload_requested.set()
 
         handler = PatternMatchingEventHandler(
-            patterns=["*.py"], ignore_directories=True
+            patterns=self.patterns, ignore_directories=True
         )
         handler.on_modified = on_file_changed
         handler.on_created = on_file_changed
@@ -69,6 +70,8 @@ class Oxapy(HttpServer):
                     time.sleep(0.3)
                     reload_requested.clear()
                     terminate_worker(worker_process)
+                    filename = os.path.basename(changed_file_path)
+                    print(f"Reloading... ({filename} changed)")
                     worker_process = spawn_worker()
                 elif worker_process.poll() is not None:
                     if worker_process.returncode != 0:
@@ -78,6 +81,8 @@ class Oxapy(HttpServer):
                         worker_process = spawn_worker()
                     else:
                         break
+        except KeyboardInterrupt:
+            pass
         finally:
             observer.stop()
             observer.join()
@@ -150,7 +155,7 @@ def _session_middleware(request, next, secret, max_age, **kwargs):
     request.session = session_data
     initial_state = json.dumps(session_data)
 
-    response = convert_to_response(next(request, **kwargs))  # type: ignore
+    response = convert_to_response(next(request, **kwargs))  # ty:ignore
 
     current_state = json.dumps(request.session)
     if current_state != initial_state:

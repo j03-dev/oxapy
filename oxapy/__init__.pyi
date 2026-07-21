@@ -635,10 +635,10 @@ class HttpServer:
         server.run(workers)
         ```
         """
-    def kill(self) -> None: ...
 
 class Oxapy(HttpServer):
     def __new__(cls, addr: tuple[builtins.str, builtins.int]) -> typing_extensions.Self: ...
+    def run(self, reload: builtins.bool = False, workers: typing.Optional[builtins.int] = None) -> typing.Any: ...
 
 class Redirect(Response):
     r"""

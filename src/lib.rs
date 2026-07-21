@@ -139,6 +139,11 @@ impl Oxapy {
     fn new(addr: (String, u16)) -> (Oxapy, HttpServer) {
         todo!()
     }
+
+    #[pyo3(signature=(reload = false, workers = None))]
+    fn run(&self, reload: bool, workers: Option<usize>) -> Py<PyAny> {
+        todo!()
+    }
 }
 
 #[gen_stub_pymethods]
@@ -411,26 +416,15 @@ impl HttpServer {
     /// server.run(workers)
     /// ```
     #[pyo3(signature=(workers=None))]
-    fn run<'py>(
-        slf: PyRef<'_, Self>,
-        workers: Option<usize>,
-        py: Python<'py>,
-    ) -> PyResult<Bound<'py, PyAny>> {
-        let server = slf.clone();
-        let is_async = slf.is_async;
+    fn run<'py>(&self, workers: Option<usize>, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        let server = self.clone();
 
-        drop(slf);
-
-        if is_async {
+        if self.is_async {
             future_into_py(py, async move { server.run_server().await })
         } else {
             py.detach(move || block_on(server.run_server(), workers))?;
             Ok(py.None().into_bound(py))
         }
-    }
-
-    fn kill(&self) {
-        self.running.store(false, Ordering::SeqCst);
     }
 }
 
