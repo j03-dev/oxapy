@@ -1,4 +1,7 @@
 import os
+import threading
+import sys
+import subprocess
 import time
 import base64
 import typing
@@ -8,7 +11,77 @@ import orjson as json
 import hashlib
 
 from functools import partial
-from .oxapy import *  # ty:ignore[unresolved-import]
+
+from watchdog.observers import Observer
+from watchdog.events import PatternMatchingEventHandler
+
+from .oxapy import *
+
+
+class Oxapy(HttpServer):
+    watch_dir = "."
+
+    def run(self, reload: bool = False, workers: typing.Optional[int] = None):
+        if reload and os.environ.get("OXAPY_WORKER") != "1":
+            self._run_supervisor()
+        else:
+            super().run(workers)
+
+    def _run_supervisor(self):
+        env = os.environ.copy()
+        env["OXAPY_WORKER"] = "1"
+
+        reload_requested = threading.Event()
+        changed_file_path = ""
+
+        def on_file_changed(event):
+            nonlocal changed_file_path
+            changed_file_path = event.src_path
+            reload_requested.set()
+
+        handler = PatternMatchingEventHandler(
+            patterns=["*.py"], ignore_directories=True
+        )
+        handler.on_modified = on_file_changed
+        handler.on_created = on_file_changed
+        handler.on_deleted = on_file_changed
+
+        observer = Observer()
+        observer.schedule(handler, self.watch_dir, recursive=True)
+        observer.start()
+
+        def spawn_worker() -> subprocess.Popen:
+            return subprocess.Popen([sys.executable] + sys.argv, env=env)
+
+        def terminate_worker(proc: subprocess.Popen):
+            if proc and proc.poll() is None:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+
+        worker_process = spawn_worker()
+
+        try:
+            while True:
+                if reload_requested.wait(timeout=0.2):
+                    time.sleep(0.3)
+                    reload_requested.clear()
+                    terminate_worker(worker_process)
+                    worker_process = spawn_worker()
+                elif worker_process.poll() is not None:
+                    if worker_process.returncode != 0:
+                        reload_requested.wait()
+                        time.sleep(0.3)
+                        reload_requested.clear()
+                        worker_process = spawn_worker()
+                    else:
+                        break
+        finally:
+            observer.stop()
+            observer.join()
+            terminate_worker(worker_process)
 
 
 def _b64_encode(data: bytes) -> str:
@@ -192,19 +265,20 @@ def send_file(path: str) -> Response:  # ty:ignore[unresolved-reference]
         Response: A Response with file content
     """
     if not os.path.exists(path):
-        raise exceptions.NotFoundError("Requested file not found")  # ty:ignore[unresolved-reference]
+        raise exceptions.NotFoundError("Requested file not found")  # type:ignore
 
     if not os.path.isfile(path):
-        raise exceptions.ForbiddenError("Not a file")  # ty:ignore[unresolved-reference]
+        raise exceptions.ForbiddenError("Not a file")  # type:ignore
 
     with open(path, "rb") as f:
         content = f.read()
     content_type, _ = mimetypes.guess_type(path)
-    return Response(content, content_type=content_type or "application/octet-stream")  # ty:ignore[unresolved-reference]
+    return Response(content, content_type=content_type or "application/octet-stream")  # type:ignore
 
 
 __all__ = (
     "HttpServer",
+    "Oxapy",
     "Router",
     "Status",
     "Response",

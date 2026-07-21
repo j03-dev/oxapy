@@ -16,6 +16,7 @@ __all__ = [
     "File",
     "FileStreaming",
     "HttpServer",
+    "Oxapy",
     "Redirect",
     "Request",
     "Response",
@@ -634,6 +635,10 @@ class HttpServer:
         server.run(workers)
         ```
         """
+    def kill(self) -> None: ...
+
+class Oxapy(HttpServer):
+    def __new__(cls, addr: tuple[builtins.str, builtins.int]) -> typing_extensions.Self: ...
 
 class Redirect(Response):
     r"""

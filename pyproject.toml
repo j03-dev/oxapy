@@ -15,7 +15,10 @@ authors = [
   { name = "FITAHIANA Nomeniavo Joe", email = "24nomeniavo@gmail.com" },
 ]
 description = "OxAPY is http server for python build in rust"
-dependencies = ["orjson>=3.11.9"]
+dependencies = [
+    "orjson>=3.11.9",
+    "watchdog>=6.0.0",
+]
 
 [project.optional-dependencies]
 dev = [
