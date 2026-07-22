@@ -1,4 +1,7 @@
 import os
+import threading
+import sys
+import subprocess
 import time
 import base64
 import typing
@@ -8,7 +11,143 @@ import orjson as json
 import hashlib
 
 from functools import partial
-from .oxapy import *  # ty:ignore[unresolved-import]
+
+from watchdog.observers import Observer
+from watchdog.events import PatternMatchingEventHandler
+
+from .oxapy import *
+
+
+class Oxapy(HttpServer):
+    """
+    An HTTP server extension that provides hot-reloading capabilities.
+
+    When running with reload enabled, this class acts as a supervisor process
+    that monitors file changes and automatically restarts the child worker process
+    running the actual server.
+    """
+
+    def __new__(cls, addr: tuple[str, int]) -> "Oxapy":
+        instance = super().__new__(cls, addr)
+        instance.__patterns = ["*.py"]
+        instance.__watch_dir = "."
+        return instance
+
+    def get_patterns(self):
+        return self.__patterns
+
+    def set_patterns(self, p: list[str]):
+        """
+        Sets the file patterns to monitor for changes.
+
+        Args:
+            p (list[str]): A list of glob patterns (e.g., ["*.py", "*.json"]).
+
+        Returns:
+            Oxapy: The current instance for method chaining.
+        """
+        self.__patterns = p
+        return self
+
+    def set_watch_dir(self, watch_dir: str):
+        """
+        Sets the base directory to watch for file modifications.
+
+        Args:
+            watch_dir (str): The directory path to watch (e.g., ".", "src/").
+
+        Returns:
+            Oxapy: The current instance for method chaining.
+        """
+        self.__watch_dir = watch_dir
+        return self
+
+    def run(self, reload: bool = False, workers: typing.Optional[int] = None):
+        """
+        Starts the server or the supervisor process.
+
+        If `reload` is enabled and the current process is not flagged as a worker,
+        it launches the supervisor to watch for file changes. Otherwise, it starts
+        the actual HTTP server instance.
+
+        Args:
+            reload (bool): Whether to enable auto-reloading on file changes. Defaults to False.
+            workers (int, optional): The number of worker processes to run. Defaults to None.
+        """
+        if reload and os.environ.get("OXAPY_WORKER") != "1":
+            self._run_supervisor()
+        else:
+            super().run(workers)
+
+    def _run_supervisor(self):
+        """
+        Manages the file watcher and the child worker process.
+
+        Sets up a directory observer. When a watched file is modified, created,
+        or deleted, it gracefully terminates the current worker process and
+        spawns a fresh one.
+        """
+        env = os.environ.copy()
+        env["OXAPY_WORKER"] = "1"
+
+        reload_requested = threading.Event()
+        changed_file_path = ""
+
+        def on_file_changed(event):
+            """Triggers a reload sequence when a watched file is modified."""
+            nonlocal changed_file_path
+            changed_file_path = event.src_path
+            reload_requested.set()
+
+        handler = PatternMatchingEventHandler(
+            patterns=self.__patterns, ignore_directories=True
+        )
+        handler.on_modified = on_file_changed
+        handler.on_created = on_file_changed
+        handler.on_deleted = on_file_changed
+
+        observer = Observer()
+        observer.schedule(handler, self.__watch_dir, recursive=True)
+        observer.start()
+
+        def spawn_worker() -> subprocess.Popen:
+            """Spawns the child server process with the worker environment flag."""
+            return subprocess.Popen([sys.executable] + sys.argv, env=env)
+
+        def terminate_worker(proc: subprocess.Popen):
+            """Gracefully terminates a worker process, escalating to a kill if it hangs."""
+            if proc and proc.poll() is None:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+
+        worker_process = spawn_worker()
+
+        try:
+            while True:
+                if reload_requested.wait(timeout=0.2):
+                    time.sleep(0.3)
+                    reload_requested.clear()
+                    terminate_worker(worker_process)
+                    filename = os.path.basename(changed_file_path)
+                    print(f"Reloading... ({filename} changed)")
+                    worker_process = spawn_worker()
+                elif worker_process.poll() is not None:
+                    if worker_process.returncode != 0:
+                        reload_requested.wait()
+                        time.sleep(0.3)
+                        reload_requested.clear()
+                        worker_process = spawn_worker()
+                    else:
+                        break
+        except KeyboardInterrupt:
+            pass
+        finally:
+            observer.stop()
+            observer.join()
+            terminate_worker(worker_process)
 
 
 def _b64_encode(data: bytes) -> str:
@@ -77,7 +216,7 @@ def _session_middleware(request, next, secret, max_age, **kwargs):
     request.session = session_data
     initial_state = json.dumps(session_data)
 
-    response = convert_to_response(next(request, **kwargs))  # type: ignore
+    response = convert_to_response(next(request, **kwargs))  # ty:ignore
 
     current_state = json.dumps(request.session)
     if current_state != initial_state:
@@ -192,19 +331,20 @@ def send_file(path: str) -> Response:  # ty:ignore[unresolved-reference]
         Response: A Response with file content
     """
     if not os.path.exists(path):
-        raise exceptions.NotFoundError("Requested file not found")  # ty:ignore[unresolved-reference]
+        raise exceptions.NotFoundError("Requested file not found")  # type:ignore
 
     if not os.path.isfile(path):
-        raise exceptions.ForbiddenError("Not a file")  # ty:ignore[unresolved-reference]
+        raise exceptions.ForbiddenError("Not a file")  # type:ignore
 
     with open(path, "rb") as f:
         content = f.read()
     content_type, _ = mimetypes.guess_type(path)
-    return Response(content, content_type=content_type or "application/octet-stream")  # ty:ignore[unresolved-reference]
+    return Response(content, content_type=content_type or "application/octet-stream")  # type:ignore
 
 
 __all__ = (
     "HttpServer",
+    "Oxapy",
     "Router",
     "Status",
     "Response",

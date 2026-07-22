@@ -1,5 +1,5 @@
 from oxapy import (
-    HttpServer,
+    Oxapy,
     Router,
     get,
     post,
@@ -97,7 +97,7 @@ def error_handler(_request):
 
 def main(static_dir: Path):
     (
-        HttpServer(("127.0.0.1", 9999))
+        Oxapy(("127.0.0.1", 9999))
         .app_data(AppState())
         .attach(
             Router("/api/v1")

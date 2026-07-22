@@ -124,6 +124,34 @@ struct HttpServer {
     routers: Vec<Arc<Router>>,
     max_connections: Arc<Semaphore>,
     template: Option<Arc<Template>>,
+    running: Arc<AtomicBool>,
+}
+
+#[gen_stub_pyclass]
+#[pyclass(subclass, extends=HttpServer)]
+struct Oxapy;
+
+#[gen_stub_pymethods]
+#[pymethods]
+impl Oxapy {
+    #[new]
+    #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
+    fn new(addr: (String, u16)) -> (Oxapy, HttpServer) {
+        todo!("dummy init")
+    }
+
+    #[pyo3(signature=(reload = false, workers = None))]
+    fn run(&self, reload: bool, workers: Option<usize>) -> Py<PyAny> {
+        todo!("dummy fonction")
+    }
+
+    fn set_patterns(&self, p: Vec<String>) -> PyRef<'_, Self> {
+        todo!("dummy set_pattern method")
+    }
+
+    fn set_watch_dir(&self, dir: &str) -> PyRef<'_, Self> {
+        todo!("dummy set_watch_dir fonction")
+    }
 }
 
 #[gen_stub_pymethods]
@@ -155,6 +183,7 @@ impl HttpServer {
             routers: Vec::new(),
             max_connections: Arc::new(Semaphore::new(100)),
             template: None,
+            running: Arc::new(AtomicBool::new(true)),
         })
     }
 
@@ -397,6 +426,7 @@ impl HttpServer {
     #[pyo3(signature=(workers=None))]
     fn run<'py>(&self, workers: Option<usize>, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let server = self.clone();
+
         if self.is_async {
             future_into_py(py, async move { server.run_server().await })
         } else {
@@ -436,7 +466,7 @@ impl HttpServer {
     }
 
     async fn spawn_connection_handler(&self, listener: TcpListener, ctx: Arc<RequestContext>) {
-        let running = Arc::new(AtomicBool::new(true));
+        let running = self.running.clone();
         let max_connection = self.max_connections.clone();
         tokio::spawn(async move {
             while running.load(Ordering::SeqCst) {
@@ -633,6 +663,7 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<File>()?;
     m.add_class::<FileStreaming>()?;
     m.add_class::<HttpServer>()?;
+    m.add_class::<Oxapy>()?;
     m.add_class::<Redirect>()?;
     m.add_class::<Request>()?;
     m.add_class::<Response>()?;

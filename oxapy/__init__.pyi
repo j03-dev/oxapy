@@ -16,6 +16,7 @@ __all__ = [
     "File",
     "FileStreaming",
     "HttpServer",
+    "Oxapy",
     "Redirect",
     "Request",
     "Response",
@@ -634,6 +635,12 @@ class HttpServer:
         server.run(workers)
         ```
         """
+
+class Oxapy(HttpServer):
+    def __new__(cls, addr: tuple[builtins.str, builtins.int]) -> typing_extensions.Self: ...
+    def run(self, reload: builtins.bool = False, workers: typing.Optional[builtins.int] = None) -> typing.Any: ...
+    def set_patterns(self, p: typing.Sequence[builtins.str]) -> Oxapy: ...
+    def set_watch_dir(self, dir: builtins.str) -> Oxapy: ...
 
 class Redirect(Response):
     r"""
