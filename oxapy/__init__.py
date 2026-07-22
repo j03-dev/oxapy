@@ -27,8 +27,14 @@ class Oxapy(HttpServer):
     running the actual server.
     """
 
-    __patterns = ["*.py"]
-    __watch_dir = "."
+    def __new__(cls, addr: tuple[str, int]) -> "Oxapy":
+        instance = super().__new__(cls, addr)
+        instance.__patterns = ["*.py"]
+        instance.__watch_dir = "."
+        return instance
+
+    def get_patterns(self):
+        return self.__patterns
 
     def set_patterns(self, p: list[str]):
         """
