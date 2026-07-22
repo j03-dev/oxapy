@@ -10,12 +10,20 @@ repository = "https://github.com/j03-dev/oxapy"
 name = "oxapy"
 crate-type = ["cdylib", "rlib"]
 
+[features]
+default = []
+stub_gen = ["pyo3-stub-gen/infer_signature"]
+
 
 [dependencies]
 # Python bindings
 pyo3 = ">=0.28.0"
 pyo3-async-runtimes = { version = "0.28.0", features = ["tokio-runtime"] }
-pyo3-stub-gen = { git = "https://github.com/j03-dev/pyo3-stub-gen", branch = "fix/pypy-graalpy-initialization-error" }
+pyo3-stub-gen = { git = "https://github.com/Jij-Inc/pyo3-stub-gen", branch = "main", default-features = false, features = [
+  "either",
+  "numpy",
+  "ordered-float",
+] }
 
 # Async / Futures
 futures-util = "0.3.31"

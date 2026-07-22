@@ -1116,9 +1116,9 @@ dependencies = [
 
 [[package]]
 name = "itertools"
-version = "0.14.0"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
+checksum = "8b4baf93f58d4425749ca49a51c50ebab072c5df6994d08fed93541c331481dc"
 dependencies = [
  "either",
 ]
@@ -1470,7 +1470,7 @@ dependencies = [
  "num-integer",
  "num-traits",
  "pyo3",
- "pyo3-build-config 0.28.3",
+ "pyo3-build-config",
  "rustc-hash 2.1.2",
 ]
 
@@ -1802,7 +1802,7 @@ dependencies = [
  "libc",
  "once_cell",
  "portable-atomic",
- "pyo3-build-config 0.28.3",
+ "pyo3-build-config",
  "pyo3-ffi",
  "pyo3-macros",
 ]
@@ -1823,15 +1823,6 @@ dependencies = [
 
 [[package]]
 name = "pyo3-build-config"
-version = "0.26.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4fc6ddaf24947d12a9aa31ac65431fb1b851b8f4365426e182901eabfb87df5f"
-dependencies = [
- "target-lexicon",
-]
-
-[[package]]
-name = "pyo3-build-config"
 version = "0.28.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e368e7ddfdeb98c9bca7f8383be1648fd84ab466bf2bc015e94008db6d35611e"
@@ -1846,7 +1837,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f29e10af80b1f7ccaf7f69eace800a03ecd13e883acfacc1e5d0988605f651e"
 dependencies = [
  "libc",
- "pyo3-build-config 0.28.3",
+ "pyo3-build-config",
 ]
 
 [[package]]
@@ -1869,29 +1860,28 @@ checksum = "c4cdc218d835738f81c2338f822078af45b4afdf8b2e33cbb5916f108b813acb"
 dependencies = [
  "heck",
  "proc-macro2",
- "pyo3-build-config 0.28.3",
+ "pyo3-build-config",
  "quote",
  "syn",
 ]
 
 [[package]]
 name = "pyo3-stub-gen"
-version = "0.22.4"
-source = "git+https://github.com/j03-dev/pyo3-stub-gen?branch=fix%2Fpypy-graalpy-initialization-error#c7e23911df7f346fe975909e9e076e142e6a525d"
+version = "0.23.1"
+source = "git+https://github.com/Jij-Inc/pyo3-stub-gen?branch=main#087ecfbe87758549efe94eb569cc847b28600a0d"
 dependencies = [
  "anyhow",
  "chrono",
  "either",
  "indexmap",
  "inventory",
- "itertools 0.14.0",
+ "itertools 0.15.0",
  "log",
  "maplit",
  "num-complex",
  "numpy",
  "ordered-float",
  "pyo3",
- "pyo3-build-config 0.26.0",
  "pyo3-stub-gen-derive",
  "rustpython-parser",
  "serde",
@@ -1902,8 +1892,8 @@ dependencies = [
 
 [[package]]
 name = "pyo3-stub-gen-derive"
-version = "0.22.4"
-source = "git+https://github.com/j03-dev/pyo3-stub-gen?branch=fix%2Fpypy-graalpy-initialization-error#c7e23911df7f346fe975909e9e076e142e6a525d"
+version = "0.23.1"
+source = "git+https://github.com/Jij-Inc/pyo3-stub-gen?branch=main#087ecfbe87758549efe94eb569cc847b28600a0d"
 dependencies = [
  "heck",
  "indexmap",
