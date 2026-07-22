@@ -49,17 +49,17 @@ class Oxapy(HttpServer):
         self.__patterns = p
         return self
 
-    def set_watch_dir(self, dir: str):
+    def set_watch_dir(self, watch_dir: str):
         """
         Sets the base directory to watch for file modifications.
 
         Args:
-            dir (str): The directory path to watch (e.g., ".", "src/").
+            watch_dir (str): The directory path to watch (e.g., ".", "src/").
 
         Returns:
             Oxapy: The current instance for method chaining.
         """
-        self.__watch_dir = dir
+        self.__watch_dir = watch_dir
         return self
 
     def run(self, reload: bool = False, workers: typing.Optional[int] = None):
