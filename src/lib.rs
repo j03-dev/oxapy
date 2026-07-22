@@ -137,12 +137,20 @@ impl Oxapy {
     #[new]
     #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
     fn new(addr: (String, u16)) -> (Oxapy, HttpServer) {
-        todo!()
+        todo!("dummy init")
     }
 
     #[pyo3(signature=(reload = false, workers = None))]
     fn run(&self, reload: bool, workers: Option<usize>) -> Py<PyAny> {
-        todo!()
+        todo!("dummy fonction")
+    }
+
+    fn set_patterns(&self, p: Vec<String>) -> PyRef<'_, Self> {
+        todo!("dummy set_pattern method")
+    }
+
+    fn set_watch_dir(&self, dir: &str) -> PyRef<'_, Self> {
+        todo!("dummy set_watch_dir fonction")
     }
 }
 

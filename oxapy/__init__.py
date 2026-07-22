@@ -19,16 +19,68 @@ from .oxapy import *
 
 
 class Oxapy(HttpServer):
-    patterns = ["*.py"]
-    watch_dir = "."
+    """
+    An HTTP server extension that provides hot-reloading capabilities.
+
+    When running with reload enabled, this class acts as a supervisor process
+    that monitors file changes and automatically restarts the child worker process
+    running the actual server.
+    """
+
+    __patterns = ["*.py"]
+    __watch_dir = "."
+
+    def set_patterns(self, p: list[str]):
+        """
+        Sets the file patterns to monitor for changes.
+
+        Args:
+            p (list[str]): A list of glob patterns (e.g., ["*.py", "*.json"]).
+
+        Returns:
+            Oxapy: The current instance for method chaining.
+        """
+        self.__patterns = p
+        return self
+
+    def set_watch_dir(self, dir: str):
+        """
+        Sets the base directory to watch for file modifications.
+
+        Args:
+            dir (str): The directory path to watch (e.g., ".", "src/").
+
+        Returns:
+            Oxapy: The current instance for method chaining.
+        """
+        self.__watch_dir = dir
+        return self
 
     def run(self, reload: bool = False, workers: typing.Optional[int] = None):
+        """
+        Starts the server or the supervisor process.
+
+        If `reload` is enabled and the current process is not flagged as a worker,
+        it launches the supervisor to watch for file changes. Otherwise, it starts
+        the actual HTTP server instance.
+
+        Args:
+            reload (bool): Whether to enable auto-reloading on file changes. Defaults to False.
+            workers (int, optional): The number of worker processes to run. Defaults to None.
+        """
         if reload and os.environ.get("OXAPY_WORKER") != "1":
             self._run_supervisor()
         else:
             super().run(workers)
 
     def _run_supervisor(self):
+        """
+        Manages the file watcher and the child worker process.
+
+        Sets up a directory observer. When a watched file is modified, created,
+        or deleted, it gracefully terminates the current worker process and
+        spawns a fresh one.
+        """
         env = os.environ.copy()
         env["OXAPY_WORKER"] = "1"
 
@@ -36,25 +88,28 @@ class Oxapy(HttpServer):
         changed_file_path = ""
 
         def on_file_changed(event):
+            """Triggers a reload sequence when a watched file is modified."""
             nonlocal changed_file_path
             changed_file_path = event.src_path
             reload_requested.set()
 
         handler = PatternMatchingEventHandler(
-            patterns=self.patterns, ignore_directories=True
+            patterns=self.__patterns, ignore_directories=True
         )
         handler.on_modified = on_file_changed
         handler.on_created = on_file_changed
         handler.on_deleted = on_file_changed
 
         observer = Observer()
-        observer.schedule(handler, self.watch_dir, recursive=True)
+        observer.schedule(handler, self.__watch_dir, recursive=True)
         observer.start()
 
         def spawn_worker() -> subprocess.Popen:
+            """Spawns the child server process with the worker environment flag."""
             return subprocess.Popen([sys.executable] + sys.argv, env=env)
 
         def terminate_worker(proc: subprocess.Popen):
+            """Gracefully terminates a worker process, escalating to a kill if it hangs."""
             if proc and proc.poll() is None:
                 proc.terminate()
                 try:
