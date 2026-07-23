@@ -38,7 +38,7 @@
 ## Basic Example
 
 ```python
-from oxapy import HttpServer, Router, Status, Response, get
+from oxapy import Oxapy, Router, Status, Response, get
 
 @get("/")
 def welcome(request):
@@ -50,13 +50,13 @@ def hello(request, name):
 
 def main():
     (
-        HttpServer(("127.0.0.1", 5555))
+        Oxapy(("127.0.0.1", 5555))
         .attach(
             Router()
             .route(welcome)
             .route(hello)
         )
-        .run()
+        .run(reload=True) # False as default
     )
 
 if __name__ == "__main__":
@@ -66,7 +66,7 @@ if __name__ == "__main__":
 ## Async Example
 
 ```python
-from oxapy import HttpServer, Router, get
+from oxapy import Oxapy, Router, get
 
 import asyncio
 
@@ -78,7 +78,7 @@ async def home(request):
 
 async def main():
     await (
-        HttpServer(("127.0.0.1", 8000))
+        Oxapy(("127.0.0.1", 8000))
         .attach(
             Router().route(home)
         )
@@ -128,7 +128,7 @@ Each router has its own independent middleware stack. Routers are checked in ord
 
 ```python
 # Simple: two isolated groups
-HttpServer(("127.0.0.1", 5555))
+Oxapy(("127.0.0.1", 5555))
 .attach(
     Router()
     .route(get("/health", lambda _: "OK"))
@@ -144,7 +144,7 @@ HttpServer(("127.0.0.1", 5555))
 
 ```python
 # Multiple isolated groups with different middleware stacks
-HttpServer(("127.0.0.1", 5555))
+Oxapy(("127.0.0.1", 5555))
 .attach(
     Router()
     .route(static_file())
@@ -170,7 +170,7 @@ HttpServer(("127.0.0.1", 5555))
 Use sequence layering inside a router alongside separate routers.
 
 ```python
-HttpServer(("127.0.0.1", 5555))
+Oxapy(("127.0.0.1", 5555))
 .attach(
     Router()
     .route(get("/health", lambda _: "OK"))         # no middleware
@@ -191,11 +191,11 @@ HttpServer(("127.0.0.1", 5555))
 ## Static Files
 
 ```python
-from oxapy import HttpServer, Router, static_file
+from oxapy import Oxapy, Router, static_file
 
 def main():
     (
-        HttpServer(("127.0.0.1", 5555))
+        Oxapy(("127.0.0.1", 5555))
         .attach(
             Router().route(static_file("/static", "./static"))
         )
@@ -209,7 +209,7 @@ if __name__ == "__main__":
 ## Application State
 
 ```python
-from oxapy import HttpServer, Router, get
+from oxapy import Oxapy, Router, get
 
 class AppState:
     def __init__(self):
@@ -223,7 +223,7 @@ def handler(request):
 
 def main():
     (
-        HttpServer(("127.0.0.1", 5555))
+        Oxapy(("127.0.0.1", 5555))
         .app_data(AppState())
         .attach(
             Router().route(handler)
@@ -240,7 +240,7 @@ if __name__ == "__main__":
 You can set a base path for a router, which will be prepended to all routes defined in it. This is useful for versioning APIs.
 
 ```python
-from oxapy import HttpServer, Router, get
+from oxapy import Oxapy, Router, get
 
 @get("/users")
 def get_users(request):
@@ -248,7 +248,7 @@ def get_users(request):
 
 def main():
     (
-        HttpServer(("127.0.0.1", 5555))
+        Oxapy(("127.0.0.1", 5555))
         .attach(
             Router("/api/v1").route(get_users)
         )
