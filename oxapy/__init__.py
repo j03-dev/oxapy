@@ -77,7 +77,7 @@ class Oxapy(HttpServer):
         if reload and os.environ.get("OXAPY_WORKER") != "1":
             self._run_supervisor()
         else:
-            super().run(workers)
+            return super().run(workers)
 
     def _run_supervisor(self):
         """
