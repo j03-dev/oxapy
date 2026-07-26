@@ -231,13 +231,11 @@ impl Response {
         })
     }
 
-    pub(crate) fn apply_catcher(mut self, req: &ProcessRequest) -> Self {
-        if let Some(catchers) = &req.catchers
-            && let Some(handler) = catchers.get(&self.status)
-        {
+    pub(crate) fn call_wrapper(mut self, req: &ProcessRequest) -> Self {
+        if let Some(wrapper) = &req.wrapper {
             let request = req.request.as_ref().clone();
             self = Python::attach(|py| {
-                let result = handler.call(py, (request, self), None)?;
+                let result = wrapper.call(py, (request, self), None)?;
                 convert_to_response(result, py)
             })
             .unwrap_or_else(Response::from);
