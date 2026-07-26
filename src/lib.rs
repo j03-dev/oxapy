@@ -583,7 +583,7 @@ fn execute_route_handler(
         if router.middlewares.is_empty() {
             route.handler.call(py, (request.clone(),), Some(&kwargs))
         } else {
-            let chain = MiddlewareChain::new(router.middlewares.clone());
+            let chain = MiddlewareChain::new(&router.middlewares);
             chain.execute(
                 py,
                 route.sequence,
