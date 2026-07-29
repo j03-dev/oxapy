@@ -1,20 +1,47 @@
+use std::sync::Arc;
+
+use ahash::HashMap;
 use hyper::{HeaderMap, header::CONTENT_TYPE};
 use pyo3::{
     Bound, PyResult,
-    exceptions::{PyException, PyValueError},
+    exceptions::PyValueError,
     prelude::*,
     types::{PyDict, PyModule, PyModuleMethods},
 };
 use pyo3_stub_gen::derive::*;
+use tera::{Function, Result as TeraResult, Value};
 
 use crate::{
+    exceptions::IntoPyException,
+    json,
     request::Request,
     response::{Response, ResponseBody},
     status::Status,
 };
 
-mod minijinja;
-mod tera;
+struct PyTeraFunction {
+    callable: Py<PyAny>,
+}
+
+impl Function for PyTeraFunction {
+    fn call(&self, args: &std::collections::HashMap<String, Value>) -> TeraResult<Value> {
+        Python::attach(|py| {
+            let py_kwargs = json::from_rstruct2pydict(args, py)
+                .map_err(tera::Error::msg)?
+                .into_bound(py);
+            let result = self
+                .callable
+                .call(py, (), Some(&py_kwargs))
+                .map_err(tera::Error::msg)?;
+
+            Ok(Value::String(result.to_string()))
+        })
+    }
+
+    fn is_safe(&self) -> bool {
+        true
+    }
+}
 
 /// Template engine for rendering HTML templates.
 ///
@@ -43,12 +70,11 @@ mod tera;
 /// # Or use Tera with custom template directory
 /// app.template(templating.Template("./views/**/*.html", "tera"))
 /// ```
-#[gen_stub_pyclass_enum]
 #[pyclass(from_py_object, module = "oxapy.templating")]
+#[gen_stub_pyclass]
 #[derive(Clone, Debug)]
-pub enum Template {
-    Jinja(minijinja::Jinja),
-    Tera(tera::Tera),
+pub struct Template {
+    engine: Arc<tera::Tera>,
 }
 
 #[gen_stub_pymethods]
@@ -58,7 +84,6 @@ impl Template {
     ///
     /// Args:
     ///     dir (str, optional): Directory pattern to search for templates (default: "./templates/**/*.html").
-    ///     engine (str, optional): Template engine to use, either "jinja" or "tera" (default: "jinja").
     ///
     /// Returns:
     ///     Template: A new template engine instance.
@@ -74,18 +99,46 @@ impl Template {
     /// template = templating.Template()
     ///
     /// # Use Tera with custom template directory
-    /// template = templating.Template("./views/**/*.html", "tera")
+    /// template = templating.Template("./views/**/*.html")
     /// ```
     #[new]
-    #[pyo3(signature=(dir="./templates/**/*.html", engine="jinja"))]
+    #[pyo3(signature=(dir="./templates/**/*.html"))]
     #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
-    fn new(dir: &str, engine: &str) -> PyResult<Template> {
-        match engine {
-            "jinja" => Ok(Template::Jinja(minijinja::Jinja::new(dir.to_string())?)),
-            "tera" => Ok(Template::Tera(tera::Tera::new(dir.to_string())?)),
-            e => Err(PyException::new_err(format!(
-                "Invalid engine type '{e}'. Valid options are 'jinja' or 'tera'.",
-            ))),
+    pub fn new(dir: &str) -> PyResult<Self> {
+        let tera = tera::Tera::new(dir).into_py_exception()?;
+        Ok(Self {
+            engine: Arc::new(tera),
+        })
+    }
+
+    #[pyo3(signature=(template_name, context=None))]
+    pub fn render(
+        &self,
+        template_name: &str,
+        context: Option<Bound<'_, PyDict>>,
+    ) -> PyResult<String> {
+        let mut tera_context = tera::Context::new();
+        if let Some(context) = context {
+            let map: HashMap<String, serde_json::Value> = json::from_pydict2rstruct(&context)?;
+            for (key, value) in map {
+                tera_context.insert(key, &value);
+            }
+        }
+
+        self.engine
+            .render(template_name, &tera_context)
+            .into_py_exception()
+    }
+
+    pub fn register_function(&mut self, name: &str, callable: Py<PyAny>) -> PyResult<()> {
+        if let Some(tera) = Arc::get_mut(&mut self.engine) {
+            let py_func = PyTeraFunction { callable };
+            tera.register_function(name, py_func);
+            Ok(())
+        } else {
+            Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+                "Cannot register function: Tera engine is already shared cloned copies",
+            ))
         }
     }
 }
@@ -120,7 +173,7 @@ impl Template {
 #[pyo3(signature=(request, name, context=None))]
 fn render(
     request: Request,
-    name: String,
+    name: &str,
     context: Option<Bound<'_, PyDict>>,
     py: Python<'_>,
 ) -> PyResult<Response> {
@@ -135,10 +188,7 @@ fn render(
         ctx.set_item("session", session.clone_ref(py))?;
     }
 
-    let body = match template.as_ref() {
-        Template::Jinja(engine) => engine.render(name, Some(ctx))?,
-        Template::Tera(engine) => engine.render(name, Some(ctx))?,
-    };
+    let body = template.render(name, Some(ctx))?;
 
     let mut headers = HeaderMap::new();
     headers.insert(CONTENT_TYPE, "text/html".parse().unwrap());
@@ -152,8 +202,6 @@ fn render(
 pub fn templating_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let templating = PyModule::new(m.py(), "templating")?;
     templating.add_class::<Template>()?;
-    templating.add_class::<tera::Tera>()?;
-    templating.add_class::<minijinja::Jinja>()?;
     m.add_function(wrap_pyfunction!(render, m)?)?;
     m.add_submodule(&templating)
 }

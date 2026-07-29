@@ -17,7 +17,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
 use pyo3_stub_gen::derive::*;
 
-use crate::{Cors, IntoPyException, ProcessRequest, Status, convert_to_response, json};
+use crate::{IntoPyException, ProcessRequest, Status, convert_to_response, json};
 
 pub type Body = BoxBody<Bytes, Infallible>;
 
@@ -241,13 +241,6 @@ impl Response {
             .unwrap_or_else(Response::from);
         }
         self
-    }
-
-    pub(crate) fn apply_cors(mut self, cors: &Option<Arc<Cors>>) -> PyResult<Self> {
-        if let Some(cors) = cors {
-            self = cors.apply_to_response(self)?;
-        }
-        Ok(self)
     }
 }
 

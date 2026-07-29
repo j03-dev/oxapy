@@ -44,7 +44,6 @@ pyo3_stub_gen::export_verbatim!("oxapy", "from typing_extensions import Self");
 pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
 
 struct ProcessRequest {
-    cors: Option<Arc<Cors>>,
     wrapper: Option<Arc<Py<PyAny>>>,
     router: Option<Arc<Router>>,
     match_route: Option<MatchRoute<'static>>,
@@ -57,7 +56,6 @@ struct RequestContext {
     app_data: Option<Arc<Py<PyAny>>>,
     wrapper: Option<Arc<Py<PyAny>>>,
     channel_capacity: usize,
-    cors: Option<Arc<Cors>>,
     routers: Vec<Arc<Router>>,
     request_sender: Sender<ProcessRequest>,
     template: Option<Arc<Template>>,
@@ -451,7 +449,6 @@ impl HttpServer {
             app_data: self.app_data.clone(),
             wrapper: self.wrapper.clone(),
             channel_capacity: self.channel_capacity,
-            cors: self.cors.clone(),
             routers: self.routers.clone(),
             request_sender: tx,
             template: self.template.clone(),
@@ -524,8 +521,7 @@ impl HttpServer {
             call_python_handler(&req.router, &req.match_route, &req.request, self.is_async)
                 .await
                 .unwrap_or_else(Response::from)
-                .call_wrapper(&req)
-                .apply_cors(&req.cors)?;
+                .call_wrapper(&req);
         let _ = req.tx.send(response).await;
         Ok(())
     }

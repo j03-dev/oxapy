@@ -284,7 +284,6 @@ impl Request {
             router: Some(router),
             match_route: Some(transmutate_route),
             tx,
-            cors: ctx.cors.clone(),
             wrapper: ctx.wrapper.clone(),
         };
 
@@ -302,7 +301,6 @@ impl Request {
             router: None,
             match_route: None,
             tx,
-            cors: ctx.cors.clone(),
             wrapper: ctx.wrapper.clone(),
         };
 
