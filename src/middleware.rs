@@ -17,12 +17,12 @@ impl Middleware {
     }
 }
 
-pub struct MiddlewareChain {
-    middlewares: Vec<Middleware>,
+pub struct MiddlewareChain<'l> {
+    middlewares: &'l [Middleware],
 }
 
-impl MiddlewareChain {
-    pub fn new(middlewares: Vec<Middleware>) -> Self {
+impl<'l> MiddlewareChain<'l> {
+    pub fn new(middlewares: &'l [Middleware]) -> Self {
         Self { middlewares }
     }
 

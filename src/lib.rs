@@ -5,7 +5,6 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use ahash::HashMap;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict, PyInt, PyString};
@@ -15,7 +14,6 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Semaphore;
 use tokio::sync::mpsc::{Receiver, Sender, channel};
 
-use catcher::Catcher;
 use cors::Cors;
 use exceptions::IntoPyException;
 use into_response::convert_to_response;
@@ -27,7 +25,6 @@ use routing::*;
 use status::Status;
 use templating::Template;
 
-mod catcher;
 mod cors;
 #[macro_use]
 mod exceptions;
@@ -47,8 +44,7 @@ pyo3_stub_gen::export_verbatim!("oxapy", "from typing_extensions import Self");
 pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
 
 struct ProcessRequest {
-    catchers: Option<Arc<HashMap<Status, Py<PyAny>>>>,
-    cors: Option<Arc<Cors>>,
+    wrapper: Option<Arc<Py<PyAny>>>,
     router: Option<Arc<Router>>,
     match_route: Option<MatchRoute<'static>>,
     request: Arc<Request>,
@@ -58,9 +54,8 @@ struct ProcessRequest {
 #[derive(Clone)]
 struct RequestContext {
     app_data: Option<Arc<Py<PyAny>>>,
-    catchers: Option<Arc<HashMap<Status, Py<PyAny>>>>,
+    wrapper: Option<Arc<Py<PyAny>>>,
     channel_capacity: usize,
-    cors: Option<Arc<Cors>>,
     routers: Vec<Arc<Router>>,
     request_sender: Sender<ProcessRequest>,
     template: Option<Arc<Template>>,
@@ -117,7 +112,7 @@ struct RequestContext {
 struct HttpServer {
     addr: SocketAddr,
     app_data: Option<Arc<Py<PyAny>>>,
-    catchers: Option<Arc<HashMap<Status, Py<PyAny>>>>,
+    wrapper: Option<Arc<Py<PyAny>>>,
     channel_capacity: usize,
     cors: Option<Arc<Cors>>,
     is_async: bool,
@@ -176,7 +171,7 @@ impl HttpServer {
         Ok(Self {
             addr: SocketAddr::new(ip.parse()?, port),
             app_data: None,
-            catchers: None,
+            wrapper: None,
             channel_capacity: 100,
             cors: None,
             is_async: false,
@@ -347,22 +342,19 @@ impl HttpServer {
     ///
     /// Example:
     /// ```python
-    /// @catcher(Status.NOT_FOUND)
-    /// def not_found(request, response):
-    ///     return Response("<h1>Page Not Found</h1>", content_type="text/html")
+    /// def global_middleware(request, response):
+    ///     if response.status.code == 200:
+    ///         return Response("<h1>Page Not Found</h1>", content_type="text/html")
+    ///     return response
     ///
-    /// server.catchers([not_found])
+    /// server.wrap(global_middleware)
     /// ```
-    fn catchers<'py>(
+    fn wrap<'py>(
         mut slf: PyRefMut<'py, Self>,
-        catchers: Vec<PyRef<Catcher>>,
+        wrapper: Py<PyAny>,
         py: Python<'py>,
     ) -> PyRefMut<'py, Self> {
-        let map = catchers
-            .into_iter()
-            .map(|c| (c.status, c.handler.clone_ref(py)))
-            .collect();
-        slf.catchers = Some(Arc::new(map));
+        slf.wrapper = Some(Arc::new(wrapper));
         slf
     }
 
@@ -455,9 +447,8 @@ impl HttpServer {
         let (tx, rx) = channel::<ProcessRequest>(self.channel_capacity);
         let ctx = RequestContext {
             app_data: self.app_data.clone(),
-            catchers: self.catchers.clone(),
+            wrapper: self.wrapper.clone(),
             channel_capacity: self.channel_capacity,
-            cors: self.cors.clone(),
             routers: self.routers.clone(),
             request_sender: tx,
             template: self.template.clone(),
@@ -530,8 +521,7 @@ impl HttpServer {
             call_python_handler(&req.router, &req.match_route, &req.request, self.is_async)
                 .await
                 .unwrap_or_else(Response::from)
-                .apply_catcher(&req)
-                .apply_cors(&req.cors)?;
+                .call_wrapper(&req);
         let _ = req.tx.send(response).await;
         Ok(())
     }
@@ -589,7 +579,7 @@ fn execute_route_handler(
         if router.middlewares.is_empty() {
             route.handler.call(py, (request.clone(),), Some(&kwargs))
         } else {
-            let chain = MiddlewareChain::new(router.middlewares.clone());
+            let chain = MiddlewareChain::new(&router.middlewares);
             chain.execute(
                 py,
                 route.sequence,
@@ -669,7 +659,6 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Response>()?;
     m.add_class::<Router>()?;
     m.add_class::<Status>()?;
-    m.add_function(wrap_pyfunction!(catcher::catcher, m)?)?;
     m.add_function(wrap_pyfunction!(convert_to_response, m)?)?;
     m.add_function(wrap_pyfunction!(delete, m)?)?;
     m.add_function(wrap_pyfunction!(get, m)?)?;

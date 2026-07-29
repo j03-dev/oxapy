@@ -22,7 +22,7 @@ pub fn loads(data: &str, py: Python<'_>) -> PyResult<Py<PyDict>> {
     Ok(deserialized_data.extract(py)?)
 }
 
-pub fn from_pydict2rstruct<T>(dict: &Bound<'_, PyDict>) -> PyResult<T>
+pub fn from_pydict2rstruct<T>(dict: &Bound<'_, PyAny>) -> PyResult<T>
 where
     T: for<'de> Deserialize<'de>,
 {

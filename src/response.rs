@@ -17,7 +17,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
 use pyo3_stub_gen::derive::*;
 
-use crate::{Cors, IntoPyException, ProcessRequest, Status, convert_to_response, json};
+use crate::{IntoPyException, ProcessRequest, Status, convert_to_response, json};
 
 pub type Body = BoxBody<Bytes, Infallible>;
 
@@ -231,25 +231,16 @@ impl Response {
         })
     }
 
-    pub(crate) fn apply_catcher(mut self, req: &ProcessRequest) -> Self {
-        if let Some(catchers) = &req.catchers
-            && let Some(handler) = catchers.get(&self.status)
-        {
+    pub(crate) fn call_wrapper(mut self, req: &ProcessRequest) -> Self {
+        if let Some(wrapper) = &req.wrapper {
             let request = req.request.as_ref().clone();
             self = Python::attach(|py| {
-                let result = handler.call(py, (request, self), None)?;
+                let result = wrapper.call(py, (request, self), None)?;
                 convert_to_response(result, py)
             })
             .unwrap_or_else(Response::from);
         }
         self
-    }
-
-    pub(crate) fn apply_cors(mut self, cors: &Option<Arc<Cors>>) -> PyResult<Self> {
-        if let Some(cors) = cors {
-            self = cors.apply_to_response(self)?;
-        }
-        Ok(self)
     }
 }
 

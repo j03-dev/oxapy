@@ -216,7 +216,7 @@ def _session_middleware(request, next, secret, max_age, **kwargs):
     request.session = session_data
     initial_state = json.dumps(session_data)
 
-    response = convert_to_response(next(request, **kwargs))  # ty:ignore
+    response = convert_to_response(next(request, **kwargs))
 
     current_state = json.dumps(request.session)
     if current_state != initial_state:

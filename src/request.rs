@@ -284,8 +284,7 @@ impl Request {
             router: Some(router),
             match_route: Some(transmutate_route),
             tx,
-            cors: ctx.cors.clone(),
-            catchers: ctx.catchers.clone(),
+            wrapper: ctx.wrapper.clone(),
         };
 
         Self::send_and_wait_response(ctx, process_request, rx).await
@@ -302,8 +301,7 @@ impl Request {
             router: None,
             match_route: None,
             tx,
-            cors: ctx.cors.clone(),
-            catchers: ctx.catchers.clone(),
+            wrapper: ctx.wrapper.clone(),
         };
 
         Self::send_and_wait_response(ctx, process_request, rx).await
