@@ -8,10 +8,7 @@ import typing_extensions
 from . import exceptions
 from . import jwt
 from . import serializer
-from . import templating
 __all__ = [
-    "Catcher",
-    "CatcherBuilder",
     "Cors",
     "File",
     "FileStreaming",
@@ -24,7 +21,7 @@ __all__ = [
     "Router",
     "Session",
     "Status",
-    "catcher",
+    "Template",
     "convert_to_response",
     "delete",
     "exceptions",
@@ -40,50 +37,7 @@ __all__ = [
     "send_file",
     "serializer",
     "static_file",
-    "templating",
 ]
-
-@typing.final
-class Catcher:
-    r"""
-    A catcher for handling specific HTTP status codes.
-    
-    Catchers allow you to provide custom responses for specific HTTP status codes.
-    They are typically created using the `catcher` decorator function.
-    
-    Args:
-        status (Status): The HTTP status code this catcher will handle.
-        handler (callable): The handler function that will be called when this status occurs.
-    
-    Example:
-    ```python
-    from oxapy import catcher, Status
-    
-    @catcher(Status.NOT_FOUND)
-    def handle_not_found(request, response):
-        return Response("<h1>Custom 404 Page</h1>", content_type="text/html")
-    ```
-    """
-    ...
-
-@typing.final
-class CatcherBuilder:
-    r"""
-    Internal builder class for creating catchers.
-    
-    This class is returned by the `catcher` function and is used to create
-    a Catcher when called with a handler function.
-    """
-    def __call__(self, handler: typing.Any) -> Catcher:
-        r"""
-        Create a Catcher when called with a handler function.
-        
-        Args:
-            handler (callable): The handler function to call when the status occurs.
-        
-        Returns:
-            Catcher: A new catcher for the specified status.
-        """
 
 @typing.final
 class Cors:
@@ -491,7 +445,7 @@ class HttpServer:
         server.attach(router)
         ```
         """
-    def template(self, template: templating.Template) -> HttpServer:
+    def template(self, template: Template) -> HttpServer:
         r"""
         Enable template rendering for the server.
         
@@ -558,7 +512,7 @@ class HttpServer:
         server.channel_capacity(200)
         ```
         """
-    def catchers(self, catchers: typing.Sequence[Catcher]) -> HttpServer:
+    def wrap(self, wrapper: typing.Any) -> HttpServer:
         r"""
         Add status code catchers to the server.
         
@@ -570,11 +524,12 @@ class HttpServer:
         
         Example:
         ```python
-        @catcher(Status.NOT_FOUND)
-        def not_found(request, response):
-            return Response("<h1>Page Not Found</h1>", content_type="text/html")
+        def global_middleware(request, response):
+            if response.status.code == 200:
+                return Response("<h1>Page Not Found</h1>", content_type="text/html")
+            return response
         
-        server.catchers([not_found])
+        server.wrap(global_middleware)
         ```
         """
     def async_mode(self) -> HttpServer:
@@ -1148,6 +1103,87 @@ class Router:
     def __repr__(self) -> builtins.str: ...
 
 @typing.final
+class Template:
+    r"""
+    Template engine for rendering HTML templates.
+    
+    This class provides a unified interface for different template engines,
+    currently supporting both Jinja and Tera templates.
+    
+    Args:
+        dir (str, optional): Directory pattern to search for templates (default: "./templates/**/*.html").
+        engine (str, optional): Template engine to use, either "jinja" or "tera" (default: "jinja").
+    
+    Returns:
+        Template: A new template engine instance.
+    
+    Raises:
+        PyException: If an invalid engine type is specified.
+    
+    Example:
+    ```python
+    from oxapy import HttpServer, templating
+    
+    app = HttpServer(("127.0.0.1", 8000))
+    
+    # Configure templates with default settings (Jinja)
+    app.template(templating.Template())
+    
+    # Or use Tera with custom template directory
+    app.template(templating.Template("./views/**/*.html", "tera"))
+    ```
+    """
+    def __new__(cls, dir: builtins.str = './templates/**/*.html') -> typing_extensions.Self:
+        r"""
+        Create a new Template instance.
+        
+        Args:
+            dir (str, optional): Directory pattern to search for templates (default: "./templates/**/*.html").
+        
+        Returns:
+            Template: A new template engine instance.
+        
+        Raises:
+            PyException: If an invalid engine type is specified.
+        
+        Example:
+        ```python
+        from oxapy import templating
+        
+        # Use Jinja with default template directory
+        template = templating.Template()
+        
+        # Use Tera with custom template directory
+        template = templating.Template("./views/**/*.html")
+        ```
+        """
+    def render(self, template_name: builtins.str, context: typing.Optional[dict] = None) -> builtins.str: ...
+    def register_function(self, name: builtins.str, callable: typing.Any) -> None:
+        r"""
+        Register a Python function as a custom template function.
+        
+        This method allows you to expose Python callables to be used within Tera templates.
+        The function will receive keyword arguments from the template call and should return
+        a value that can be serialized to JSON.
+        
+        Args:
+            name (str): The name used to call the function from templates (e.g., `{{ my_function(key=value) }}`).
+            callable (Callable): A Python callable that accepts keyword arguments and returns a value.
+        
+        Returns:
+            None: This method does not return a value.
+        
+        Raises:
+            RuntimeError: If the template engine has been cloned and is shared across multiple references.
+        
+        Example:
+        ```python
+        template.register_function("add", lambda a, b: a + b)
+        # In template: {{ add(a=1, b=2) }} -> 3
+        ```
+        """
+
+@typing.final
 class Status(enum.Enum):
     r"""
     HTTP status codes enumeration.
@@ -1450,31 +1486,6 @@ class Status(enum.Enum):
         """
 
 def Session(secret: bytes, max_age: builtins.int = 604800) -> Response: ...
-
-def catcher(status: Status) -> CatcherBuilder:
-    r"""
-    Decorator for creating status code catchers.
-    
-    A catcher allows you to provide custom responses for specific HTTP status codes.
-    
-    Args:
-        status (Status): The HTTP status code to catch.
-    
-    Returns:
-        CatcherBuilder: A builder that creates a Catcher when called with a handler function.
-    
-    Example:
-    ```python
-    from oxapy import catcher, Status, Response
-    
-    @catcher(Status.NOT_FOUND)
-    def handle_404(request, response):
-        return Response("<h1>Page Not Found</h1>", content_type="text/html")
-    
-    # Add the catcher to your server
-    app.catchers([handle_404])
-    ```
-    """
 
 def convert_to_response(result: typing.Any) -> Response:
     r"""

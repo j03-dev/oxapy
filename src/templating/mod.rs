@@ -130,6 +130,27 @@ impl Template {
             .into_py_exception()
     }
 
+    /// Register a Python function as a custom template function.
+    ///
+    /// This method allows you to expose Python callables to be used within Tera templates.
+    /// The function will receive keyword arguments from the template call and should return
+    /// a value that can be serialized to JSON.
+    ///
+    /// Args:
+    ///     name (str): The name used to call the function from templates (e.g., `{{ my_function(key=value) }}`).
+    ///     callable (Callable): A Python callable that accepts keyword arguments and returns a value.
+    ///
+    /// Returns:
+    ///     None: This method does not return a value.
+    ///
+    /// Raises:
+    ///     RuntimeError: If the template engine has been cloned and is shared across multiple references.
+    ///
+    /// Example:
+    /// ```python
+    /// template.register_function("add", lambda a, b: a + b)
+    /// # In template: {{ add(a=1, b=2) }} -> 3
+    /// ```
     pub fn register_function(&mut self, name: &str, callable: Py<PyAny>) -> PyResult<()> {
         if let Some(tera) = Arc::get_mut(&mut self.engine) {
             let py_func = PyTeraFunction { callable };
