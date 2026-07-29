@@ -32,9 +32,9 @@ impl Function for PyTeraFunction {
             let result = self
                 .callable
                 .call(py, (), Some(&py_kwargs))
-                .map_err(tera::Error::msg)?;
-
-            Ok(Value::String(result.to_string()))
+                .map_err(tera::Error::msg)?
+                .into_bound(py);
+            json::from_pydict2rstruct(&result).map_err(tera::Error::msg)
         })
     }
 
