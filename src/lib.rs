@@ -1,7 +1,6 @@
 #![allow(unused_variables, non_snake_case)]
 
 use std::net::SocketAddr;
-use std::ops::Deref;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -44,21 +43,43 @@ pyo3_stub_gen::export_verbatim!("oxapy", "from typing_extensions import Self");
 pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
 
 struct ProcessRequest {
-    wrapper: Option<Arc<Py<PyAny>>>,
-    router: Option<Arc<Router>>,
+    tx: Sender<Response>,
     match_route: Option<MatchRoute<'static>>,
     request: Arc<Request>,
-    tx: Sender<Response>,
+    router: Option<Arc<Router>>,
+    wrapper: Option<Arc<Py<PyAny>>>,
 }
 
 #[derive(Clone)]
-struct RequestContext {
+struct Context {
     app_data: Option<Arc<Py<PyAny>>>,
     wrapper: Option<Arc<Py<PyAny>>>,
     channel_capacity: usize,
     routers: Vec<Arc<Router>>,
     request_sender: Sender<ProcessRequest>,
     template: Option<Arc<Template>>,
+}
+
+struct ShutDownSignal {
+    rx: Receiver<()>,
+}
+
+impl ShutDownSignal {
+    fn new() -> PyResult<Self> {
+        let running = Arc::new(AtomicBool::new(true));
+        let (tx, rx) = channel::<()>(1);
+        ctrlc::set_handler(move || {
+            println!("\nShutting Down...");
+            running.store(false, Ordering::SeqCst);
+            let _ = block_on(tx.send(()), None);
+        })
+        .into_py_exception()?;
+        Ok(Self { rx })
+    }
+
+    async fn wait(&mut self) {
+        self.rx.recv().await;
+    }
 }
 
 /// HTTP Server for handling web requests.
@@ -430,22 +451,12 @@ impl HttpServer {
 
 impl HttpServer {
     async fn run_server(&self) -> PyResult<()> {
-        let (listener, shutdown) = self.setup_serve().await?;
-        let (ctx, rx) = self.create_request_context();
-        self.spawn_connection_handler(listener, Arc::new(ctx)).await;
-        self.process_requests(shutdown, rx).await
-    }
-
-    async fn setup_serve(&self) -> PyResult<(TcpListener, ShutDownSignal)> {
         let listener = TcpListener::bind(self.addr).await?;
         println!("Listening on {}", self.addr);
         let shutdown = ShutDownSignal::new()?;
-        Ok((listener, shutdown))
-    }
 
-    fn create_request_context(&self) -> (RequestContext, Receiver<ProcessRequest>) {
         let (tx, rx) = channel::<ProcessRequest>(self.channel_capacity);
-        let ctx = RequestContext {
+        let ctx = Context {
             app_data: self.app_data.clone(),
             wrapper: self.wrapper.clone(),
             channel_capacity: self.channel_capacity,
@@ -453,10 +464,12 @@ impl HttpServer {
             request_sender: tx,
             template: self.template.clone(),
         };
-        (ctx, rx)
+
+        self.spawn_connection_handler(listener, Arc::new(ctx)).await;
+        self.process_requests(shutdown, rx).await
     }
 
-    async fn spawn_connection_handler(&self, listener: TcpListener, ctx: Arc<RequestContext>) {
+    async fn spawn_connection_handler(&self, listener: TcpListener, ctx: Arc<Context>) {
         let running = self.running.clone();
         let max_connection = self.max_connections.clone();
         tokio::spawn(async move {
@@ -473,7 +486,7 @@ impl HttpServer {
 
     fn spawn_request_handler(
         io: hyper_util::rt::TokioIo<TcpStream>,
-        ctx: Arc<RequestContext>,
+        ctx: Arc<Context>,
         _permit: tokio::sync::OwnedSemaphorePermit,
     ) {
         tokio::spawn(async move {
@@ -509,43 +522,17 @@ impl HttpServer {
     ) -> PyResult<()> {
         loop {
             tokio::select! {
-                Some(req) = rx.recv() => self.handle_request(req).await?,
+                Some(req) = rx.recv() => {
+                    let response = call_python_handler(&req.router, &req.match_route, &req.request, self.is_async)
+                        .await
+                        .unwrap_or_else(Response::from)
+                        .call_wrapper(&req);
+                    let _ = req.tx.send(response).await;
+                },
                 _ = shutdown.wait() => break,
             }
         }
         Ok(())
-    }
-
-    async fn handle_request(&self, req: ProcessRequest) -> PyResult<()> {
-        let response =
-            call_python_handler(&req.router, &req.match_route, &req.request, self.is_async)
-                .await
-                .unwrap_or_else(Response::from)
-                .call_wrapper(&req);
-        let _ = req.tx.send(response).await;
-        Ok(())
-    }
-}
-
-struct ShutDownSignal {
-    rx: Receiver<()>,
-}
-
-impl ShutDownSignal {
-    fn new() -> PyResult<Self> {
-        let running = Arc::new(AtomicBool::new(true));
-        let (tx, rx) = channel::<()>(1);
-        ctrlc::set_handler(move || {
-            println!("\nShutting Down...");
-            running.store(false, Ordering::SeqCst);
-            let _ = block_on(tx.send(()), None);
-        })
-        .into_py_exception()?;
-        Ok(Self { rx })
-    }
-
-    async fn wait(&mut self) {
-        self.rx.recv().await;
     }
 }
 
@@ -555,40 +542,36 @@ async fn call_python_handler<'l>(
     request: &Request,
     is_async: bool,
 ) -> PyResult<Response> {
-    match (match_route, router) {
-        (Some(route), Some(router)) => {
-            let mut result = execute_route_handler(route, router, request)?;
-            if is_async {
-                result = Python::attach(|py| into_future(result.into_bound(py)))?.await?;
-            }
-            Python::attach(|py| into_response::convert_to_response(result, py))
-        }
-        _ => Ok(Status::NOT_FOUND.into()),
-    }
-}
+    if let Some(match_route) = match_route
+        && let Some(router) = router
+    {
+        let mut result = Python::attach(|py| {
+            let route = match_route.value;
+            let params = &match_route.params;
+            let kwargs = build_route_params(py, params)?;
 
-fn execute_route_handler(
-    match_route: &MatchRoute,
-    router: &Router,
-    request: &Request,
-) -> PyResult<Py<PyAny>> {
-    Python::attach(|py| {
-        let route = match_route.value;
-        let params = &match_route.params;
-        let kwargs = build_route_params(py, params)?;
-        if router.middlewares.is_empty() {
-            route.handler.call(py, (request.clone(),), Some(&kwargs))
-        } else {
-            let chain = MiddlewareChain::new(&router.middlewares);
-            chain.execute(
-                py,
-                route.sequence,
-                route.handler.deref(),
-                (request.clone(),),
-                kwargs.clone(),
-            )
+            if router.middlewares.is_empty() {
+                route.handler.call(py, (request.clone(),), Some(&kwargs))
+            } else {
+                let chain = MiddlewareChain::new(&router.middlewares);
+                chain.execute(
+                    py,
+                    route.sequence,
+                    &*route.handler,
+                    (request.clone(),),
+                    kwargs.clone(),
+                )
+            }
+        })?;
+
+        if is_async {
+            result = Python::attach(|py| into_future(result.into_bound(py)))?.await?;
         }
-    })
+
+        Python::attach(|py| into_response::convert_to_response(result, py))
+    } else {
+        Ok(Status::NOT_FOUND.into())
+    }
 }
 
 fn build_route_params<'py>(
