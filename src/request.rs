@@ -252,7 +252,7 @@ impl Request {
         for router in &ctx.routers {
             if let Some(match_route) = router.find(&self.method, &self.uri) {
                 let response = self
-                    .handle_found_route(&ctx, match_route, router.middlewares.clone())
+                    .handle_found_route(&ctx, match_route, &router.middlewares)
                     .await;
                 return response;
             }
@@ -264,38 +264,38 @@ impl Request {
         &self,
         ctx: &Context,
         match_route: MatchRoute<'_>,
-        middlewares: Vec<Middleware>,
+        middlewares: &[Middleware],
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
-        let (tx, rx) = tokio::sync::mpsc::channel(ctx.channel_capacity);
+        let (response_sender, response_receiver) = tokio::sync::mpsc::channel(ctx.channel_capacity);
 
         let transmutate_route: MatchRoute<'static> = unsafe { std::mem::transmute(match_route) };
 
         let process_request = ProcessRequest {
-            tx,
             match_route: Some(transmutate_route),
+            middlewares: Some(Arc::from(middlewares)),
             request: Arc::new(self.clone()),
-            middlewares: Some(middlewares),
+            response_sender,
             wrapper: ctx.wrapper.clone(),
         };
 
-        Self::send_and_wait_response(&ctx.request_sender, process_request, rx).await
+        Self::send_and_wait_response(&ctx.request_sender, process_request, response_receiver).await
     }
 
     async fn handle_not_found(
         self,
         ctx: &Context,
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
-        let (tx, rx) = tokio::sync::mpsc::channel(ctx.channel_capacity);
+        let (response_sender, response_receiver) = tokio::sync::mpsc::channel(ctx.channel_capacity);
 
         let process_request = ProcessRequest {
-            tx,
-            request: Arc::new(self),
-            middlewares: None,
             match_route: None,
+            middlewares: None,
+            request: Arc::new(self),
+            response_sender,
             wrapper: ctx.wrapper.clone(),
         };
 
-        Self::send_and_wait_response(&ctx.request_sender, process_request, rx).await
+        Self::send_and_wait_response(&ctx.request_sender, process_request, response_receiver).await
     }
 
     async fn send_and_wait_response<T>(

@@ -45,21 +45,21 @@ pyo3_stub_gen::export_verbatim!("oxapy", "from typing_extensions import Self");
 pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
 
 struct ProcessRequest {
-    tx: Sender<Response>,
     match_route: Option<MatchRoute<'static>>,
+    middlewares: Option<Arc<[Middleware]>>,
     request: Arc<Request>,
-    middlewares: Option<Vec<Middleware>>,
+    response_sender: Sender<Response>,
     wrapper: Option<Arc<Py<PyAny>>>,
 }
 
 #[derive(Clone)]
 struct Context {
     app_data: Option<Arc<Py<PyAny>>>,
-    wrapper: Option<Arc<Py<PyAny>>>,
     channel_capacity: usize,
-    routers: Vec<Arc<Router>>,
     request_sender: Sender<ProcessRequest>,
+    routers: Vec<Arc<Router>>,
     template: Option<Arc<Template>>,
+    wrapper: Option<Arc<Py<PyAny>>>,
 }
 
 struct ShutDownSignal {
@@ -457,18 +457,18 @@ impl HttpServer {
         println!("Listening on {}", self.addr);
         let shutdown = ShutDownSignal::new()?;
 
-        let (tx, rx) = channel::<ProcessRequest>(self.channel_capacity);
+        let (request_sender, request_receiver) = channel::<ProcessRequest>(self.channel_capacity);
         let ctx = Context {
             app_data: self.app_data.clone(),
-            wrapper: self.wrapper.clone(),
             channel_capacity: self.channel_capacity,
+            request_sender,
             routers: self.routers.clone(),
-            request_sender: tx,
             template: self.template.clone(),
+            wrapper: self.wrapper.clone(),
         };
 
         self.spawn_connection_handler(listener, Arc::new(ctx)).await;
-        self.process_requests(shutdown, rx).await
+        self.process_requests(shutdown, request_receiver).await
     }
 
     async fn spawn_connection_handler(&self, listener: TcpListener, ctx: Arc<Context>) {
@@ -502,13 +502,14 @@ impl HttpServer {
                 hyper::service::service_fn(move |req| {
                     let ctx = ctx.clone();
                     async move {
-                        let request = RequestBuilder::new(req)
+                        RequestBuilder::new(req)
                             .with_app_data(&ctx.app_data)
                             .with_template(&ctx.template)
                             .build()
                             .await
-                            .unwrap();
-                        request.process(ctx).await
+                            .unwrap()
+                            .process(ctx)
+                            .await
                     }
                 }),
             )
@@ -520,16 +521,16 @@ impl HttpServer {
     async fn process_requests(
         &self,
         mut shutdown: ShutDownSignal,
-        mut rx: Receiver<ProcessRequest>,
+        mut request_receiver: Receiver<ProcessRequest>,
     ) -> PyResult<()> {
         loop {
             tokio::select! {
-                Some(req) = rx.recv() => {
+                Some(req) = request_receiver.recv() => {
                     let response = call_python_handler(&req.middlewares, &req.match_route, &req.request, self.is_async)
                         .await
                         .unwrap_or_else(Response::from)
                         .call_wrapper(&req);
-                    let _ = req.tx.send(response).await;
+                    let _ = req.response_sender.send(response).await;
                 },
                 _ = shutdown.wait() => break,
             }
@@ -539,7 +540,7 @@ impl HttpServer {
 }
 
 async fn call_python_handler<'l>(
-    middlewares: &Option<Vec<Middleware>>,
+    middlewares: &Option<Arc<[Middleware]>>,
     match_route: &Option<MatchRoute<'l>>,
     request: &Request,
     is_async: bool,
@@ -551,16 +552,14 @@ async fn call_python_handler<'l>(
             let kwargs = build_route_params(py, params)?;
 
             match middlewares {
-                Some(middlewares) => {
-                    let chain = MiddlewareChain::new(middlewares);
-                    chain.execute(
-                        py,
-                        route.sequence,
-                        &*route.handler,
-                        (request.clone(),),
-                        kwargs.clone(),
-                    )
-                }
+                Some(middlewares) => MiddlewareChain::execute(
+                    py,
+                    middlewares,
+                    route.sequence,
+                    &*route.handler,
+                    (request.clone(),),
+                    kwargs.clone(),
+                ),
                 None => route.handler.call(py, (request.clone(),), Some(&kwargs)),
             }
         })?;

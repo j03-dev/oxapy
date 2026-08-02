@@ -393,9 +393,7 @@ impl Router {
     pub fn new(base_path: Option<String>) -> Self {
         Router {
             base_path,
-            count: 0,
-            middlewares: Vec::new(),
-            routes: HashMap::default(),
+            ..Default::default()
         }
     }
 
