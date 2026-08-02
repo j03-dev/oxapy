@@ -24,6 +24,8 @@ use routing::*;
 use status::Status;
 use templating::Template;
 
+use crate::middleware::Middleware;
+
 mod cors;
 #[macro_use]
 mod exceptions;
@@ -46,7 +48,7 @@ struct ProcessRequest {
     tx: Sender<Response>,
     match_route: Option<MatchRoute<'static>>,
     request: Arc<Request>,
-    router: Option<Arc<Router>>,
+    middlewares: Option<Vec<Middleware>>,
     wrapper: Option<Arc<Py<PyAny>>>,
 }
 
@@ -523,7 +525,7 @@ impl HttpServer {
         loop {
             tokio::select! {
                 Some(req) = rx.recv() => {
-                    let response = call_python_handler(&req.router, &req.match_route, &req.request, self.is_async)
+                    let response = call_python_handler(&req.middlewares, &req.match_route, &req.request, self.is_async)
                         .await
                         .unwrap_or_else(Response::from)
                         .call_wrapper(&req);
@@ -537,30 +539,29 @@ impl HttpServer {
 }
 
 async fn call_python_handler<'l>(
-    router: &Option<Arc<Router>>,
+    middlewares: &Option<Vec<Middleware>>,
     match_route: &Option<MatchRoute<'l>>,
     request: &Request,
     is_async: bool,
 ) -> PyResult<Response> {
-    if let Some(match_route) = match_route
-        && let Some(router) = router
-    {
+    if let Some(match_route) = match_route {
         let mut result = Python::attach(|py| {
             let route = match_route.value;
             let params = &match_route.params;
             let kwargs = build_route_params(py, params)?;
 
-            if router.middlewares.is_empty() {
-                route.handler.call(py, (request.clone(),), Some(&kwargs))
-            } else {
-                let chain = MiddlewareChain::new(&router.middlewares);
-                chain.execute(
-                    py,
-                    route.sequence,
-                    &*route.handler,
-                    (request.clone(),),
-                    kwargs.clone(),
-                )
+            match middlewares {
+                Some(middlewares) => {
+                    let chain = MiddlewareChain::new(middlewares);
+                    chain.execute(
+                        py,
+                        route.sequence,
+                        &*route.handler,
+                        (request.clone(),),
+                        kwargs.clone(),
+                    )
+                }
+                None => route.handler.call(py, (request.clone(),), Some(&kwargs)),
             }
         })?;
 

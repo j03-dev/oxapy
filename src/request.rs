@@ -13,13 +13,13 @@ use hyper::Uri;
 use pyo3_stub_gen::derive::*;
 use url::form_urlencoded;
 
-use crate::routing::MatchRoute;
+use crate::response::Response;
 use crate::status::Status;
 use crate::{
     Context, IntoPyException, ProcessRequest, json, multipart::File, templating::Template,
 };
+use crate::{middleware::Middleware, routing::MatchRoute};
 use crate::{multipart::parse_multipart, response::Body};
-use crate::{response::Response, routing::Router};
 
 /// HTTP request object containing information about the incoming request.
 ///
@@ -252,7 +252,7 @@ impl Request {
         for router in &ctx.routers {
             if let Some(match_route) = router.find(&self.method, &self.uri) {
                 let response = self
-                    .handle_found_route(&ctx, router.clone(), match_route)
+                    .handle_found_route(&ctx, match_route, router.middlewares.clone())
                     .await;
                 return response;
             }
@@ -263,8 +263,8 @@ impl Request {
     async fn handle_found_route(
         &self,
         ctx: &Context,
-        router: Arc<Router>,
         match_route: MatchRoute<'_>,
+        middlewares: Vec<Middleware>,
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
         let (tx, rx) = tokio::sync::mpsc::channel(ctx.channel_capacity);
 
@@ -274,7 +274,7 @@ impl Request {
             tx,
             match_route: Some(transmutate_route),
             request: Arc::new(self.clone()),
-            router: Some(router),
+            middlewares: Some(middlewares),
             wrapper: ctx.wrapper.clone(),
         };
 
@@ -288,10 +288,10 @@ impl Request {
         let (tx, rx) = tokio::sync::mpsc::channel(ctx.channel_capacity);
 
         let process_request = ProcessRequest {
-            request: Arc::new(self),
-            router: None,
-            match_route: None,
             tx,
+            request: Arc::new(self),
+            middlewares: None,
+            match_route: None,
             wrapper: ctx.wrapper.clone(),
         };
 
