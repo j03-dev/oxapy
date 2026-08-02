@@ -1,4 +1,4 @@
-use std::{mem::transmute, sync::Arc};
+use std::sync::Arc;
 
 use ahash::HashMap;
 use pyo3::{Py, PyAny, prelude::*};
@@ -358,7 +358,6 @@ impl Router {
         let path = uri.split('?').next().unwrap_or(uri);
         let router = self.routes.get(method)?;
         let route = router.at(path).ok()?;
-        let route: MatchRoute = unsafe { transmute(route) };
         Some(route)
     }
 }
