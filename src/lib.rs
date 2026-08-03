@@ -525,12 +525,12 @@ impl HttpServer {
     ) -> PyResult<()> {
         loop {
             tokio::select! {
-                Some(req) = request_receiver.recv() => {
-                    let response = call_python_handler(&req.middlewares, &req.match_route, &req.request, self.is_async)
+                Some(pr) = request_receiver.recv() => {
+                    let response = call_python_handler(&pr.middlewares, &pr.match_route, &pr.request, self.is_async)
                         .await
                         .unwrap_or_else(Response::from)
-                        .call_wrapper(&req);
-                    let _ = req.response_sender.send(response).await;
+                        .call_wrapper(&pr);
+                    let _ = pr.response_sender.send(response).await;
                 },
                 _ = shutdown.wait() => break,
             }
@@ -556,9 +556,9 @@ async fn call_python_handler<'l>(
                     py,
                     middlewares,
                     route.sequence,
-                    &*route.handler,
+                    &route.handler,
                     (request.clone(),),
-                    kwargs.clone(),
+                    kwargs,
                 ),
                 None => route.handler.call(py, (request.clone(),), Some(&kwargs)),
             }

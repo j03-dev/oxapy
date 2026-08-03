@@ -349,7 +349,7 @@ methods!(
 pub struct Router {
     pub base_path: Option<String>,
     pub count: usize,
-    pub middlewares: Vec<Middleware>,
+    pub middlewares: Option<Arc<[Middleware]>>,
     pub routes: HashMap<String, matchit::Router<Route>>,
 }
 
@@ -422,7 +422,14 @@ impl Router {
     fn middleware(mut slf: PyRefMut<'_, Self>, middleware: Py<PyAny>) -> PyRefMut<'_, Self> {
         let middleware = Middleware::new(middleware, slf.count);
         slf.count += 1;
-        slf.middlewares.push(middleware);
+        let mut current_middlewares = slf
+            .middlewares
+            .take()
+            .map(|arc| arc.to_vec())
+            .unwrap_or_default();
+
+        current_middlewares.push(middleware);
+        slf.middlewares = Some(Arc::from(current_middlewares));
         slf
     }
 

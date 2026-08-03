@@ -252,7 +252,7 @@ impl Request {
         for router in &ctx.routers {
             if let Some(match_route) = router.find(&self.method, &self.uri) {
                 let response = self
-                    .handle_found_route(&ctx, match_route, &router.middlewares)
+                    .handle_found_route(&ctx, match_route, router.middlewares.clone())
                     .await;
                 return response;
             }
@@ -264,7 +264,7 @@ impl Request {
         &self,
         ctx: &Context,
         match_route: MatchRoute<'_>,
-        middlewares: &[Middleware],
+        middlewares: Option<Arc<[Middleware]>>,
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
         let (response_sender, response_receiver) = tokio::sync::mpsc::channel(ctx.channel_capacity);
 
@@ -272,7 +272,7 @@ impl Request {
 
         let process_request = ProcessRequest {
             match_route: Some(transmutate_route),
-            middlewares: Some(Arc::from(middlewares)),
+            middlewares,
             request: Arc::new(self.clone()),
             response_sender,
             wrapper: ctx.wrapper.clone(),
