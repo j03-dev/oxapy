@@ -1,4 +1,4 @@
-use std::{mem::transmute, sync::Arc};
+use std::sync::Arc;
 
 use ahash::HashMap;
 use pyo3::{Py, PyAny, prelude::*};
@@ -349,7 +349,7 @@ methods!(
 pub struct Router {
     pub base_path: Option<String>,
     pub count: usize,
-    pub middlewares: Vec<Middleware>,
+    pub middlewares: Option<Arc<[Middleware]>>,
     pub routes: HashMap<String, matchit::Router<Route>>,
 }
 
@@ -358,7 +358,6 @@ impl Router {
         let path = uri.split('?').next().unwrap_or(uri);
         let router = self.routes.get(method)?;
         let route = router.at(path).ok()?;
-        let route: MatchRoute = unsafe { transmute(route) };
         Some(route)
     }
 }
@@ -393,9 +392,7 @@ impl Router {
     pub fn new(base_path: Option<String>) -> Self {
         Router {
             base_path,
-            count: 0,
-            middlewares: Vec::new(),
-            routes: HashMap::default(),
+            ..Default::default()
         }
     }
 
@@ -425,7 +422,14 @@ impl Router {
     fn middleware(mut slf: PyRefMut<'_, Self>, middleware: Py<PyAny>) -> PyRefMut<'_, Self> {
         let middleware = Middleware::new(middleware, slf.count);
         slf.count += 1;
-        slf.middlewares.push(middleware);
+        let mut current_middlewares = slf
+            .middlewares
+            .take()
+            .map(|arc| arc.to_vec())
+            .unwrap_or_default();
+
+        current_middlewares.push(middleware);
+        slf.middlewares = Some(Arc::from(current_middlewares));
         slf
     }
 

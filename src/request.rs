@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use tokio::sync::mpsc::Sender;
 
 use ahash::HashMap;
 use http_body_util::BodyExt;
@@ -12,13 +13,13 @@ use hyper::Uri;
 use pyo3_stub_gen::derive::*;
 use url::form_urlencoded;
 
-use crate::routing::MatchRoute;
+use crate::response::Response;
 use crate::status::Status;
 use crate::{
-    IntoPyException, ProcessRequest, RequestContext, json, multipart::File, templating::Template,
+    Context, IntoPyException, ProcessRequest, json, multipart::File, templating::Template,
 };
+use crate::{middleware::Middleware, routing::MatchRoute};
 use crate::{multipart::parse_multipart, response::Body};
-use crate::{response::Response, routing::Router};
 
 /// HTTP request object containing information about the incoming request.
 ///
@@ -246,78 +247,68 @@ impl Request {
 impl Request {
     pub(crate) async fn process(
         self,
-        ctx: Arc<RequestContext>,
+        ctx: Arc<Context>,
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
-        if let Some(response) = self.try_handle_route(&ctx).await {
-            return response;
+        for router in &ctx.routers {
+            if let Some(match_route) = router.find(&self.method, &self.uri) {
+                let response = self
+                    .handle_found_route(&ctx, match_route, router.middlewares.clone())
+                    .await;
+                return response;
+            }
         }
         self.handle_not_found(&ctx).await
     }
 
-    async fn try_handle_route(
+    async fn handle_found_route(
         &self,
-        ctx: &RequestContext,
-    ) -> Option<Result<hyper::Response<Body>, hyper::http::Error>> {
-        for router in &ctx.routers {
-            if let Some(match_route) = router.find(&self.method, &self.uri) {
-                let response = self
-                    .process_matched_route(ctx, router.clone(), match_route)
-                    .await;
-                return Some(response);
-            }
-        }
-        None
-    }
-
-    async fn process_matched_route(
-        &self,
-        ctx: &RequestContext,
-        router: Arc<Router>,
+        ctx: &Context,
         match_route: MatchRoute<'_>,
+        middlewares: Option<Arc<[Middleware]>>,
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
-        let (tx, rx) = tokio::sync::mpsc::channel(ctx.channel_capacity);
+        let (response_sender, response_receiver) = tokio::sync::mpsc::channel(ctx.channel_capacity);
 
         let transmutate_route: MatchRoute<'static> = unsafe { std::mem::transmute(match_route) };
 
         let process_request = ProcessRequest {
-            request: Arc::new(self.clone()),
-            router: Some(router),
             match_route: Some(transmutate_route),
-            tx,
+            middlewares,
+            request: Arc::new(self.clone()),
+            response_sender,
             wrapper: ctx.wrapper.clone(),
         };
 
-        Self::send_and_wait_response(ctx, process_request, rx).await
+        Self::send_and_wait_response(&ctx.request_sender, process_request, response_receiver).await
     }
 
     async fn handle_not_found(
         self,
-        ctx: &RequestContext,
+        ctx: &Context,
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
-        let (tx, rx) = tokio::sync::mpsc::channel(ctx.channel_capacity);
+        let (response_sender, response_receiver) = tokio::sync::mpsc::channel(ctx.channel_capacity);
 
         let process_request = ProcessRequest {
-            request: Arc::new(self),
-            router: None,
             match_route: None,
-            tx,
+            middlewares: None,
+            request: Arc::new(self),
+            response_sender,
             wrapper: ctx.wrapper.clone(),
         };
 
-        Self::send_and_wait_response(ctx, process_request, rx).await
+        Self::send_and_wait_response(&ctx.request_sender, process_request, response_receiver).await
     }
 
-    async fn send_and_wait_response(
-        ctx: &RequestContext,
-        process_request: ProcessRequest,
+    async fn send_and_wait_response<T>(
+        request_sender: &Sender<T>,
+        process_request: T,
         mut rx: tokio::sync::mpsc::Receiver<Response>,
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
-        if ctx.request_sender.send(process_request).await.is_ok()
+        if request_sender.send(process_request).await.is_ok()
             && let Some(response) = rx.recv().await
         {
             return response.try_into();
         }
-        Response::from(Status::NOT_FOUND).try_into()
+        Response::from(Status::INTERNAL_SERVER_ERROR).try_into()
     }
 }
 

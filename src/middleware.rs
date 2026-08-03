@@ -17,18 +17,12 @@ impl Middleware {
     }
 }
 
-pub struct MiddlewareChain<'l> {
-    middlewares: &'l [Middleware],
-}
+pub struct MiddlewareChain;
 
-impl<'l> MiddlewareChain<'l> {
-    pub fn new(middlewares: &'l [Middleware]) -> Self {
-        Self { middlewares }
-    }
-
+impl MiddlewareChain {
     pub fn execute<'py, A>(
-        &self,
         py: Python<'py>,
+        middlewares: &[Middleware],
         route_sequence: usize,
         route_handler: &Py<PyAny>,
         args: A,
@@ -37,25 +31,31 @@ impl<'l> MiddlewareChain<'l> {
     where
         A: PyCallArgs<'py>,
     {
-        let handler = self.build_middleware_chain(py, route_sequence, route_handler, 0)?;
+        let handler =
+            Self::build_middleware_chain(py, middlewares, route_sequence, route_handler, 0)?;
         handler.call(py, args, Some(&kwargs))
     }
 
     fn build_middleware_chain(
-        &self,
         py: Python<'_>,
+        middlewares: &[Middleware],
         route_sequence: usize,
         route_handler: &Py<PyAny>,
         index: usize,
     ) -> PyResult<Py<PyAny>> {
-        let Some(middleware) = self
-            .middlewares
+        let Some(middleware) = middlewares
             .get(index)
             .filter(|m| m.sequence <= route_sequence)
         else {
             return Ok(route_handler.clone_ref(py));
         };
-        let next = self.build_middleware_chain(py, route_sequence, route_handler, index + 1)?;
+        let next = Self::build_middleware_chain(
+            py,
+            middlewares,
+            route_sequence,
+            route_handler,
+            index + 1,
+        )?;
         let globals = PyDict::new(py);
         globals.set_item("middleware", middleware.handler.clone_ref(py))?;
         globals.set_item("next", next)?;
