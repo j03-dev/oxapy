@@ -365,7 +365,7 @@ impl RequestBuilder {
                     request.data = Some(body);
                 }
             } else {
-                let form = String::from_utf8_lossy(&bytes).to_string();
+                let form = String::from_utf8_lossy(&bytes).into_owned();
                 if !form.is_empty() {
                     request.form = form_urlencoded::parse(form.as_bytes())
                         .map(|(k, v)| (k.to_string(), v.to_string()))

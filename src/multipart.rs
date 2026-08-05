@@ -73,8 +73,7 @@ impl File {
     /// ```
     #[getter]
     fn content<'py>(&'py self, py: Python<'py>) -> Bound<'py, PyBytes> {
-        let data = &self.data.to_vec()[..];
-        PyBytes::new(py, data)
+        PyBytes::new(py, &self.data)
     }
 
     /// Save the file content to disk.
@@ -118,6 +117,7 @@ impl Multipart {
     async fn parse_file(&mut self, mut field: multer::Field<'_>) -> PyResult<()> {
         let name = field.file_name().unwrap().to_string();
         let content_type = field.content_type().unwrap().to_string();
+        let field_name = field.name().unwrap_or_default().to_string();
 
         let mut data = Vec::new();
         while let Some(chunk) = field.chunk().await.into_py_exception()? {
@@ -126,8 +126,7 @@ impl Multipart {
 
         let file = File::new(name, content_type, data.into());
 
-        self.files
-            .insert(field.name().unwrap_or_default().to_string(), file);
+        self.files.insert(field_name, file);
 
         Ok(())
     }
