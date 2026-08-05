@@ -163,7 +163,7 @@ impl Response {
     /// response = Response("Hello")
     /// response.insert_header("Cache-Control", "no-cache")
     /// ```
-    pub fn insert_header(&mut self, key: &str, value: String) {
+    pub fn insert_header(&mut self, key: &str, value: &str) {
         self.headers
             .insert(HeaderName::from_str(key).unwrap(), value.parse().unwrap());
     }
@@ -187,7 +187,7 @@ impl Response {
     /// response.insert_header("Set-Cookie", "sessionid=abc123")
     /// response.append_header("Set-Cookie", "theme=dark")
     /// ```
-    pub fn append_header(&mut self, key: &str, value: String) {
+    pub fn append_header(&mut self, key: &str, value: &str) {
         self.headers
             .append(HeaderName::from_str(key).unwrap(), value.parse().unwrap());
     }
@@ -195,11 +195,11 @@ impl Response {
 
 impl Response {
     pub fn set_body(mut self, body: String) -> Self {
-        self.body = ResponseBody::Bytes(Bytes::from(body.clone()));
+        self.body = ResponseBody::Bytes(Bytes::from(body));
         self
     }
 
-    pub fn insert_or_append_cookie(&mut self, cookie_header: String) {
+    pub fn insert_or_append_cookie(&mut self, cookie_header: &str) {
         if self.headers.contains_key("Set-Cookie") {
             self.append_header("Set-Cookie", cookie_header);
         } else {

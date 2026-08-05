@@ -101,19 +101,23 @@ impl Cors {
     }
 
     fn __repr__(&self) -> String {
-        format!("{:#?}", self.clone())
+        format!("{:#?}", self)
     }
 }
 
 impl Cors {
     pub fn apply_headers(&self, response: &mut Response) {
-        response.insert_header("Access-Control-Allow-Origin", self.origins.join(", "));
-        response.insert_header("Access-Control-Allow-Methods", self.methods.join(", "));
-        response.insert_header("Access-Control-Allow-Headers", self.headers.join(", "));
+        let origins = self.origins.join(", ");
+        let methods = self.methods.join(", ");
+        let headers = self.headers.join(", ");
+        let max_age = self.max_age.to_string();
+        response.insert_header("Access-Control-Allow-Origin", &origins);
+        response.insert_header("Access-Control-Allow-Methods", &methods);
+        response.insert_header("Access-Control-Allow-Headers", &headers);
         if self.allow_credentials {
-            response.insert_header("Access-Control-Allow-Credentials", "true".to_string());
+            response.insert_header("Access-Control-Allow-Credentials", "true");
         }
-        response.insert_header("Access-Control-Max-Age", self.max_age.to_string());
+        response.insert_header("Access-Control-Max-Age", &max_age);
     }
 
     pub fn apply_to_response(&self, mut response: Response) -> PyResult<Response> {

@@ -45,7 +45,7 @@ impl TryFrom<(String, Status)> for Response {
         Ok(Response {
             status: val.1,
             headers,
-            body: ResponseBody::Bytes(val.0.clone().into()),
+            body: ResponseBody::Bytes(val.0.into()),
         })
     }
 }
@@ -97,10 +97,8 @@ impl From<PyErr> for Response {
                 }
             };
             let response = Response::from(status);
-            response.set_body(format!(
-                r#"{{"detail": "{}"}}"#,
-                value.value(py).to_string().replace('"', "'")
-            ))
+            let detail = value.value(py).to_string().replace('"', "'");
+            response.set_body(format!(r#"{{"detail": "{}"}}"#, detail))
         })
     }
 }

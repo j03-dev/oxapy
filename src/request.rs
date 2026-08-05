@@ -360,9 +360,9 @@ impl RequestBuilder {
                 request.form = parsed_multipart.fields;
                 request.files = parsed_multipart.files;
             } else if content_type.starts_with("application/json") {
-                let body = String::from_utf8_lossy(&bytes).to_string();
+                let body = String::from_utf8_lossy(&bytes).into_owned();
                 if !body.is_empty() {
-                    request.data = Some(body.clone());
+                    request.data = Some(body);
                 }
             } else {
                 let form = String::from_utf8_lossy(&bytes).to_string();

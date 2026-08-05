@@ -36,6 +36,7 @@ pub fn from_rstruct2pydict<T>(rstruct: T, py: Python<'_>) -> PyResult<Py<PyDict>
 where
     T: Serialize,
 {
-    let json_string = serde_json::json!(rstruct).to_string();
+    let json_string = serde_json::to_string(&rstruct)
+        .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
     loads(&json_string, py)
 }

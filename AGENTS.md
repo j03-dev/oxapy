@@ -10,13 +10,13 @@ OxAPY is a Python HTTP server library built in Rust using PyO3/maturin. It provi
 
 ```bash
 # Development build (installs in editable mode)
-maturin dev --release
+uv run maturin dev --release
 
 # Or use the build script
 ./build.sh
 
 # Build wheel for distribution
-maturin build --release
+uv run maturin build --release
 ```
 
 ### Running E2E Tests

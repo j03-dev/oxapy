@@ -95,7 +95,7 @@ impl File {
     ///     image = request.files["profile_image"]
     ///     image.save(f"uploads/{image.name}")
     /// ```
-    fn save(&self, path: String) -> PyResult<()> {
+    fn save(&self, path: &str) -> PyResult<()> {
         std::fs::write(path, &self.data)?;
         Ok(())
     }
