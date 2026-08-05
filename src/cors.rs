@@ -51,28 +51,41 @@ pub struct Cors {
     /// Maximum age of preflight requests in seconds, default is 86400 (1 day)
     #[pyo3(get, set)]
     pub max_age: u32,
+
+    origins_joined: String,
+    methods_joined: String,
+    headers_joined: String,
+    max_age_str: String,
 }
 
 impl Default for Cors {
     fn default() -> Self {
+        let origins = vec!["*".to_string()];
+        let methods = vec![
+            "DELETE".to_string(),
+            "GET".to_string(),
+            "OPTIONS".to_string(),
+            "PATCH".to_string(),
+            "POST".to_string(),
+            "PUT".to_string(),
+        ];
+        let headers = vec![
+            "Accept".to_string(),
+            "Authorization".to_string(),
+            "Content-Type".to_string(),
+            "X-Requested-With".to_string(),
+        ];
+        let max_age = 86400u32;
         Self {
-            origins: vec!["*".to_string()],
-            methods: vec![
-                "DELETE".to_string(),
-                "GET".to_string(),
-                "OPTIONS".to_string(),
-                "PATCH".to_string(),
-                "POST".to_string(),
-                "PUT".to_string(),
-            ],
-            headers: vec![
-                "Accept".to_string(),
-                "Authorization".to_string(),
-                "Content-Type".to_string(),
-                "X-Requested-With".to_string(),
-            ],
+            origins_joined: origins.join(", "),
+            methods_joined: methods.join(", "),
+            headers_joined: headers.join(", "),
+            max_age_str: max_age.to_string(),
+            origins,
+            methods,
+            headers,
             allow_credentials: true,
-            max_age: 86400,
+            max_age,
         }
     }
 }
@@ -107,17 +120,13 @@ impl Cors {
 
 impl Cors {
     pub fn apply_headers(&self, response: &mut Response) {
-        let origins = self.origins.join(", ");
-        let methods = self.methods.join(", ");
-        let headers = self.headers.join(", ");
-        let max_age = self.max_age.to_string();
-        response.insert_header("Access-Control-Allow-Origin", &origins);
-        response.insert_header("Access-Control-Allow-Methods", &methods);
-        response.insert_header("Access-Control-Allow-Headers", &headers);
+        response.insert_header("Access-Control-Allow-Origin", &self.origins_joined);
+        response.insert_header("Access-Control-Allow-Methods", &self.methods_joined);
+        response.insert_header("Access-Control-Allow-Headers", &self.headers_joined);
         if self.allow_credentials {
             response.insert_header("Access-Control-Allow-Credentials", "true");
         }
-        response.insert_header("Access-Control-Max-Age", &max_age);
+        response.insert_header("Access-Control-Max-Age", &self.max_age_str);
     }
 
     pub fn apply_to_response(&self, mut response: Response) -> PyResult<Response> {

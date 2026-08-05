@@ -233,7 +233,7 @@ impl Response {
 
     pub(crate) fn call_wrapper(mut self, req: &ProcessRequest) -> Self {
         if let Some(wrapper) = &req.wrapper {
-            let request = req.request.as_ref().clone();
+            let request = (*req.request).clone();
             self = Python::attach(|py| {
                 let result = wrapper.call(py, (request, self), None)?;
                 convert_to_response(result, py)

@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use tokio::sync::mpsc::Sender;
+use tokio::sync::oneshot;
 
 use ahash::HashMap;
 use http_body_util::BodyExt;
@@ -249,31 +249,37 @@ impl Request {
         self,
         ctx: Arc<Context>,
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
-        for router in &ctx.routers {
-            if let Some(match_route) = router.find(&self.method, &self.uri) {
-                let response = self
-                    .handle_found_route(&ctx, match_route, router.middlewares.clone())
-                    .await;
-                return response;
-            }
+        let method = self.method.clone();
+        let uri = self.uri.clone();
+
+        let matched = ctx.routers.iter().find_map(|router| {
+            router
+                .find(&method, &uri)
+                .map(|m| (m, router.middlewares.clone()))
+        });
+
+        if let Some((match_route, middlewares)) = matched {
+            self.handle_found_route(&ctx, match_route, middlewares)
+                .await
+        } else {
+            self.handle_not_found(&ctx).await
         }
-        self.handle_not_found(&ctx).await
     }
 
     async fn handle_found_route(
-        &self,
+        self,
         ctx: &Context,
         match_route: MatchRoute<'_>,
         middlewares: Option<Arc<[Middleware]>>,
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
-        let (response_sender, response_receiver) = tokio::sync::mpsc::channel(ctx.channel_capacity);
+        let (response_sender, response_receiver) = oneshot::channel();
 
         let transmutate_route: MatchRoute<'static> = unsafe { std::mem::transmute(match_route) };
 
         let process_request = ProcessRequest {
             match_route: Some(transmutate_route),
             middlewares,
-            request: Arc::new(self.clone()),
+            request: Arc::new(self),
             response_sender,
             wrapper: ctx.wrapper.clone(),
         };
@@ -285,7 +291,7 @@ impl Request {
         self,
         ctx: &Context,
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
-        let (response_sender, response_receiver) = tokio::sync::mpsc::channel(ctx.channel_capacity);
+        let (response_sender, response_receiver) = oneshot::channel();
 
         let process_request = ProcessRequest {
             match_route: None,
@@ -299,12 +305,12 @@ impl Request {
     }
 
     async fn send_and_wait_response<T>(
-        request_sender: &Sender<T>,
+        request_sender: &tokio::sync::mpsc::Sender<T>,
         process_request: T,
-        mut rx: tokio::sync::mpsc::Receiver<Response>,
+        rx: oneshot::Receiver<Response>,
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
         if request_sender.send(process_request).await.is_ok()
-            && let Some(response) = rx.recv().await
+            && let Ok(response) = rx.await
         {
             return response.try_into();
         }

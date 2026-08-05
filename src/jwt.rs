@@ -60,8 +60,9 @@ struct Claims {
 #[pyclass(from_py_object, module = "oxapy.jwt")]
 #[derive(Clone)]
 pub struct Jwt {
-    secret: String,
-    algorithm: Algorithm,
+    encoding_key: EncodingKey,
+    decoding_key: DecodingKey,
+    validation: Validation,
 }
 
 #[gen_stub_pymethods]
@@ -94,7 +95,14 @@ impl Jwt {
         }
         let algorithm =
             Algorithm::from_str(algorithm).map_err(|err| JwtError::new_err(err.to_string()))?;
-        Ok(Self { secret, algorithm })
+        let encoding_key = EncodingKey::from_secret(secret.as_bytes());
+        let decoding_key = DecodingKey::from_secret(secret.as_bytes());
+        let validation = Validation::new(algorithm);
+        Ok(Self {
+            encoding_key,
+            decoding_key,
+            validation,
+        })
     }
 
     /// Generate a JWT token with the given claims
@@ -149,12 +157,8 @@ impl Jwt {
 
         let claims: Claims = json::from_pydict2rstruct(&claims)?;
 
-        let token = jsonwebtoken::encode(
-            &Header::default(),
-            &claims,
-            &EncodingKey::from_secret(self.secret.as_bytes()),
-        )
-        .map_err(|e| JwtError::new_err(e.to_string()))?;
+        let token = jsonwebtoken::encode(&Header::default(), &claims, &self.encoding_key)
+            .map_err(|e| JwtError::new_err(e.to_string()))?;
 
         Ok(token)
     }
@@ -189,8 +193,8 @@ impl Jwt {
     pub fn verify_token(&self, token: &str, py: Python<'_>) -> PyResult<Py<PyDict>> {
         let token_data = jsonwebtoken::decode::<Claims>(
             token,
-            &DecodingKey::from_secret(self.secret.as_bytes()),
-            &Validation::new(self.algorithm),
+            &self.decoding_key,
+            &self.validation,
         )
         .map_err(|e| match e.kind() {
             ErrorKind::ExpiredSignature => JwtDecodingError::new_err("Token has expired"),
