@@ -339,7 +339,7 @@ def send_file(path: str) -> Response:
     with open(path, "rb") as f:
         content = f.read()
     content_type, _ = mimetypes.guess_type(path)
-    return Response(content, content_type=content_type or "application/octet-stream")  # type:ignore
+    return Response(content, content_type=content_type or "application/octet-stream")
 
 
 __all__ = (
