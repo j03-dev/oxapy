@@ -468,9 +468,7 @@ impl Router {
             None => route.path.clone(),
         };
 
-        method_router
-            .insert(full_path, route.clone())
-            .into_py_exception()?;
+        method_router.insert(full_path, route).into_py_exception()?;
 
         Ok(self.clone())
     }
