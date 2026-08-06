@@ -23,16 +23,16 @@ uv run maturin build --release
 
 ```bash
 # Run all tests
-pytest -vv tests
+uv run pytest -vv tests
 
 # Run a single test file
-pytest -vv tests/test_http_server.py
+uv run pytest -vv tests/test_http_server.py
 
 # Run a single test
-pytest -vv tests/test_http_server.py::test_ping_endpoint
+uv run pytest -vv tests/test_http_server.py::test_ping_endpoint
 
 # Run with specific test markers
-pytest -vv tests -k "test_name_pattern"
+uv run pytest -vv tests -k "test_name_pattern"
 ```
 
 ### Rust Linting and Formatting
@@ -52,7 +52,7 @@ cargo check --all-targets
 
 The project uses pre-commit hooks defined in `.pre-commit-config.yaml`:
 - Rust: `cargo fmt` and `cargo clippy`
-- Python: `maturin develop --release` and `pytest -vv tests`
+- Python: `uv run maturin develop --release` and `uv run pytest -vv tests`
 
 ```bash
 # Install pre-commit hooks
@@ -101,6 +101,7 @@ pre-commit run --all-files
 6. **Concurrency**:
    - Use `Arc<T>` for shared ownership
    - Use `tokio` for async runtime with `pyo3-async-runtimes`
+   - **NEVER** acquire the GIL (`Python::attach`) inside `tokio::spawn` async blocks — it blocks the Tokio worker thread and can cause deadlocks. Only acquire the GIL in contexts that are already on the Python thread (e.g., `process_requests` event loop, PyO3 callback contexts).
 
 ### Python Code Conventions
 
