@@ -88,24 +88,22 @@ impl Serializer {
         read_only: bool,
         write_only: bool,
         py: Python<'_>,
-    ) -> (Serializer, Field) {
-        (
-            Self {
-                validated_data: PyDict::new(py).into(),
-                raw_data: data,
-                instance,
-                context: context.unwrap_or_else(|| PyDict::new(py).into()),
-            },
-            Field {
-                required,
-                ty: "object".to_string(),
-                nullable,
-                many,
-                read_only,
-                write_only,
-                ..Default::default()
-            },
-        )
+    ) -> PyClassInitializer<Self> {
+        PyClassInitializer::from(Field {
+            required,
+            ty: "object".to_string(),
+            nullable,
+            many,
+            read_only,
+            write_only,
+            ..Default::default()
+        })
+        .add_subclass(Self {
+            validated_data: PyDict::new(py).into(),
+            raw_data: data,
+            instance,
+            context: context.unwrap_or_else(|| PyDict::new(py).into()),
+        })
     }
 
     /// Generate and return the JSON Schema for this serializer.

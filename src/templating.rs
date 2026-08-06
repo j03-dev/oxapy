@@ -9,7 +9,7 @@ use pyo3::{
     types::{PyDict, PyModule, PyModuleMethods},
 };
 use pyo3_stub_gen::derive::*;
-use tera::{Function, Result as TeraResult, Value};
+use tera::{Function, TeraResult, Value};
 
 use crate::{
     exceptions::IntoPyException,
@@ -23,18 +23,22 @@ struct PyTeraFunction {
     callable: Py<PyAny>,
 }
 
-impl Function for PyTeraFunction {
-    fn call(&self, args: &std::collections::HashMap<String, Value>) -> TeraResult<Value> {
+impl Function<TeraResult<Value>> for PyTeraFunction {
+    fn call(&self, kwargs: tera::Kwargs, state: &tera::State) -> TeraResult<Value> {
+        let args: serde_json::Value = kwargs.deserialize()?;
+
         Python::attach(|py| {
             let py_kwargs = json::from_rstruct2pydict(args, py)
-                .map_err(tera::Error::msg)?
+                .map_err(tera::Error::message)?
                 .into_bound(py);
             let result = self
                 .callable
                 .call(py, (), Some(&py_kwargs))
-                .map_err(tera::Error::msg)?
+                .map_err(tera::Error::message)?
                 .into_bound(py);
-            json::from_pydict2rstruct(&result).map_err(tera::Error::msg)
+            let json_value: serde_json::Value =
+                json::from_pydict2rstruct(&result).map_err(tera::Error::message)?;
+            Ok(tera::Value::from_serializable(&json_value))
         })
     }
 
@@ -105,7 +109,9 @@ impl Template {
     #[pyo3(signature=(dir="./templates/**/*.html"))]
     #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
     pub fn new(dir: &str) -> PyResult<Self> {
-        let tera = tera::Tera::new(dir).into_py_exception()?;
+        let mut tera = tera::Tera::new();
+        tera.load_from_glob(dir).into_py_exception()?;
+
         Ok(Self {
             engine: Arc::new(tera),
         })
@@ -151,7 +157,7 @@ impl Template {
     /// template.register_function("add", lambda a, b: a + b)
     /// # In template: {{ add(a=1, b=2) }} -> 3
     /// ```
-    pub fn register_function(&mut self, name: &str, callable: Py<PyAny>) -> PyResult<()> {
+    pub fn register_function(&mut self, name: String, callable: Py<PyAny>) -> PyResult<()> {
         if let Some(tera) = Arc::get_mut(&mut self.engine) {
             let py_func = PyTeraFunction { callable };
             tera.register_function(name, py_func);
