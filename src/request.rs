@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use tokio::sync::oneshot;
 
-use ahash::HashMap;
+use ahash::{HashMap, HashMapExt};
 use http_body_util::BodyExt;
 use pyo3::{
     exceptions::{PyAttributeError, PyException},
@@ -329,14 +329,17 @@ pub struct RequestBuilder {
 
 impl RequestBuilder {
     pub fn new(req: hyper::Request<hyper::body::Incoming>) -> Self {
+        let hyper_headers = req.headers();
+        let mut headers: HashMap<String, String> = HashMap::with_capacity(hyper_headers.len());
+
+        for (k, v) in hyper_headers {
+            headers.insert(k.to_string(), v.to_str().unwrap_or_default().to_string());
+        }
+
         Self {
             method: req.method().to_string(),
             uri: req.uri().to_string(),
-            headers: req
-                .headers()
-                .iter()
-                .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or_default().to_string()))
-                .collect(),
+            headers,
             req,
             app_data: None,
             template: None,
