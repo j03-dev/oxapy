@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use ahash::HashMap;
 use hyper::{HeaderMap, header::CONTENT_TYPE, http::HeaderValue};
 use pyo3::{
     Bound, PyResult,
@@ -40,10 +39,6 @@ impl Function<TeraResult<Value>> for PyTeraFunction {
                 json::from_pydict2rstruct(&result).map_err(tera::Error::message)?;
             Ok(tera::Value::from_serializable(&json_value))
         })
-    }
-
-    fn is_safe(&self) -> bool {
-        true
     }
 }
 
@@ -123,17 +118,12 @@ impl Template {
         template_name: &str,
         context: Option<Bound<'_, PyDict>>,
     ) -> PyResult<String> {
-        let mut tera_context = tera::Context::new();
+        let mut ctx = tera::Context::new();
         if let Some(context) = context {
-            let map: HashMap<String, serde_json::Value> = json::from_pydict2rstruct(&context)?;
-            for (key, value) in map {
-                tera_context.insert(key, &value);
-            }
+            let map: serde_json::Value = json::from_pydict2rstruct(&context)?;
+            ctx = tera::Context::from_serialize(&map).into_py_exception()?;
         }
-
-        self.engine
-            .render(template_name, &tera_context)
-            .into_py_exception()
+        self.engine.render(template_name, &ctx).into_py_exception()
     }
 
     /// Register a Python function as a custom template function.
