@@ -17,8 +17,8 @@ stub_gen = ["pyo3-stub-gen/infer_signature"]
 
 [dependencies]
 # Python bindings
-pyo3 = ">=0.28.0"
-pyo3-async-runtimes = { version = "0.28.0", features = ["tokio-runtime"] }
+pyo3 = ">=0.29.0"
+pyo3-async-runtimes = { version = "0.29.0", features = ["tokio-runtime"] }
 pyo3-stub-gen = { git = "https://github.com/Jij-Inc/pyo3-stub-gen", branch = "main", default-features = false, features = [
   "either",
   "numpy",
@@ -26,7 +26,7 @@ pyo3-stub-gen = { git = "https://github.com/Jij-Inc/pyo3-stub-gen", branch = "ma
 ] }
 
 # Async / Futures
-futures-util = "0.3.31"
+futures-util = "0.3.33"
 tokio = { version = "1", features = ["full"] }
 
 # HTTP stack
@@ -39,18 +39,18 @@ multer = "3.1.0"
 matchit = { git = "https://github.com/ibraheemdev/matchit", branch = "master" }
 
 # Serialization / Data formats
-serde = "1.0.228"
-serde_json = "1.0.145"
-jsonschema = { version = "0.46.4", default-features = false }
+serde = "1.0.229"
+serde_json = "1.0.151"
+jsonschema = { version = "0.49.6", default-features = false }
 
 # Template engines
-tera = "1.20"
+tera = { version = "2", features = ["glob_fs"] }
 
 # Utilities
 ahash = "0.8.12"
-ctrlc = "3.5.1"
-glob = "0.3.3"
-rand = "0.10.0-rc.5"
-url = "2.5.7"
+ctrlc = "3.5.2"
+glob = "0.3.4"
+rand = "0.10.2"
+url = "2.5.8"
 
-jsonwebtoken = { version = "10.2.0", features = ["rust_crypto"] }
+jsonwebtoken = { version = "11.0.0", features = ["rust_crypto"] }

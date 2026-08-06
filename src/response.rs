@@ -289,18 +289,16 @@ impl Redirect {
     /// ```
     #[new]
     #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
-    fn new(location: String) -> (Redirect, Response) {
+    fn new(location: String) -> PyClassInitializer<Self> {
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, "text/html".parse().unwrap());
         headers.insert(LOCATION, location.parse().unwrap());
-        (
-            Self,
-            Response {
-                status: Status::MOVED_PERMANENTLY,
-                body: ResponseBody::Bytes(Bytes::new()),
-                headers,
-            },
-        )
+        PyClassInitializer::from(Response {
+            status: Status::MOVED_PERMANENTLY,
+            body: ResponseBody::Bytes(Bytes::new()),
+            headers,
+        })
+        .add_subclass(Self)
     }
 }
 
@@ -433,7 +431,7 @@ impl FileStreaming {
         buf_size: usize,
         status: Status,
         content_type: &str,
-    ) -> PyResult<(FileStreaming, Response)> {
+    ) -> PyResult<PyClassInitializer<Self>> {
         let file = fs::File::open(path)?;
         let chunk_iter = ChunkIter { file, buf_size };
         let stream = stream::iter(chunk_iter).map(|bytes| Ok(Frame::data(bytes)));
@@ -444,14 +442,12 @@ impl FileStreaming {
             HeaderValue::from_str(content_type).into_py_exception()?,
         );
         headers.insert(CACHE_CONTROL, HeaderValue::from_static("no-cache"));
-        Ok((
-            Self,
-            Response {
-                status,
-                body: ResponseBody::Stream(Arc::new(BodyExt::boxed(body))),
-                headers,
-            },
-        ))
+        Ok(PyClassInitializer::from(Response {
+            status,
+            body: ResponseBody::Stream(Arc::new(BodyExt::boxed(body))),
+            headers,
+        })
+        .add_subclass(Self))
     }
 }
 

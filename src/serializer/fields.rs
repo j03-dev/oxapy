@@ -214,10 +214,8 @@ macro_rules! define_fields {
                     enum_values: Option<Vec<String>>,
                     read_only: bool,
                     write_only: bool
-                ) -> ($class, Field) {
-                    (
-                        Self,
-                        Field::new(
+                ) -> PyClassInitializer<Self> {
+                    PyClassInitializer::from(Field::new(
                             $type.to_string(),
                             required,
                             nullable,
@@ -230,8 +228,8 @@ macro_rules! define_fields {
                             enum_values,
                             read_only,
                             write_only,
-                        ),
-                    )
+                        ))
+                        .add_subclass(Self)
                 }
             }
         )+

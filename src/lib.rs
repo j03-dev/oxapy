@@ -154,7 +154,7 @@ struct Oxapy;
 impl Oxapy {
     #[new]
     #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
-    fn new(addr: (String, u16)) -> (Oxapy, HttpServer) {
+    fn new(addr: (String, u16)) -> PyClassInitializer<Self> {
         todo!("dummy init")
     }
 
