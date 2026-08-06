@@ -330,7 +330,7 @@ pub struct RequestBuilder {
 impl RequestBuilder {
     pub fn new(req: hyper::Request<hyper::body::Incoming>) -> Self {
         let hyper_headers = req.headers();
-        let mut headers: HashMap<String, String> = HashMap::with_capacity(hyper_headers.len());
+        let mut headers = HashMap::with_capacity(hyper_headers.len());
 
         for (k, v) in hyper_headers {
             headers.insert(k.to_string(), v.to_str().unwrap_or_default().to_string());
