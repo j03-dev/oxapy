@@ -314,7 +314,7 @@ def static_file(path: str = "/static", directory: str = "./static"):
     """
 
     @get(f"{path}/{{*path}}")
-    def handler(_request, path: str):
+    def handler(request: Request, path: str):
         file_path = secure_join(directory, path)
         return send_file(file_path)
 
