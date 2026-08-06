@@ -472,9 +472,9 @@ impl Serializer {
             if let Ok(attr_obj) = cls.getattr(&attr_name) {
                 if let Ok(serializer) = attr_obj.extract::<PyRef<Serializer>>() {
                     let field = serializer.as_super();
-                    field
-                        .required
-                        .then(|| required_fields.push(attr_name.clone()));
+                    if field.required {
+                        required_fields.push(attr_name.clone());
+                    }
                     let nested_schema =
                         Self::json_schema_value(&attr_obj.get_type(), field.nullable, py)?;
 
@@ -492,7 +492,9 @@ impl Serializer {
                     }
                 } else if let Ok(f) = attr_obj.extract::<PyRef<Field>>() {
                     properties.insert(attr_name.clone(), f.to_json_schema_value());
-                    f.required.then(|| required_fields.push(attr_name));
+                    if f.required {
+                        required_fields.push(attr_name);
+                    }
                 }
             }
         }

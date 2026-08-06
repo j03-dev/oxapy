@@ -291,7 +291,7 @@ def secure_join(base: str, *paths: str) -> str:
     target = os.path.realpath(os.path.join(base, *paths))
 
     if target != base and not target.startswith(base + os.sep):
-        raise exceptions.ForbiddenError("Access denied")  # ty:ignore[unresolved-reference]
+        raise exceptions.ForbiddenError("Access denied")
 
     return target
 
@@ -313,7 +313,7 @@ def static_file(path: str = "/static", directory: str = "./static"):
     ```
     """
 
-    @get(f"{path}/{{*path}}")  # ty:ignore[unresolved-reference]
+    @get(f"{path}/{{*path}}")
     def handler(_request, path: str):
         file_path = secure_join(directory, path)
         return send_file(file_path)
@@ -321,7 +321,7 @@ def static_file(path: str = "/static", directory: str = "./static"):
     return handler
 
 
-def send_file(path: str) -> Response:  # ty:ignore[unresolved-reference]
+def send_file(path: str) -> Response:
     r"""
     Create Response for sending file.
 
@@ -331,15 +331,15 @@ def send_file(path: str) -> Response:  # ty:ignore[unresolved-reference]
         Response: A Response with file content
     """
     if not os.path.exists(path):
-        raise exceptions.NotFoundError("Requested file not found")  # type:ignore
+        raise exceptions.NotFoundError("Requested file not found")
 
     if not os.path.isfile(path):
-        raise exceptions.ForbiddenError("Not a file")  # type:ignore
+        raise exceptions.ForbiddenError("Not a file")
 
     with open(path, "rb") as f:
         content = f.read()
     content_type, _ = mimetypes.guess_type(path)
-    return Response(content, content_type=content_type or "application/octet-stream")  # type:ignore
+    return Response(content, content_type=content_type or "application/octet-stream")
 
 
 __all__ = (

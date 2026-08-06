@@ -12,6 +12,7 @@ use pyo3_stub_gen::derive::*;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Semaphore;
 use tokio::sync::mpsc::{Receiver, Sender, channel};
+use tokio::sync::oneshot;
 
 use cors::Cors;
 use exceptions::IntoPyException;
@@ -48,14 +49,13 @@ struct ProcessRequest {
     match_route: Option<MatchRoute<'static>>,
     middlewares: Option<Arc<[Middleware]>>,
     request: Arc<Request>,
-    response_sender: Sender<Response>,
+    response_sender: oneshot::Sender<Response>,
     wrapper: Option<Arc<Py<PyAny>>>,
 }
 
 #[derive(Clone)]
 struct Context {
     app_data: Option<Arc<Py<PyAny>>>,
-    channel_capacity: usize,
     request_sender: Sender<ProcessRequest>,
     routers: Vec<Arc<Router>>,
     template: Option<Arc<Template>>,
@@ -460,7 +460,6 @@ impl HttpServer {
         let (request_sender, request_receiver) = channel::<ProcessRequest>(self.channel_capacity);
         let ctx = Context {
             app_data: self.app_data.clone(),
-            channel_capacity: self.channel_capacity,
             request_sender,
             routers: self.routers.clone(),
             template: self.template.clone(),
@@ -530,7 +529,7 @@ impl HttpServer {
                         .await
                         .unwrap_or_else(Response::from)
                         .call_wrapper(&pr);
-                    let _ = pr.response_sender.send(response).await;
+                    let _ = pr.response_sender.send(response);
                 },
                 _ = shutdown.wait() => break,
             }

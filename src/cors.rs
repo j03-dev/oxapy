@@ -55,24 +55,28 @@ pub struct Cors {
 
 impl Default for Cors {
     fn default() -> Self {
+        let origins = vec!["*".to_string()];
+        let methods = vec![
+            "DELETE".to_string(),
+            "GET".to_string(),
+            "OPTIONS".to_string(),
+            "PATCH".to_string(),
+            "POST".to_string(),
+            "PUT".to_string(),
+        ];
+        let headers = vec![
+            "Accept".to_string(),
+            "Authorization".to_string(),
+            "Content-Type".to_string(),
+            "X-Requested-With".to_string(),
+        ];
+        let max_age = 86400u32;
         Self {
-            origins: vec!["*".to_string()],
-            methods: vec![
-                "DELETE".to_string(),
-                "GET".to_string(),
-                "OPTIONS".to_string(),
-                "PATCH".to_string(),
-                "POST".to_string(),
-                "PUT".to_string(),
-            ],
-            headers: vec![
-                "Accept".to_string(),
-                "Authorization".to_string(),
-                "Content-Type".to_string(),
-                "X-Requested-With".to_string(),
-            ],
+            origins,
+            methods,
+            headers,
             allow_credentials: true,
-            max_age: 86400,
+            max_age,
         }
     }
 }
@@ -101,19 +105,19 @@ impl Cors {
     }
 
     fn __repr__(&self) -> String {
-        format!("{:#?}", self.clone())
+        format!("{:#?}", self)
     }
 }
 
 impl Cors {
     pub fn apply_headers(&self, response: &mut Response) {
-        response.insert_header("Access-Control-Allow-Origin", self.origins.join(", "));
-        response.insert_header("Access-Control-Allow-Methods", self.methods.join(", "));
-        response.insert_header("Access-Control-Allow-Headers", self.headers.join(", "));
+        response.insert_header("Access-Control-Allow-Origin", &self.origins.join(", "));
+        response.insert_header("Access-Control-Allow-Methods", &self.methods.join(", "));
+        response.insert_header("Access-Control-Allow-Headers", &self.headers.join(", "));
         if self.allow_credentials {
-            response.insert_header("Access-Control-Allow-Credentials", "true".to_string());
+            response.insert_header("Access-Control-Allow-Credentials", "true");
         }
-        response.insert_header("Access-Control-Max-Age", self.max_age.to_string());
+        response.insert_header("Access-Control-Max-Age", &self.max_age.to_string());
     }
 
     pub fn apply_to_response(&self, mut response: Response) -> PyResult<Response> {

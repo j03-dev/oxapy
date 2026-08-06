@@ -56,7 +56,7 @@ impl Route {
     #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
     pub fn new(path: String, method: Option<String>) -> Self {
         Route {
-            method: method.unwrap_or("GET".to_string()),
+            method: method.unwrap_or_else(|| "GET".to_string()),
             path,
             ..Default::default()
         }
@@ -88,7 +88,7 @@ macro_rules! methods {
             #[pyo3(signature = (path, handler = None))]
             pub fn $method(path: String, handler: Option<Py<PyAny>>, py: Python<'_>) -> Route {
                 Route {
-                    method: stringify!($method).to_string().to_uppercase(),
+                    method: stringify!($method).to_uppercase(),
                     path,
                     sequence: 0,
                     handler: Arc::new(handler.unwrap_or(py.None()))
@@ -468,9 +468,7 @@ impl Router {
             None => route.path.clone(),
         };
 
-        method_router
-            .insert(full_path, route.clone())
-            .into_py_exception()?;
+        method_router.insert(full_path, route).into_py_exception()?;
 
         Ok(self.clone())
     }

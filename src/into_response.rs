@@ -1,4 +1,8 @@
-use hyper::{HeaderMap, body::Bytes, header::CONTENT_TYPE};
+use hyper::{
+    HeaderMap,
+    body::Bytes,
+    header::{CONTENT_TYPE, HeaderValue},
+};
 use pyo3::{Py, prelude::*, types::PyAny};
 
 use crate::{
@@ -13,7 +17,7 @@ impl TryFrom<String> for Response {
 
     fn try_from(val: String) -> Result<Self, Self::Error> {
         let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, "text/plain".parse()?);
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("text/plain"));
         Ok(Response {
             status: Status::OK,
             headers,
@@ -27,7 +31,7 @@ impl TryFrom<Bound<'_, PyAny>> for Response {
 
     fn try_from(val: Bound<PyAny>) -> Result<Self, Self::Error> {
         let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, "application/json".parse()?);
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
         Ok(Response {
             status: Status::OK,
             headers,
@@ -41,11 +45,11 @@ impl TryFrom<(String, Status)> for Response {
 
     fn try_from(val: (String, Status)) -> Result<Self, Self::Error> {
         let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, "text/plain".parse()?);
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("text/plain"));
         Ok(Response {
             status: val.1,
             headers,
-            body: ResponseBody::Bytes(val.0.clone().into()),
+            body: ResponseBody::Bytes(val.0.into()),
         })
     }
 }
@@ -55,7 +59,7 @@ impl TryFrom<(Bound<'_, PyAny>, Status)> for Response {
 
     fn try_from(val: (Bound<PyAny>, Status)) -> Result<Self, Self::Error> {
         let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, "application/json".parse()?);
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
         Ok(Response {
             status: val.1,
             headers,
@@ -67,7 +71,7 @@ impl TryFrom<(Bound<'_, PyAny>, Status)> for Response {
 impl From<Status> for Response {
     fn from(val: Status) -> Self {
         let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
         Response {
             status: val,
             headers,
@@ -97,10 +101,8 @@ impl From<PyErr> for Response {
                 }
             };
             let response = Response::from(status);
-            response.set_body(format!(
-                r#"{{"detail": "{}"}}"#,
-                value.value(py).to_string().replace('"', "'")
-            ))
+            let detail = value.value(py).to_string().replace('"', "'");
+            response.set_body(format!(r#"{{"detail": "{}"}}"#, detail))
         })
     }
 }

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use ahash::HashMap;
-use hyper::{HeaderMap, header::CONTENT_TYPE};
+use hyper::{HeaderMap, header::CONTENT_TYPE, http::HeaderValue};
 use pyo3::{
     Bound, PyResult,
     exceptions::PyValueError,
@@ -212,7 +212,7 @@ fn render(
     let body = template.render(name, Some(ctx))?;
 
     let mut headers = HeaderMap::new();
-    headers.insert(CONTENT_TYPE, "text/html".parse().unwrap());
+    headers.insert(CONTENT_TYPE, HeaderValue::from_static("text/html"));
     Ok(Response {
         status: Status::OK,
         body: ResponseBody::Bytes(body.into()),
