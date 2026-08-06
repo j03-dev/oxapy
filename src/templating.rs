@@ -42,74 +42,133 @@ impl Function<TeraResult<Value>> for PyTeraFunction {
     }
 }
 
-/// Template engine for rendering HTML templates.
+/// Template engine for rendering HTML templates using Tera.
 ///
-/// This class provides a unified interface for different template engines,
-/// currently supporting both Jinja and Tera templates.
+/// Templates are loaded lazily via `load()`. Custom functions must be registered
+/// with `register_function()` before calling `load()`.
 ///
 /// Args:
-///     dir (str, optional): Directory pattern to search for templates (default: "./templates/**/*.html").
-///     engine (str, optional): Template engine to use, either "jinja" or "tera" (default: "jinja").
+///     None
 ///
 /// Returns:
-///     Template: A new template engine instance.
-///
-/// Raises:
-///     PyException: If an invalid engine type is specified.
+///     Template: A new empty template engine instance.
 ///
 /// Example:
 /// ```python
-/// from oxapy import HttpServer, templating
+/// from oxapy import templating
 ///
-/// app = HttpServer(("127.0.0.1", 8000))
-///
-/// # Configure templates with default settings (Jinja)
-/// app.template(templating.Template())
-///
-/// # Or use Tera with custom template directory
-/// app.template(templating.Template("./views/**/*.html", "tera"))
+/// template = templating.Template()
+/// template.register_function("_t", translate)
+/// template.load("./templates/**/*.html")
+/// result = template.render("index.html", {"title": "Hello"})
 /// ```
 #[pyclass(from_py_object, module = "oxapy.templating")]
 #[gen_stub_pyclass]
 #[derive(Clone, Debug)]
-pub struct Template {
-    engine: Arc<tera::Tera>,
-}
+pub struct Template(Arc<tera::Tera>);
 
 #[gen_stub_pymethods]
 #[pymethods]
 impl Template {
-    /// Create a new Template instance.
+    /// Create a new empty Template instance.
+    ///
+    /// Templates are not loaded at construction time. Use `register_function()` to add
+    /// custom functions, then `load()` to load and validate templates.
     ///
     /// Args:
-    ///     dir (str, optional): Directory pattern to search for templates (default: "./templates/**/*.html").
+    ///     None
     ///
     /// Returns:
-    ///     Template: A new template engine instance.
-    ///
-    /// Raises:
-    ///     PyException: If an invalid engine type is specified.
+    ///     Template: A new empty template engine instance.
     ///
     /// Example:
     /// ```python
     /// from oxapy import templating
     ///
-    /// # Use Jinja with default template directory
     /// template = templating.Template()
-    ///
-    /// # Use Tera with custom template directory
-    /// template = templating.Template("./views/**/*.html")
+    /// template.register_function("_t", translate)
+    /// template.load("./templates/**/*.html")
     /// ```
     #[new]
-    #[pyo3(signature=(dir="./templates/**/*.html"))]
     #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
-    pub fn new(dir: &str) -> PyResult<Self> {
-        let mut tera = tera::Tera::new();
-        tera.load_from_glob(dir).into_py_exception()?;
+    pub fn new() -> PyResult<Self> {
+        Ok(Self(Arc::new(tera::Tera::new())))
+    }
 
-        Ok(Self {
-            engine: Arc::new(tera),
-        })
+    /// Load templates from a directory glob pattern.
+    ///
+    /// This parses and validates all matching template files. Any custom functions
+    /// registered with `register_function()` must be added **before** calling `load()`,
+    /// otherwise Tera will raise an error for unknown functions.
+    ///
+    /// Args:
+    ///     dir (str, optional): Glob pattern to search for templates (default: "./templates/**/*.html").
+    ///
+    /// Returns:
+    ///     None
+    ///
+    /// Raises:
+    ///     RuntimeError: If the template engine is shared across multiple references.
+    ///     PyException: If the glob pattern is invalid or templates contain errors.
+    ///
+    /// Example:
+    /// ```python
+    /// from oxapy import templating
+    ///
+    /// template = templating.Template()
+    /// template.register_function("_t", translate)
+    /// template.load("./templates/**/*.html")
+    /// ```
+    #[pyo3(signature=(dir="./templates/**/*.html"))]
+    fn load(&mut self, dir: &str) -> PyResult<()> {
+        if let Some(tera) = Arc::get_mut(&mut self.0) {
+            tera.load_from_glob(dir).into_py_exception()?;
+            Ok(())
+        } else {
+            Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+                "Cannot load templates: the template engine is shared across multiple references. \
+                 Create a new Template instance instead.",
+            ))
+        }
+    }
+
+    /// Register a Python function as a custom template function.
+    ///
+    /// This method allows you to expose Python callables to be used within Tera templates.
+    /// The function will receive keyword arguments from the template call and should return
+    /// a value that can be serialized to JSON.
+    ///
+    /// **Important:** All functions must be registered **before** calling `load()`.
+    /// Tera validates function existence at template load time.
+    ///
+    /// Args:
+    ///     name (str): The name used to call the function from templates (e.g., `{{ my_function(key=value) }}`).
+    ///     callable (Callable): A Python callable that accepts keyword arguments and returns a value.
+    ///
+    /// Returns:
+    ///     None
+    ///
+    /// Raises:
+    ///     RuntimeError: If called after `load()` has been invoked.
+    ///
+    /// Example:
+    /// ```python
+    /// template = templating.Template()
+    /// template.register_function("add", lambda a, b: a + b)
+    /// template.load("./templates/**/*.html")
+    /// # In template: {{ add(a=1, b=2) }} -> 3
+    /// ```
+    pub fn register_function(&mut self, name: String, callable: Py<PyAny>) -> PyResult<()> {
+        if let Some(tera) = Arc::get_mut(&mut self.0) {
+            let py_func = PyTeraFunction { callable };
+            tera.register_function(name, py_func);
+            Ok(())
+        } else {
+            Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+                "Cannot register function after templates have been loaded. \
+                 Call register_function() before load().",
+            ))
+        }
     }
 
     #[pyo3(signature=(template_name, context=None))]
@@ -123,40 +182,7 @@ impl Template {
             let map: serde_json::Value = json::from_pydict2rstruct(&context)?;
             ctx = tera::Context::from_serialize(&map).into_py_exception()?;
         }
-        self.engine.render(template_name, &ctx).into_py_exception()
-    }
-
-    /// Register a Python function as a custom template function.
-    ///
-    /// This method allows you to expose Python callables to be used within Tera templates.
-    /// The function will receive keyword arguments from the template call and should return
-    /// a value that can be serialized to JSON.
-    ///
-    /// Args:
-    ///     name (str): The name used to call the function from templates (e.g., `{{ my_function(key=value) }}`).
-    ///     callable (Callable): A Python callable that accepts keyword arguments and returns a value.
-    ///
-    /// Returns:
-    ///     None: This method does not return a value.
-    ///
-    /// Raises:
-    ///     RuntimeError: If the template engine has been cloned and is shared across multiple references.
-    ///
-    /// Example:
-    /// ```python
-    /// template.register_function("add", lambda a, b: a + b)
-    /// # In template: {{ add(a=1, b=2) }} -> 3
-    /// ```
-    pub fn register_function(&mut self, name: String, callable: Py<PyAny>) -> PyResult<()> {
-        if let Some(tera) = Arc::get_mut(&mut self.engine) {
-            let py_func = PyTeraFunction { callable };
-            tera.register_function(name, py_func);
-            Ok(())
-        } else {
-            Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
-                "Cannot register function: Tera engine is already shared cloned copies",
-            ))
-        }
+        self.0.render(template_name, &ctx).into_py_exception()
     }
 }
 
