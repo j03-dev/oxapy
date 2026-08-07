@@ -170,8 +170,9 @@ impl Template {
             ))
         }
     }
+}
 
-    #[pyo3(signature=(template_name, context=None))]
+impl Template {
     pub fn render(
         &self,
         template_name: &str,

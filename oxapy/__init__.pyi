@@ -1204,7 +1204,6 @@ class Template:
         # In template: {{ add(a=1, b=2) }} -> 3
         ```
         """
-    def render(self, template_name: builtins.str, context: typing.Optional[dict] = None) -> builtins.str: ...
 
 @typing.final
 class Status(enum.Enum):
