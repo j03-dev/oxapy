@@ -46,6 +46,15 @@ curl http://127.0.0.1:5555/hello/World
 # {"message": "Hello, World!"}
 ```
 
+:::tip
+During development, use `reload=True` to automatically restart the server when files change:
+
+```python
+server.run(reload=True)
+```
+
+:::
+
 ## How it works
 
 - `@get("/")` and `@get("/hello/{name}")` decorate handlers and produce `Route` objects.
@@ -61,6 +70,7 @@ Handlers receive the `Request` object as their first argument. Returning a plain
 
 ## What's next
 
+- [Build a Notes API](../tutorial/notes-api) — a complete, runnable tutorial with SQLAlchemy, JWT, and serializers
 - [Routing](../guides/routing) — path parameters, typed parameters, catch-all routes, and router base paths
 - [Requests](../guides/requests) — reading headers, JSON bodies, forms, and files
 - [Middleware](../guides/middleware) — processing requests before they reach your handlers

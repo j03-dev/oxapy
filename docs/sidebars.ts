@@ -85,7 +85,7 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'API Reference',
       items: [
-        {type: 'doc', id: 'api/server', label: 'HttpServer / Oxapy'},
+        {type: 'doc', id: 'api/server', label: 'Oxapy'},
         {type: 'doc', id: 'api/router', label: 'Router & Route'},
         {type: 'doc', id: 'api/request', label: 'Request & File'},
         {type: 'doc', id: 'api/response', label: 'Response & Redirect'},
