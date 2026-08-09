@@ -119,9 +119,4 @@ impl Cors {
         }
         response.insert_header("Access-Control-Max-Age", &self.max_age.to_string());
     }
-
-    pub fn apply_to_response(&self, mut response: Response) -> PyResult<Response> {
-        self.apply_headers(&mut response);
-        Ok(response)
-    }
 }

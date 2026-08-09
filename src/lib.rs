@@ -50,6 +50,7 @@ struct ProcessRequest {
     middlewares: Option<Arc<[Middleware]>>,
     request: Arc<Request>,
     response_sender: oneshot::Sender<Response>,
+    cors: Option<Arc<Cors>>,
     wrapper: Option<Arc<Py<PyAny>>>,
 }
 
@@ -60,6 +61,7 @@ struct Context {
     routers: Vec<Arc<Router>>,
     template: Option<Arc<Template>>,
     wrapper: Option<Arc<Py<PyAny>>>,
+    cors: Option<Arc<Cors>>,
 }
 
 struct ShutDownSignal {
@@ -464,6 +466,7 @@ impl HttpServer {
             routers: self.routers.clone(),
             template: self.template.clone(),
             wrapper: self.wrapper.clone(),
+            cors: self.cors.clone(),
         };
 
         self.spawn_connection_handler(listener, Arc::new(ctx)).await;
@@ -528,7 +531,8 @@ impl HttpServer {
                     let response = call_python_handler(&pr.middlewares, &pr.match_route, &pr.request, self.is_async)
                         .await
                         .unwrap_or_else(Response::from)
-                        .call_wrapper(&pr);
+                        .call_wrapper(&pr)
+                        .apply_cors(&pr.cors);
                     let _ = pr.response_sender.send(response);
                 },
                 _ = shutdown.wait() => break,

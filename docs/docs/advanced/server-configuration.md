@@ -24,6 +24,7 @@ server = (
     .app_data(AppState())          # shared application data
     .attach(public_api)            # routers, checked in order
     .attach(admin_api)
+    .cors(cors_config)             # automatic CORS handling
     .template(template)            # template engine
     .max_connections(1000)         # max concurrent connections (default 100)
     .channel_capacity(200)         # pending-request buffer (default 100)
@@ -53,9 +54,13 @@ server = (
 
 `server.channel_capacity(n)` — how many pending requests can be buffered internally (default **100**). An advanced setting for tuning throughput under load.
 
+### cors
+
+`server.cors(cors)` — enable automatic CORS handling. The framework adds CORS headers to every response and handles preflight `OPTIONS` requests without hitting your handlers. CORS headers are applied after the `wrap()` wrapper. See the [CORS guide](../guides/cors).
+
 ### wrap
 
-`server.wrap(callable)` — install a global wrapper invoked with `(request, response)` after every handler. Its return value is converted like a handler's return value. See the [Error Handling guide](../guides/error-handling) and [CORS guide](../guides/cors).
+`server.wrap(callable)` — install a global wrapper invoked with `(request, response)` after every handler. Its return value is converted like a handler's return value. The pipeline order is: **handler → wrapper → CORS**. See the [Error Handling guide](../guides/error-handling).
 
 ### async_mode
 

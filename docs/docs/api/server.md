@@ -22,10 +22,11 @@ server = Oxapy(("127.0.0.1", 8000))
 | --- | --- |
 | `app_data(app_data)` | Store application-wide data; readable in handlers via `request.app_data` |
 | `attach(router)` | Attach a router; routers are checked in order until a match |
+| `cors(cors)` | Enable automatic CORS handling and preflight responses |
 | `template(template)` | Enable template rendering |
 | `max_connections(max_connections)` | Max concurrent connections (default `100`) |
 | `channel_capacity(channel_capacity)` | Internal pending-request buffer (default `100`) |
-| `wrap(wrapper)` | Install a global `(request, response)` wrapper |
+| `wrap(wrapper)` | Install a global `(request, response)` wrapper for response transformation |
 | `async_mode()` | Enable async handlers; `run()` becomes awaitable |
 | `run(reload=False, workers=None)` | Start the blocking server |
 
@@ -49,9 +50,32 @@ run(reload: bool = False, workers: int | None = None) -> Any
 
 Starts the server and blocks until interrupted. `workers` sets the number of Tokio worker threads; when omitted the runtime decides. `reload=True` enables hot reload during development.
 
+## cors
+
+```python
+cors(cors: Cors) -> Oxapy
+```
+
+Enables automatic CORS handling. The framework adds CORS headers to every response and handles preflight `OPTIONS` requests without hitting your handlers.
+
+```python
+from oxapy import Cors
+
+cors = Cors()
+cors.origins = ["https://example.com"]
+
+server.cors(cors)
+```
+
+CORS headers are applied **after** the `wrap()` wrapper, so they are always present on the final response.
+
 ## wrap
 
-The wrapper is called with `(request, response)` after the handler chain and its return value is converted to a response:
+```python
+wrap(wrapper) -> Oxapy
+```
+
+The wrapper is called with `(request, response)` after the handler chain completes and its return value is converted to a response. The pipeline order is: **handler → wrapper → CORS headers**.
 
 ```python
 def global_middleware(request, response):

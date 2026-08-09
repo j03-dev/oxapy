@@ -148,7 +148,10 @@ impl Request {
     /// ```
     #[getter]
     fn app_data(&self, py: Python<'_>) -> Py<PyAny> {
-        self.app_data.as_ref().map(|d| d.clone_ref(py)).unwrap_or(py.None())
+        self.app_data
+            .as_ref()
+            .map(|d| d.clone_ref(py))
+            .unwrap_or(py.None())
     }
 
     /// Parse and return the query parameters from the request URI.
@@ -249,6 +252,12 @@ impl Request {
         self,
         ctx: Arc<Context>,
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
+        if self.method == "OPTIONS"
+            && let Some(ref cors) = ctx.cors
+        {
+            return Response::from((**cors).clone()).try_into();
+        }
+
         let method = self.method.clone();
         let uri = self.uri.clone();
 
@@ -282,6 +291,7 @@ impl Request {
             request: Arc::new(self),
             response_sender,
             wrapper: ctx.wrapper.clone(),
+            cors: ctx.cors.clone(),
         };
 
         Self::send_and_wait_response(&ctx.request_sender, process_request, response_receiver).await
@@ -299,6 +309,7 @@ impl Request {
             request: Arc::new(self),
             response_sender,
             wrapper: ctx.wrapper.clone(),
+            cors: ctx.cors.clone(),
         };
 
         Self::send_and_wait_response(&ctx.request_sender, process_request, response_receiver).await

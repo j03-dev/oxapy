@@ -1,6 +1,6 @@
 # Cors
 
-Configures Cross-Origin Resource Sharing headers. Use with `server.wrap()`.
+Configures Cross-Origin Resource Sharing headers. Attach it with `server.cors(cors)` to enable automatic CORS handling.
 
 ## Constructor
 
@@ -34,28 +34,27 @@ Creates a configuration with permissive defaults:
 apply_headers(response: Response) -> None
 ```
 
-Inserts CORS headers into the given response.
+Inserts CORS headers into the given response. Typically you don't need this — `server.cors(cors)` applies headers automatically. Use this method when you need manual control, e.g. inside a `wrap()` handler with conditional logic.
 
 ## Example
 
 ```python
-from oxapy import Oxapy, Cors
+from oxapy import Oxapy, Cors, Router, get
 
 cors = Cors()
 cors.origins = ["https://example.com", "https://app.example.com"]
 
-
-def cors_handler(request, response):
-    cors.apply_headers(response)
-    return response
-
+@get("/api/data")
+def get_data(request):
+    return {"message": "Hello"}
 
 server = Oxapy(("127.0.0.1", 8000))
-server.wrap(cors_handler)
+server.cors(cors)
+server.attach(Router().route(get_data))
 server.run()
 ```
 
 ## Related
 
 - [CORS guide](../guides/cors) — configuration walkthrough
-- [Server](./server) — the `wrap()` method
+- [Server](./server) — the `cors()` method

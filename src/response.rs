@@ -17,6 +17,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
 use pyo3_stub_gen::derive::*;
 
+use crate::cors::Cors;
 use crate::{IntoPyException, ProcessRequest, Status, convert_to_response, json};
 
 pub type Body = BoxBody<Bytes, Infallible>;
@@ -231,14 +232,21 @@ impl Response {
         })
     }
 
-    pub(crate) fn call_wrapper(mut self, req: &ProcessRequest) -> Self {
-        if let Some(wrapper) = &req.wrapper {
-            let request = (*req.request).clone();
+    pub(crate) fn call_wrapper(mut self, pr: &ProcessRequest) -> Self {
+        if let Some(wrapper) = &pr.wrapper {
+            let request = (*pr.request).clone();
             self = Python::attach(|py| {
                 let result = wrapper.call(py, (request, self), None)?;
                 convert_to_response(result, py)
             })
             .unwrap_or_else(Response::from);
+        }
+        self
+    }
+
+    pub(crate) fn apply_cors(mut self, cors: &Option<Arc<Cors>>) -> Self {
+        if let Some(cors) = cors {
+            cors.apply_headers(&mut self);
         }
         self
     }
