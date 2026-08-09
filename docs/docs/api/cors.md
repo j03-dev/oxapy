@@ -26,16 +26,6 @@ Creates a configuration with permissive defaults:
 | `allow_credentials` | `bool` | Allow cookies and authorization headers |
 | `max_age` | `int` | Preflight cache duration in seconds |
 
-## Methods
-
-### apply_headers
-
-```python
-apply_headers(response: Response) -> None
-```
-
-Inserts CORS headers into the given response. Typically you don't need this — `server.cors(cors)` applies headers automatically. Use this method when you need manual control, e.g. inside a `wrap()` handler with conditional logic.
-
 ## Example
 
 ```python

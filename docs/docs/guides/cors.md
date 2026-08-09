@@ -62,27 +62,6 @@ cors.max_age = 3600                              # preflight cache in seconds
 
 Set `allow_credentials = True` (the default) when your frontend sends cookies or `Authorization` headers. Note that credentials are not combined with a wildcard origin in browsers, so list explicit origins.
 
-## Applying CORS manually
-
-For advanced use cases, `Cors` exposes an `apply_headers` method that you can use with `server.wrap()`:
-
-```python
-from oxapy import Oxapy, Cors, Response
-
-cors = Cors()
-cors.origins = ["https://example.com"]
-
-def custom_cors_handler(request, response):
-    cors.apply_headers(response)
-    return response
-
-server = Oxapy(("127.0.0.1", 8000))
-server.wrap(custom_cors_handler)
-server.run()
-```
-
-Use this when you need conditional CORS logic based on the request or response.
-
 ## Next steps
 
 - [Server Configuration](../advanced/server-configuration) — other server-level settings
