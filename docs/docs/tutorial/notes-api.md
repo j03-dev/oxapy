@@ -21,8 +21,8 @@ A small REST API where users sign up, log in, and manage personal notes:
 | `GET` | `/api/me` | yes | Current user |
 | `GET` | `/api/notes` | yes | List my notes |
 | `POST` | `/api/notes` | yes | Create a note |
-| `GET` | `/api/notes/{note_id:int}` | yes | Read one note |
-| `DELETE` | `/api/notes/{note_id:int}` | yes | Delete a note |
+| `GET` | `/api/notes/{note_id}` | yes | Read one note |
+| `DELETE` | `/api/notes/{note_id}` | yes | Delete a note |
 
 ## Project layout
 
@@ -31,6 +31,7 @@ notes_api/
 ├── app.py          # server wiring
 ├── config.py       # settings
 ├── models.py       # SQLAlchemy models
+├── db.py           # engine + per-request session
 ├── serializers.py  # OxAPY serializers
 ├── middlewares.py  # db session + JWT auth
 ├── services.py     # business logic
@@ -178,7 +179,7 @@ What happens here:
 - The overridden `create()` adds an `id` (and, for notes, the owning user from `context`) before delegating to `super().create(...)`.
 - `content` is `nullable=True` and `required=False` because a note body is optional.
 
-See the [Serializers guide](./serializers) for the full picture.
+See the [Serializers guide](../guides/serializers) for the full picture.
 
 ## 5. Middleware
 
@@ -218,7 +219,7 @@ def auth(req: Request, next: Next, **kwargs) -> Response:
 
 Both stay synchronous even in async mode — only handlers need to be `async def`.
 
-See the [Middleware guide](./middleware) and [JWT guide](./jwt-authentication).
+See the [Middleware guide](../guides/middleware) and [JWT guide](../guides/jwt-authentication).
 
 ## 6. Services
 
@@ -247,9 +248,8 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 def register(db: Session, new_user: UserSerializer) -> User:
     try:
-        new_user.validated_data["password"] = hash_password(
-            new_user.validated_data["password"]
-        )
+        validated = new_user.validated_data
+        validated["password_hash"] = hash_password(validated.pop("password"))
         return new_user.save(db)
     except Exception as e:
         raise exceptions.BadRequestError(f"Registration failed: {e}")
@@ -273,7 +273,7 @@ def list_notes(db: Session, user_id: str):
     return db.query(Note).filter(Note.user_id == user_id).order_by(Note.created_at.desc()).all()
 
 
-def get_note(db: Session, user_id: str, note_id: int) -> Note:
+def get_note(db: Session, user_id: str, note_id: str) -> Note:
     note = db.query(Note).filter(Note.id == note_id, Note.user_id == user_id).first()
     if note is None:
         raise exceptions.NotFoundError("Note not found")
@@ -299,6 +299,7 @@ from oxapy import (
     post,
 )
 
+from .middlewares import JWT
 from .serializers import NoteSerializer, UserSerializer
 from .services import get_note, get_user_by_id, list_notes, login, register
 
@@ -339,14 +340,14 @@ async def create_note(req: Request):
     return {"note": NoteSerializer(instance=note).data}, Status.CREATED
 
 
-@get("/notes/{note_id:int}")
-async def note_detail(req: Request, note_id: int):
+@get("/notes/{note_id}")
+async def note_detail(req: Request, note_id: str):
     note = get_note(req.db, req.user_id, note_id)
     return {"note": NoteSerializer(instance=note).data}
 
 
-@delete("/notes/{note_id:int}")
-async def delete_note(req: Request, note_id: int):
+@delete("/notes/{note_id}")
+async def delete_note(req: Request, note_id: str):
     note = get_note(req.db, req.user_id, note_id)
     req.db.delete(note)
     req.db.commit()
@@ -357,8 +358,8 @@ A few details worth copying:
 
 - `UserSerializer(req.data)` takes the raw JSON body; `is_valid()` populates `validated_data` and raises `serializer.ValidationException` on bad input.
 - `NoteSerializer(req.data, context={"user_id": req.user_id})` passes the acting user, which the overridden `create()` reads from `self.context`.
-- `{note_id:int}` gives you an `int` without manual parsing.
-- `req.user_id` and `req.db` were set by middleware — see [Requests](./requests) for dynamic attributes.
+- `{note_id}` captures the UUID string from the URL, matching the model's string primary key. Typed parameters like `{note_id:int}` also exist — see the [Routing guide](../guides/routing).
+- `req.user_id` and `req.db` were set by middleware — see [Requests](../guides/requests) for dynamic attributes.
 
 ## 8. Wiring it together
 
@@ -407,13 +408,13 @@ if __name__ == "__main__":
 Key points:
 
 - `Router("/api")` prefixes every route, so `/signup` becomes `/api/signup`.
-- Middleware is layered: everything gets `db`; only the second group gets `auth`. Routes registered *after* a middleware are covered by it — see [Middleware](./middleware).
+- Middleware is layered: everything gets `db`; only the second group gets `auth`. Routes registered *after* a middleware are covered by it — see [Middleware](../guides/middleware).
 - `async_mode()` enables `async def` handlers; `run()` returns an awaitable.
 
 ## 9. Run it
 
 ```bash
-pip install "oxapy[all]" sqlalchemy
+pip install oxapy sqlalchemy
 python -m notes_api.app
 ```
 
@@ -457,19 +458,19 @@ Without a token you get `401`; with a wrong note id you get a JSON `404`:
 
 | Feature | Where it is used here | Learn more |
 | --- | --- | --- |
-| Route decorators + typed params | `@get("/notes/{note_id:int}")` | [Routing](./routing) |
-| Router base path + middleware layering | `Router("/api")`, `.middleware(db).routes([...])` | [Routing](./routing), [Middleware](./middleware) |
-| Request reading | `req.json()`, `req.data`, `req.headers` | [Requests](./requests) |
-| Response conversion | `(dict, Status.CREATED)` tuples, `Status.OK` | [Responses](./responses) |
-| Serializers with `Meta.model` | `UserSerializer`, `NoteSerializer` | [Serializers](./serializers) |
-| JWT auth | `Jwt.generate_token`, `verify_token` | [JWT Authentication](./jwt-authentication) |
-| Exceptions → JSON errors | `exceptions.NotFoundError` | [Error Handling](./error-handling) |
-| Async mode | `async def` handlers, `await ...run()` | [Async Handlers](./async-handlers) |
+| Route decorators + path params | `@get("/notes/{note_id}")` | [Routing](../guides/routing) |
+| Router base path + middleware layering | `Router("/api")`, `.middleware(db).routes([...])` | [Routing](../guides/routing), [Middleware](../guides/middleware) |
+| Request reading | `req.json()`, `req.data`, `req.headers` | [Requests](../guides/requests) |
+| Response conversion | `(dict, Status.CREATED)` tuples, `Status.OK` | [Responses](../guides/responses) |
+| Serializers with `Meta.model` | `UserSerializer`, `NoteSerializer` | [Serializers](../guides/serializers) |
+| JWT auth | `Jwt.generate_token`, `verify_token` | [JWT Authentication](../guides/jwt-authentication) |
+| Exceptions → JSON errors | `exceptions.NotFoundError` | [Error Handling](../guides/error-handling) |
+| Async mode | `async def` handlers, `await ...run()` | [Async Handlers](../guides/async-handlers) |
 | Server options | `max_connections(1000)` | [Server Configuration](../advanced/server-configuration) |
 
 ## Taking it further
 
-- Add [templates](./templates) and [sessions](./sessions) to render a browser UI (with HTMX, like the job board pattern).
-- Serve assets with [static_file](./static-files) and large uploads with [file-streaming](./file-streaming).
-- Enable [hot reload](./hot-reload) during development with `Oxapy(...).run(reload=True)`.
+- Add [templates](../guides/templates) and [sessions](../guides/sessions) to render a browser UI (with HTMX, like the job board pattern).
+- Serve assets with [static_file](../guides/static-files) and large uploads with [file-streaming](../guides/file-streaming).
+- Enable [hot reload](../guides/hot-reload) during development with `Oxapy(...).run(reload=True)`.
 - Read the [API Reference](../api/server) for every option on `HttpServer` and `Oxapy`.

@@ -62,12 +62,39 @@ pre-commit install
 pre-commit run --all-files
 ```
 
+### Documentation Site (Docusaurus)
+
+The project ships a Docusaurus 3 site in `docs/` that teaches the library through guides, a full tutorial, and an API reference. Run all docs commands from `docs/`:
+
+```bash
+# Validate + build the site (required safety net: broken links fail the build)
+cd docs && npx docusaurus build
+
+# Preview locally (dev server runs indefinitely - always bound with timeout)
+timeout 180 npx docusaurus start --no-open
+
+# Serve the built site from docs/build
+cd docs && npm run serve
+```
+
+Notes:
+- Prefer `npx docusaurus build` over `npm run build` (npm wrapper has intermittently failed with "authorization channel closed").
+- The site is deployed to GitHub Pages at `https://j03-dev.github.io/oxapy/` (`baseUrl: '/oxapy/'` in `docusaurus.config.ts`). Docusaurus 3.x rejects a sub-path inside `url` when `baseUrl` is `/` — keep them as-is.
+- Doc content must match the real API: verify facts against `oxapy/oxapy/*.pyi` stubs, `src/*.rs`, and `tests/` before writing.
+
+#### Writing / Editing Docs
+
+- Markdown pages live in `docs/docs/<category>/<page>.md`; register every new page in `docs/sidebars.ts`.
+- Use relative links, and mind the depth prefix: from `tutorial/`, `guides/`, `advanced/`, or `api/` pages, links to a sibling category need `../` (e.g. `../guides/routing`); from `intro.md` use `./guides/routing`. The `onBrokenLinks: 'throw'` build is the safety net — never ship a doc change without running `npx docusaurus build`.
+- API pages (`docs/docs/api/*`) document the Python surface; guides (`docs/docs/guides/*`) teach usage with examples; `docs/docs/tutorial/notes-api.md` walks through a complete production-style app (SQLAlchemy + serializers + JWT + async mode).
+
 ## Code Style Guidelines
 
 ### General Project Structure
 
 - **Rust source**: `src/` directory with modular `.rs` files
 - **Python tests**: `tests/` directory
+- **Docs site**: `docs/` directory (Docusaurus; markdown in `docs/docs/`)
 
 ### Rust Code Conventions
 
