@@ -20,13 +20,13 @@ def create_item(request):
     return {"status": "created"}
 
 
-@put("/items/{item_id}")
-def update_item(request, item_id: int):
+@put("/items/{item_id:int}")
+def update_item(request, item_id):
     return {"status": "updated", "item_id": item_id}
 
 
-@delete("/items/{item_id}")
-def delete_item(request, item_id: int):
+@delete("/items/{item_id:int}")
+def delete_item(request, item_id):
     return {"status": "deleted", "item_id": item_id}
 
 
@@ -70,7 +70,7 @@ router = (
 
 ## Path parameters
 
-Path parameters are declared with curly braces and passed to the handler as keyword arguments.
+Path parameters are declared with curly braces and passed to the handler as keyword arguments. By default, all parameters are **strings**.
 
 ```python
 from oxapy import Router, get
@@ -81,8 +81,8 @@ def hello(request, name):
     return f"Hello, {name}!"
 
 
-@get("/users/{user_id}")
-def get_user(request, user_id: int):
+@get("/users/{user_id:int}")
+def get_user(request, user_id):
     return {"user_id": user_id, "name": f"User {user_id}"}
 ```
 
