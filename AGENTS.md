@@ -81,6 +81,23 @@ Notes:
 - Prefer `npx docusaurus build` over `npm run build` (npm wrapper has intermittently failed with "authorization channel closed").
 - The site is deployed to GitHub Pages at `https://j03-dev.github.io/oxapy/` (`baseUrl: '/oxapy/'` in `docusaurus.config.ts`). Docusaurus 3.x rejects a sub-path inside `url` when `baseUrl` is `/` — keep them as-is.
 - Doc content must match the real API: verify facts against `oxapy/oxapy/*.pyi` stubs, `src/*.rs`, and `tests/` before writing.
+- Search is client-side via `@easyops-cn/docusaurus-search-local` (no Algolia account needed); configured in the `plugins` array of `docusaurus.config.ts`. The index (`search-index.json`) is generated at build time.
+
+### Deploying to GitHub Pages
+
+The site is served from `https://j03-dev.github.io/oxapy/`. Two ways to publish:
+
+1. **Manual (CLI)** — build and push to the `gh-pages` branch:
+   ```bash
+   cd docs && GIT_USER=j03-dev npx docusaurus deploy
+   ```
+   Requires the `gh-pages` branch to already exist on the remote — Docusaurus 3.10.2 cannot bootstrap a missing one (it fails with `Remote branch gh-pages not found in upstream origin`). Create it once if needed:
+   ```bash
+   git checkout --orphan gh-pages && git commit --allow-empty -m "init gh-pages" && git push origin gh-pages && git checkout -
+   ```
+   GitHub Pages setting: **Source = "Deploy from a branch"**, branch `gh-pages`, folder `/(root)`.
+
+2. **Automatic (CI)** — `.github/workflows/deploy-docs.yml` builds and deploys via GitHub Actions on every push to `main`. Requires the GitHub Pages setting **Source = "GitHub Actions"** instead.
 
 #### Writing / Editing Docs
 

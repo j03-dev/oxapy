@@ -62,6 +62,21 @@ const config: Config = {
     ],
   ],
 
+  plugins: [
+    [
+      // Client-side search: no Algolia account or external service needed.
+      '@easyops-cn/docusaurus-search-local',
+      {
+        // Hash file contents so search indexes update when docs change.
+        hashed: true,
+        language: ['en'],
+        docsRouteBasePath: '/docs',
+        indexBlog: false,
+        indexPages: false,
+      },
+    ],
+  ],
+
   themeConfig: {
     // Replace with your project's social card
     image: 'img/logo.svg',
