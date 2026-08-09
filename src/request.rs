@@ -147,8 +147,8 @@ impl Request {
     ///     return {"count": app_state.counter}
     /// ```
     #[getter]
-    fn app_data(&self, py: Python<'_>) -> Option<Py<PyAny>> {
-        self.app_data.as_ref().map(|d| d.clone_ref(py))
+    fn app_data(&self, py: Python<'_>) -> Py<PyAny> {
+        self.app_data.as_ref().map(|d| d.clone_ref(py)).unwrap_or(py.None())
     }
 
     /// Parse and return the query parameters from the request URI.

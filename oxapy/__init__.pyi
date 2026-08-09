@@ -700,7 +700,7 @@ class Request:
         Files uploaded in a multipart form request, mapping field names to File objects.
         """
     @property
-    def app_data(self) -> typing.Optional[typing.Any]:
+    def app_data(self) -> typing.Any:
         r"""
         Get application-wide data that was set with HttpServer.app_data.
         
