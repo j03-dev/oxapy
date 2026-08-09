@@ -1,31 +1,30 @@
 # Server Configuration
 
-The `HttpServer` class (and its `Oxapy` subclass) is the heart of an OxAPY application. This page covers every configuration option.
+`Oxapy` is the heart of an OxAPY application. This page covers every configuration option.
 
 ## Constructing the server
 
 ```python
-from oxapy import HttpServer
+from oxapy import Oxapy
 
-server = HttpServer(("127.0.0.1", 8000))
+server = Oxapy(("127.0.0.1", 8000))
 ```
 
-The single argument is a `(ip, port)` tuple. `HttpServer` is the plain server; `Oxapy` adds hot reload.
+The single argument is a `(ip, port)` tuple.
 
 ## Fluent configuration
 
 Every configuration method returns the server, so they chain naturally:
 
 ```python
-from oxapy import HttpServer, Cors
+from oxapy import Oxapy
 
 server = (
-    HttpServer(("127.0.0.1", 8000))
+    Oxapy(("127.0.0.1", 8000))
     .app_data(AppState())          # shared application data
     .attach(public_api)            # routers, checked in order
     .attach(admin_api)
     .template(template)            # template engine
-    .cors(Cors())                  # CORS configuration
     .max_connections(1000)         # max concurrent connections (default 100)
     .channel_capacity(200)         # pending-request buffer (default 100)
     .wrap(global_wrapper)          # global response wrapper
@@ -46,10 +45,6 @@ server = (
 
 `server.template(template)` — enable template rendering. See the [Templates guide](../guides/templates).
 
-### cors
-
-`server.cors(cors)` — apply CORS configuration. See the [CORS guide](../guides/cors).
-
 ### max_connections
 
 `server.max_connections(n)` — maximum concurrent connections (default **100**). When the limit is reached, further connections wait for a slot.
@@ -60,7 +55,7 @@ server = (
 
 ### wrap
 
-`server.wrap(callable)` — install a global wrapper invoked with `(request, response)` after every handler. Its return value is converted like a handler's return value. See the [Error Handling guide](../guides/error-handling).
+`server.wrap(callable)` — install a global wrapper invoked with `(request, response)` after every handler. Its return value is converted like a handler's return value. See the [Error Handling guide](../guides/error-handling) and [CORS guide](../guides/cors).
 
 ### async_mode
 
@@ -68,27 +63,13 @@ server = (
 
 ### run
 
-`server.run(workers=None)` — start the blocking server. `workers` sets the number of Tokio worker threads; when omitted the runtime decides.
+`server.run(reload=False, workers=None)` — start the blocking server. `reload=True` enables hot reload for development. `workers` sets the number of Tokio worker threads; when omitted the runtime decides.
 
 ```python
 server.run()                    # default workers
+server.run(reload=True)         # hot reload for development
 server.run(workers=4)           # four worker threads
 ```
-
-## The Oxapy subclass
-
-`Oxapy` extends `HttpServer` with development hot reload:
-
-```python
-from oxapy import Oxapy
-
-server = Oxapy(("127.0.0.1", 8000))
-server.set_patterns(["*.py"])      # files to watch
-server.set_watch_dir(".")          # directory to watch
-server.run(reload=True)            # or run() for production
-```
-
-See the [Hot Reload guide](../guides/hot-reload).
 
 ## Next steps
 

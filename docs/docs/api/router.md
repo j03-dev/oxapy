@@ -13,13 +13,14 @@ Route(path: str, method: str | None = None)
 Creates a route for `path` and `method` (default `"GET"`). Calling it with a handler returns the route bound to that handler.
 
 ```python
-from oxapy import Route
+from oxapy import get
+
 
 def handler(request):
     return "Hello, World!"
 
-route = Route("/hello", "GET")
-route = route(handler)
+
+route = get("/hello", handler)
 ```
 
 ### Route helpers

@@ -91,7 +91,7 @@ Think of middleware as layers: within one router it is a sequence where each lay
 
 ## Middleware from the standard library
 
-`functools.partial` works out of the box, which is how the built-in [Session](../guides/sessions) middleware is produced:
+`functools.partial` works out of the box, which is how the built-in [Session](./sessions) middleware is produced:
 
 ```python
 from oxapy import Session

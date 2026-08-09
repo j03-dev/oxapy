@@ -92,7 +92,7 @@ api.example.com {
 
 ## Production checklist
 
-- Use `HttpServer` (or `Oxapy` with the default `reload=False`). Never run with `reload=True` in production.
+- Use `Oxapy` with the default `reload=False`. Never run with `reload=True` in production.
 - Run behind a reverse proxy that terminates TLS. Session cookies and JWT secrets travel over the wire otherwise.
 - Set a strong `Session` secret / JWT secret via environment variables.
 - Tune `workers` to match the machine's CPU count and `max_connections` to your expected load.
@@ -105,8 +105,8 @@ This site is built with Docusaurus:
 ```bash
 cd docs
 npm install
-npm run build   # static site in docs/build
-npm run deploy  # publish to GitHub Pages
+npx docusaurus build   # static site in docs/build
+npx docusaurus deploy  # publish to GitHub Pages
 ```
 
 The configuration targets GitHub Pages at `https://j03-dev.github.io/oxapy`. If you publish under a project path, set `baseUrl: '/oxapy/'` in `docs/docusaurus.config.ts`.

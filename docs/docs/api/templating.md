@@ -70,7 +70,7 @@ def index(request):
 ## Example: complete setup
 
 ```python
-from oxapy import HttpServer, Router, get, render, templating
+from oxapy import Oxapy, Router, get, render, templating
 
 
 def translate(key):
@@ -87,7 +87,7 @@ def main():
         return render(request, "index.html", {"title": "Home"})
 
     (
-        HttpServer(("127.0.0.1", 8000))
+        Oxapy(("127.0.0.1", 8000))
         .template(template)
         .attach(Router().route(index))
         .run()

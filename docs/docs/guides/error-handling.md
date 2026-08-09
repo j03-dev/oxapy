@@ -82,7 +82,7 @@ The response has an empty JSON body. See [Responses](./responses) for details.
 `server.wrap(callable)` installs a global wrapper that runs after every handler with `(request, response)` and can modify or replace the response:
 
 ```python
-from oxapy import HttpServer, Response
+from oxapy import Oxapy, Response
 
 
 def global_wrapper(request, response):
@@ -91,7 +91,7 @@ def global_wrapper(request, response):
     return response
 
 
-server = HttpServer(("127.0.0.1", 8000))
+server = Oxapy(("127.0.0.1", 8000))
 server.wrap(global_wrapper)
 ```
 

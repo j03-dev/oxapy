@@ -100,7 +100,30 @@ Anything else raises a `ValueError`.
 
 ## FileStreaming
 
-`FileStreaming(path, buf_size=8192, status=Status.OK, content_type="application/octet-stream")` streams a file in chunks. See the [File Streaming guide](../guides/file-streaming).
+### Constructor
+
+```python
+FileStreaming(path: str, buf_size: int = 8192, status: Status = Status.OK, content_type: str = "application/octet-stream")
+```
+
+Streams a file in chunks for large files without loading the entire file into memory.
+
+| Parameter | Default | Description |
+| --- | --- | --- |
+| `path` | — | Path to the file |
+| `buf_size` | `8192` | Read buffer size in bytes |
+| `status` | `Status.OK` | Response status code |
+| `content_type` | `"application/octet-stream"` | The `Content-Type` header |
+
+```python
+from oxapy import FileStreaming
+
+@get("/download")
+def download(request):
+    return FileStreaming("report.pdf", content_type="application/pdf")
+```
+
+See the [File Streaming guide](../guides/file-streaming) for details.
 
 ## Related
 

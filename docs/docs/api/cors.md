@@ -1,6 +1,6 @@
 # Cors
 
-Configures Cross-Origin Resource Sharing headers for the server.
+Configures Cross-Origin Resource Sharing headers. Use with `server.wrap()`.
 
 ## Constructor
 
@@ -26,23 +26,36 @@ Creates a configuration with permissive defaults:
 | `allow_credentials` | `bool` | Allow cookies and authorization headers |
 | `max_age` | `int` | Preflight cache duration in seconds |
 
+## Methods
+
+### apply_headers
+
+```python
+apply_headers(response: Response) -> None
+```
+
+Inserts CORS headers into the given response.
+
 ## Example
 
 ```python
-from oxapy import HttpServer, Cors
+from oxapy import Oxapy, Cors
 
 cors = Cors()
 cors.origins = ["https://example.com", "https://app.example.com"]
-cors.methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-cors.headers = ["Content-Type", "Authorization", "X-Custom-Header"]
-cors.allow_credentials = True
-cors.max_age = 3600
 
-server = HttpServer(("127.0.0.1", 8000)).cors(cors)
+
+def cors_handler(request, response):
+    cors.apply_headers(response)
+    return response
+
+
+server = Oxapy(("127.0.0.1", 8000))
+server.wrap(cors_handler)
 server.run()
 ```
 
 ## Related
 
 - [CORS guide](../guides/cors) — configuration walkthrough
-- [Server](./server) — the `cors()` method
+- [Server](./server) — the `wrap()` method

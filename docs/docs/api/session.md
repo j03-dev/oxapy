@@ -16,7 +16,7 @@ The return value is a partially-applied middleware, registered with `router.midd
 ## Example
 
 ```python
-from oxapy import HttpServer, Router, Session, get
+from oxapy import Oxapy, Router, Session, get
 
 
 @get("/")
@@ -28,7 +28,7 @@ def home(request):
 def main():
     session = Session(b"my-secret-key")
     (
-        HttpServer(("0.0.0.0", 8000))
+        Oxapy(("0.0.0.0", 8000))
         .attach(Router().middleware(session).routes([home]))
         .run()
     )

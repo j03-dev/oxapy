@@ -1,6 +1,6 @@
 # CORS
 
-Cross-Origin Resource Sharing lets browsers call your API from other origins. Configure it once on the server with `Cors`.
+Cross-Origin Resource Sharing lets browsers call your API from other origins. Use `Cors` with `wrap()` to apply headers to every response.
 
 ## Defaults
 
@@ -15,18 +15,20 @@ Cross-Origin Resource Sharing lets browsers call your API from other origins. Co
 ## Basic configuration
 
 ```python
-from oxapy import HttpServer, Cors
+from oxapy import Oxapy, Cors
+
+cors = Cors()
+cors.origins = ["https://example.com", "https://app.example.com"]
 
 
-def main():
-    cors = Cors()
-    cors.origins = ["https://example.com", "https://app.example.com"]
+def cors_handler(request, response):
+    cors.apply_headers(response)
+    return response
 
-    (
-        HttpServer(("127.0.0.1", 8000))
-        .cors(cors)
-        .run()
-    )
+
+server = Oxapy(("127.0.0.1", 8000))
+server.wrap(cors_handler)
+server.run()
 ```
 
 ## All options
@@ -38,12 +40,6 @@ cors.methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
 cors.headers = ["Content-Type", "Authorization", "X-Custom-Header"]
 cors.allow_credentials = False                   # allow cookies/auth headers
 cors.max_age = 3600                              # preflight cache in seconds
-```
-
-Then attach it:
-
-```python
-server.cors(cors)
 ```
 
 ## Allowing credentials
