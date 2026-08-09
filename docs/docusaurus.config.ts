@@ -5,9 +5,9 @@ import type * as Preset from '@docusaurus/preset-classic';
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
 const config: Config = {
-  title: 'My Site',
-  tagline: 'Dinosaurs are cool',
-  favicon: 'img/favicon.ico',
+  title: 'OxAPY',
+  tagline: 'A fast, safe HTTP server for Python, built in Rust',
+  favicon: 'img/favicon.svg',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
@@ -15,17 +15,27 @@ const config: Config = {
   },
 
   // Set the production url of your site here
-  url: 'https://your-docusaurus-site.example.com',
-  // Set the /<baseUrl>/ pathname under which your site is served
-  // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: '/',
+  url: 'https://j03-dev.github.io',
+  // Set the /<baseUrl>/ pathname under which your site is served.
+  // This site deploys to GitHub Pages as a project site, so the base
+  // path is '/oxapy/'. For a custom domain (or a user/org page), use '/'.
+  baseUrl: '/oxapy/',
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'facebook', // Usually your GitHub org/user name.
-  projectName: 'docusaurus', // Usually your repo name.
+  organizationName: 'j03-dev', // Usually your GitHub org/user name.
+  projectName: 'oxapy', // Usually your repo name.
 
   onBrokenLinks: 'throw',
+
+  // Migrated location for the deprecated `onBrokenMarkdownLinks` option (Docusaurus v4).
+  markdown: {
+    hooks: {
+      onBrokenMarkdownLinks: ({brokenMarkdownLinks}) => {
+        brokenMarkdownLinks.forEach(({link}) => console.warn(`Broken markdown link: ${link}`));
+      },
+    },
+  },
 
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
@@ -41,26 +51,10 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl:
-            'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
+          // "Edit this page" links point at the oxapy repository.
+          editUrl: 'https://github.com/j03-dev/oxapy/tree/main/docs/',
         },
-        blog: {
-          showReadingTime: true,
-          feedOptions: {
-            type: ['rss', 'atom'],
-            xslt: true,
-          },
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl:
-            'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
-          // Useful options to enforce blogging best practices
-          onInlineTags: 'warn',
-          onInlineAuthors: 'warn',
-          onUntruncatedBlogPosts: 'warn',
-        },
+        blog: false,
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -70,26 +64,25 @@ const config: Config = {
 
   themeConfig: {
     // Replace with your project's social card
-    image: 'img/docusaurus-social-card.jpg',
+    image: 'img/logo.svg',
     colorMode: {
       respectPrefersColorScheme: true,
     },
     navbar: {
-      title: 'My Site',
+      title: 'OxAPY',
       logo: {
-        alt: 'My Site Logo',
+        alt: 'OxAPY Logo',
         src: 'img/logo.svg',
       },
       items: [
         {
           type: 'docSidebar',
-          sidebarId: 'tutorialSidebar',
+          sidebarId: 'docs',
           position: 'left',
-          label: 'Tutorial',
+          label: 'Docs',
         },
-        {to: '/blog', label: 'Blog', position: 'left'},
         {
-          href: 'https://github.com/facebook/docusaurus',
+          href: 'https://github.com/j03-dev/oxapy',
           label: 'GitHub',
           position: 'right',
         },
@@ -102,25 +95,33 @@ const config: Config = {
           title: 'Docs',
           items: [
             {
-              label: 'Tutorial',
+              label: 'Introduction',
               to: '/docs/intro',
+            },
+            {
+              label: 'Quickstart',
+              to: '/docs/getting-started/quickstart',
+            },
+            {
+              label: 'API Reference',
+              to: '/docs/api/server',
             },
           ],
         },
         {
-          title: 'Community',
+          title: 'Guides',
           items: [
             {
-              label: 'Stack Overflow',
-              href: 'https://stackoverflow.com/questions/tagged/docusaurus',
+              label: 'Routing',
+              to: '/docs/guides/routing',
             },
             {
-              label: 'Discord',
-              href: 'https://discordapp.com/invite/docusaurus',
+              label: 'Middleware',
+              to: '/docs/guides/middleware',
             },
             {
-              label: 'X',
-              href: 'https://x.com/docusaurus',
+              label: 'JWT Authentication',
+              to: '/docs/guides/jwt-authentication',
             },
           ],
         },
@@ -128,17 +129,17 @@ const config: Config = {
           title: 'More',
           items: [
             {
-              label: 'Blog',
-              to: '/blog',
+              label: 'GitHub',
+              href: 'https://github.com/j03-dev/oxapy',
             },
             {
-              label: 'GitHub',
-              href: 'https://github.com/facebook/docusaurus',
+              label: 'PyPI',
+              href: 'https://pypi.org/project/oxapy/',
             },
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} My Project, Inc. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} FITAHIANA Nomeniavo Joe. Built with Docusaurus.`,
     },
     prism: {
       theme: prismThemes.github,
