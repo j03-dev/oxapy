@@ -54,7 +54,7 @@ impl Route {
     #[new]
     #[pyo3(signature=(path, method=None))]
     #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
-    pub fn new(path: String, method: Option<String>) -> Self {
+    fn new(path: String, method: Option<String>) -> Self {
         Route {
             method: method.unwrap_or_else(|| "GET".to_string()),
             path,

@@ -643,6 +643,7 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Redirect>()?;
     m.add_class::<Request>()?;
     m.add_class::<Response>()?;
+    m.add_class::<Route>()?;
     m.add_class::<Router>()?;
     m.add_class::<Status>()?;
     m.add_function(wrap_pyfunction!(convert_to_response, m)?)?;
