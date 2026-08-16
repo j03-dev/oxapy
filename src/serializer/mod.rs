@@ -432,7 +432,6 @@ impl Serializer {
     }
 }
 
-
 fn cache(py: Python<'_>) -> &Arc<Mutex<HashMap<String, Value>>> {
     static CACHE: PyOnceLock<Arc<Mutex<HashMap<String, Value>>>> = PyOnceLock::new();
     CACHE.get_or_init(py, || Arc::new(Mutex::new(HashMap::default())))

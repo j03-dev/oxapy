@@ -1,7 +1,6 @@
 use pyo3::{prelude::*, sync::PyOnceLock, types::PyDict};
 use serde::{Deserialize, Serialize};
 
-
 fn orjson(py: Python<'_>) -> PyResult<&Py<PyModule>> {
     static ORJSON: PyOnceLock<Py<PyModule>> = PyOnceLock::new();
     ORJSON.get_or_try_init(py, || PyModule::import(py, "orjson").map(|m| m.into()))

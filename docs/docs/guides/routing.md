@@ -88,13 +88,23 @@ def get_user(request, user_id):
 
 ### Typed parameters
 
-Two types are built in: `{name:str}` and `{name:int}`. Using `{user_id:int}` gives you an `int` in the handler without manual conversion.
+Three types are built in: `{name:str}`, `{name:int}`, and `{name:slug}`. Using `{user_id:int}` gives you an `int` in the handler without manual conversion.
 
 ```python
 @get("/users/{user_id:int}")
 def get_user(request, user_id: int):
     return {"user_id": user_id}
 ```
+
+`{name:slug}` normalizes the captured value into a URL-friendly slug: it is lowercased, non-ASCII characters are stripped (accents are decomposed first, so `é` becomes `e`), runs of non-alphanumeric characters become single hyphens, and leading/trailing hyphens are removed.
+
+```python
+@get("/blog/{post_slug:slug}")
+def get_post(request, post_slug: str):
+    return {"slug": post_slug}
+```
+
+A request to `/blog/Hello-World` calls the handler with `post_slug="hello-world"`.
 
 ### Catch-all parameters
 
