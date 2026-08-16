@@ -9,6 +9,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict, PyInt, PyString};
 use pyo3_async_runtimes::tokio::{future_into_py, into_future};
 use pyo3_stub_gen::derive::*;
+use regex::Regex;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Semaphore;
 use tokio::sync::mpsc::{Receiver, Sender, channel};
@@ -24,6 +25,7 @@ use response::{FileStreaming, Redirect, Response};
 use routing::*;
 use status::Status;
 use templating::Template;
+use unicode_normalization::UnicodeNormalization;
 
 use crate::middleware::Middleware;
 
@@ -583,7 +585,7 @@ fn build_route_params<'py>(
 ) -> PyResult<Bound<'py, PyDict>> {
     let kwargs = PyDict::new(py);
     for (key, value) in params.iter() {
-        match key.split_once(":") {
+        match key.split_once(':') {
             Some((name, ty)) => {
                 let parsed = parse_params_value(py, value, ty)?;
                 kwargs.set_item(name, parsed)?;
@@ -594,10 +596,17 @@ fn build_route_params<'py>(
     Ok(kwargs)
 }
 
-fn parse_params_value(py: Python<'_>, value: &str, ty: &str) -> PyResult<Py<PyAny>> {
+fn parse_params_value<'py>(py: Python<'py>, value: &str, ty: &str) -> PyResult<Bound<'py, PyAny>> {
     match ty {
-        "int" => Ok(PyInt::new(py, value.parse::<i64>()?).into()),
-        "str" => Ok(PyString::new(py, value).into()),
+        "int" => Ok(PyInt::new(py, value.parse::<i64>()?).into_any()),
+        "str" => Ok(PyString::new(py, value).into_any()),
+        "slug" => {
+            let normalized: String = value.nfkd().filter(|c| c.is_ascii()).collect();
+            let lowered = normalized.trim().to_lowercase();
+            let re = Regex::new(r"[^a-z0-9]+").unwrap();
+            let replace = re.replace_all(&lowered, "-");
+            Ok(PyString::new(py, replace.trim_matches('-')).into_any())
+        }
         other => Err(PyValueError::new_err(format!(
             "Unsupported type annotation {other} in parameter"
         ))),

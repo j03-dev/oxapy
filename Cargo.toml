@@ -54,3 +54,5 @@ rand = "0.10.2"
 url = "2.5.8"
 
 jsonwebtoken = { version = "11.0.0", features = ["rust_crypto"] }
+regex = "1.13.1"
+unicode-normalization = "0.1.25"
