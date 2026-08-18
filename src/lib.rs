@@ -359,18 +359,23 @@ impl HttpServer {
         slf
     }
 
-    /// Add status code catchers to the server.
+    /// Add a global wrapper (middleware) to the server.
+    ///
+    /// The wrapper is invoked with `(request, response)` after every handler.
+    /// Its return value is converted like a handler's return value.
+    ///
+    /// Pipeline order: handler -> wrapper -> CORS.
     ///
     /// Args:
-    ///     catchers (list): A list of Catcher handlers for specific status codes.
+    ///     wrapper (callable): A function taking (request, response) as arguments.
     ///
     /// Returns:
-    ///     None
+    ///     Server: The server instance for method chaining.
     ///
     /// Example:
     /// ```python
     /// def global_middleware(request, response):
-    ///     if response.status.code == 200:
+    ///     if response.status.code == 404:
     ///         return Response("<h1>Page Not Found</h1>", content_type="text/html")
     ///     return response
     ///
