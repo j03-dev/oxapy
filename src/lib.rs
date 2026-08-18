@@ -496,11 +496,9 @@ impl HttpServer {
         _permit: tokio::sync::OwnedSemaphorePermit,
     ) {
         tokio::spawn(async move {
-            let mut http = hyper::server::conn::http1::Builder::new();
-            http.pipeline_flush(true);
-            http.timer(hyper_util::rt::TokioTimer::new());
-            http.half_close(true);
-            http.writev(true);
+            let http = hyper_util::server::conn::auto::Builder::new(
+                hyper_util::rt::TokioExecutor::new()
+            );
             http.serve_connection(
                 io,
                 hyper::service::service_fn(move |req| {
