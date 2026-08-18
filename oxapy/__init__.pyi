@@ -8,6 +8,7 @@ import typing_extensions
 from . import exceptions
 from . import jwt
 from . import serializer
+from . import templating
 __all__ = [
     "Cors",
     "File",
@@ -21,7 +22,6 @@ __all__ = [
     "Router",
     "Session",
     "Status",
-    "Template",
     "convert_to_response",
     "delete",
     "exceptions",
@@ -37,6 +37,7 @@ __all__ = [
     "send_file",
     "serializer",
     "static_file",
+    "templating",
 ]
 
 @typing.final
@@ -445,7 +446,7 @@ class HttpServer:
         server.attach(router)
         ```
         """
-    def template(self, template: Template) -> HttpServer:
+    def template(self, template: templating.Template) -> HttpServer:
         r"""
         Enable template rendering for the server.
         
@@ -1101,109 +1102,6 @@ class Router:
         ```
         """
     def __repr__(self) -> builtins.str: ...
-
-@typing.final
-class Template:
-    r"""
-    Template engine for rendering HTML templates using Tera.
-    
-    Templates are loaded lazily via `load()`. Custom functions must be registered
-    with `register_function()` before calling `load()`.
-    
-    Args:
-        None
-    
-    Returns:
-        Template: A new empty template engine instance.
-    
-    Example:
-    ```python
-    from oxapy import templating
-    
-    template = templating.Template()
-    template.register_function("_t", translate)
-    template.load("./templates/**/*.html")
-    result = template.render("index.html", {"title": "Hello"})
-    ```
-    """
-    def __new__(cls) -> typing_extensions.Self:
-        r"""
-        Create a new empty Template instance.
-        
-        Templates are not loaded at construction time. Use `register_function()` to add
-        custom functions, then `load()` to load and validate templates.
-        
-        Args:
-            None
-        
-        Returns:
-            Template: A new empty template engine instance.
-        
-        Example:
-        ```python
-        from oxapy import templating
-        
-        template = templating.Template()
-        template.register_function("_t", translate)
-        template.load("./templates/**/*.html")
-        ```
-        """
-    def load(self, dir: builtins.str = './templates/**/*.html') -> None:
-        r"""
-        Load templates from a directory glob pattern.
-        
-        This parses and validates all matching template files. Any custom functions
-        registered with `register_function()` must be added **before** calling `load()`,
-        otherwise Tera will raise an error for unknown functions.
-        
-        Args:
-            dir (str, optional): Glob pattern to search for templates (default: "./templates/**/*.html").
-        
-        Returns:
-            None
-        
-        Raises:
-            RuntimeError: If the template engine is shared across multiple references.
-            PyException: If the glob pattern is invalid or templates contain errors.
-        
-        Example:
-        ```python
-        from oxapy import templating
-        
-        template = templating.Template()
-        template.register_function("_t", translate)
-        template.load("./templates/**/*.html")
-        ```
-        """
-    def register_function(self, name: builtins.str, callable: typing.Any) -> None:
-        r"""
-        Register a Python function as a custom template function.
-        
-        This method allows you to expose Python callables to be used within Tera templates.
-        The function will receive keyword arguments from the template call and should return
-        a value that can be serialized to JSON.
-        
-        **Important:** All functions must be registered **before** calling `load()`.
-        Tera validates function existence at template load time.
-        
-        Args:
-            name (str): The name used to call the function from templates (e.g., `{{ my_function(key=value) }}`).
-            callable (Callable): A Python callable that accepts keyword arguments and returns a value.
-        
-        Returns:
-            None
-        
-        Raises:
-            RuntimeError: If called after `load()` has been invoked.
-        
-        Example:
-        ```python
-        template = templating.Template()
-        template.register_function("add", lambda a, b: a + b)
-        template.load("./templates/**/*.html")
-        # In template: {{ add(a=1, b=2) }} -> 3
-        ```
-        """
 
 @typing.final
 class Status(enum.Enum):

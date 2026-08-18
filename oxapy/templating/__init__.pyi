@@ -2,82 +2,112 @@
 # ruff: noqa: E501, F401, F403, F405
 
 import builtins
-import enum
 import typing
 import typing_extensions
 __all__ = [
-    "Jinja",
     "Template",
-    "Tera",
 ]
 
 @typing.final
-class Jinja:
-    def __new__(cls, dir: builtins.str) -> typing_extensions.Self: ...
-    def render(self, template_name: builtins.str, context: typing.Optional[dict] = None) -> builtins.str: ...
-
-@typing.final
-class Tera:
-    def __new__(cls, dir: builtins.str) -> typing_extensions.Self: ...
-    def render(self, template_name: builtins.str, context: typing.Optional[dict] = None) -> builtins.str: ...
-
-@typing.final
-class Template(enum.Enum):
+class Template:
     r"""
-    Template engine for rendering HTML templates.
+    Template engine for rendering HTML templates using Tera.
     
-    This class provides a unified interface for different template engines,
-    currently supporting both Jinja and Tera templates.
+    Templates are loaded lazily via `load()`. Custom functions must be registered
+    with `register_function()` before calling `load()`.
     
     Args:
-        dir (str, optional): Directory pattern to search for templates (default: "./templates/**/*.html").
-        engine (str, optional): Template engine to use, either "jinja" or "tera" (default: "jinja").
+        None
     
     Returns:
-        Template: A new template engine instance.
-    
-    Raises:
-        PyException: If an invalid engine type is specified.
+        Template: A new empty template engine instance.
     
     Example:
     ```python
-    from oxapy import HttpServer, templating
+    from oxapy import templating
     
-    app = HttpServer(("127.0.0.1", 8000))
-    
-    # Configure templates with default settings (Jinja)
-    app.template(templating.Template())
-    
-    # Or use Tera with custom template directory
-    app.template(templating.Template("./views/**/*.html", "tera"))
+    template = templating.Template()
+    template.register_function("_t", translate)
+    template.load("./templates/**/*.html")
+    result = template.render("index.html", {"title": "Hello"})
     ```
     """
-    Jinja = ...
-    Tera = ...
-
-    def __new__(cls, dir: builtins.str = './templates/**/*.html', engine: builtins.str = 'jinja') -> typing_extensions.Self:
+    def __new__(cls) -> typing_extensions.Self:
         r"""
-        Create a new Template instance.
+        Create a new empty Template instance.
+        
+        Templates are not loaded at construction time. Use `register_function()` to add
+        custom functions, then `load()` to load and validate templates.
         
         Args:
-            dir (str, optional): Directory pattern to search for templates (default: "./templates/**/*.html").
-            engine (str, optional): Template engine to use, either "jinja" or "tera" (default: "jinja").
+            None
         
         Returns:
-            Template: A new template engine instance.
-        
-        Raises:
-            PyException: If an invalid engine type is specified.
+            Template: A new empty template engine instance.
         
         Example:
         ```python
         from oxapy import templating
         
-        # Use Jinja with default template directory
         template = templating.Template()
+        template.register_function("_t", translate)
+        template.load("./templates/**/*.html")
+        ```
+        """
+    def load(self, dir: builtins.str = './templates/**/*.html') -> None:
+        r"""
+        Load templates from a directory glob pattern.
         
-        # Use Tera with custom template directory
-        template = templating.Template("./views/**/*.html", "tera")
+        This parses and validates all matching template files. Any custom functions
+        registered with `register_function()` must be added **before** calling `load()`,
+        otherwise Tera will raise an error for unknown functions.
+        
+        Args:
+            dir (str, optional): Glob pattern to search for templates (default: "./templates/**/*.html").
+        
+        Returns:
+            None
+        
+        Raises:
+            RuntimeError: If the template engine is shared across multiple references.
+            PyException: If the glob pattern is invalid or templates contain errors.
+        
+        Example:
+        ```python
+        from oxapy import templating
+        
+        template = templating.Template()
+        template.register_function("_t", translate)
+        template.load("./templates/**/*.html")
+        ```
+        """
+    def register_function(self, name: builtins.str, callable: typing.Any) -> None:
+        r"""
+        Register a Python function as a custom template function.
+        
+        This method allows you to expose Python callables to be used within Tera templates.
+        The function will receive keyword arguments from the template call and should return
+        a value that can be serialized to JSON.
+        
+        **Important:** All functions must be registered **before** calling `load()`.
+        Tera validates function existence at template load time.
+        
+        Args:
+            name (str): The name used to call the function from templates (e.g., `{{ my_function(key=value) }}`).
+            callable (Callable): A Python callable that accepts keyword arguments and returns a value.
+        
+        Returns:
+            None
+        
+        Raises:
+            RuntimeError: If called after `load()` has been invoked.
+        
+        Example:
+        ```python
+        template = templating.Template()
+        template.register_function("add", lambda a, b: a + b)
+        template.load("./templates/**/*.html")
+        # In template: {{ add(a=1, b=2) }} -> 3
         ```
         """
 
