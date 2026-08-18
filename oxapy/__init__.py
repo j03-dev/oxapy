@@ -364,7 +364,6 @@ __all__ = (
     "static_file",
     "render",
     "send_file",
-    "catcher",
     "convert_to_response",
     "templating",
     "serializer",
