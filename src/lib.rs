@@ -6,6 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use pyo3::sync::PyOnceLock;
 use pyo3::types::{PyBytes, PyDict, PyInt, PyString};
 use pyo3_async_runtimes::tokio::{future_into_py, into_future};
 use pyo3_stub_gen::derive::*;
@@ -501,27 +502,25 @@ impl HttpServer {
         _permit: tokio::sync::OwnedSemaphorePermit,
     ) {
         tokio::spawn(async move {
-            let http = hyper_util::server::conn::auto::Builder::new(
-                hyper_util::rt::TokioExecutor::new()
-            );
-            http.serve_connection(
-                io,
-                hyper::service::service_fn(move |req| {
-                    let ctx = ctx.clone();
-                    async move {
-                        RequestBuilder::new(req)
-                            .with_app_data(&ctx.app_data)
-                            .with_template(&ctx.template)
-                            .build()
-                            .await
-                            .unwrap()
-                            .process(ctx)
-                            .await
-                    }
-                }),
-            )
-            .await
-            .ok();
+            hyper_util::server::conn::auto::Builder::new(hyper_util::rt::TokioExecutor::new())
+                .serve_connection(
+                    io,
+                    hyper::service::service_fn(move |req| {
+                        let ctx = ctx.clone();
+                        async move {
+                            RequestBuilder::new(req)
+                                .with_app_data(&ctx.app_data)
+                                .with_template(&ctx.template)
+                                .build()
+                                .await
+                                .unwrap()
+                                .process(ctx)
+                                .await
+                        }
+                    }),
+                )
+                .await
+                .ok();
         });
     }
 
@@ -604,9 +603,12 @@ fn parse_params_value<'py>(py: Python<'py>, value: &str, ty: &str) -> PyResult<B
         "int" => Ok(PyInt::new(py, value.parse::<i64>()?).into_any()),
         "str" => Ok(PyString::new(py, value).into_any()),
         "slug" => {
+            static RE: PyOnceLock<Regex> = PyOnceLock::new();
+            let re = RE
+                .get_or_try_init(py, || Regex::new(r"[^a-z0-9]+"))
+                .into_py_exception()?;
             let normalized: String = value.nfkd().filter(|c| c.is_ascii()).collect();
             let lowered = normalized.trim().to_lowercase();
-            let re = Regex::new(r"[^a-z0-9]+").unwrap();
             let replace = re.replace_all(&lowered, "-");
             Ok(PyString::new(py, replace.trim_matches('-')).into_any())
         }
