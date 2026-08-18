@@ -4,6 +4,11 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use cors::Cors;
+use exceptions::IntoPyException;
+use into_response::convert_to_response;
+use middleware::MiddlewareChain;
+use multipart::File;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
@@ -11,21 +16,17 @@ use pyo3::types::{PyBytes, PyDict, PyInt, PyString};
 use pyo3_async_runtimes::tokio::{future_into_py, into_future};
 use pyo3_stub_gen::derive::*;
 use regex::Regex;
-use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::Semaphore;
-use tokio::sync::mpsc::{Receiver, Sender, channel};
-use tokio::sync::oneshot;
-
-use cors::Cors;
-use exceptions::IntoPyException;
-use into_response::convert_to_response;
-use middleware::MiddlewareChain;
-use multipart::File;
 use request::{Request, RequestBuilder};
 use response::{FileStreaming, Redirect, Response};
 use routing::*;
 use status::Status;
 use templating::Template;
+use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::{
+    Semaphore,
+    mpsc::{Receiver, Sender, channel},
+    oneshot,
+};
 use unicode_normalization::UnicodeNormalization;
 
 use crate::middleware::Middleware;
