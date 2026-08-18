@@ -103,6 +103,7 @@ Routers are checked in order until a matching route is found.
 - `{name}` — string parameter passed to the handler as a keyword argument
 - `{name:int}` — integer parameter
 - `{name:str}` — explicit string parameter
+- `{name:slug}` — string normalized into a slug (lowercased, accents removed, non-alphanumeric runs replaced with `-`)
 - `{*path}` — catch-all matching one or more segments
 
 ```python

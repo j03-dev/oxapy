@@ -106,6 +106,7 @@ methods!(
     ///
     /// Parameters:
     ///     path (str): The route path, which may include parameters (e.g. `/items/{id}`).
+    ///     Parameters can be typed with `{name:str}`, `{name:int}`, or `{name:slug}`.
     ///     handler (callable | None): Optional Python function that handles the request.
     ///
     /// Returns:

@@ -16,8 +16,6 @@ use crate::{IntoPyException, exceptions::ClientError, json};
 
 mod fields;
 
-static SQL_ALCHEMY_INSPECT: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
-
 #[gen_stub_pyclass]
 #[pyclass(module="oxapy.serializer", subclass, extends=Field)]
 #[derive(Debug)]
@@ -394,6 +392,7 @@ impl Serializer {
     ) -> PyResult<Bound<'l, PyDict>> {
         let dict = PyDict::new(py);
 
+        static SQL_ALCHEMY_INSPECT: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
         let inspect = SQL_ALCHEMY_INSPECT.get_or_try_init(py, || {
             let sqlalchemy = PyModule::import(py, "sqlalchemy")?;
             let inspection = sqlalchemy.getattr("inspection")?;
@@ -433,9 +432,8 @@ impl Serializer {
     }
 }
 
-static CACHE: PyOnceLock<Arc<Mutex<HashMap<String, Value>>>> = PyOnceLock::new();
-
 fn cache(py: Python<'_>) -> &Arc<Mutex<HashMap<String, Value>>> {
+    static CACHE: PyOnceLock<Arc<Mutex<HashMap<String, Value>>>> = PyOnceLock::new();
     CACHE.get_or_init(py, || Arc::new(Mutex::new(HashMap::default())))
 }
 

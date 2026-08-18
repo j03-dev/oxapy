@@ -358,7 +358,7 @@ A few details worth copying:
 
 - `UserSerializer(req.data)` takes the raw JSON body; `is_valid()` populates `validated_data` and raises `serializer.ValidationException` on bad input.
 - `NoteSerializer(req.data, context={"user_id": req.user_id})` passes the acting user, which the overridden `create()` reads from `self.context`.
-- `{note_id}` captures the UUID string from the URL, matching the model's string primary key. Typed parameters like `{note_id:int}` also exist — see the [Routing guide](../guides/routing).
+- `{note_id}` captures the UUID string from the URL, matching the model's string primary key. Typed parameters like `{note_id:int}` or `{slug:slug}` also exist — see the [Routing guide](../guides/routing).
 - `req.user_id` and `req.db` were set by middleware — see [Requests](../guides/requests) for dynamic attributes.
 
 ## 8. Wiring it together

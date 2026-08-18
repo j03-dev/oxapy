@@ -62,8 +62,8 @@ impl Function<TeraResult<Value>> for PyTeraFunction {
 /// template.load("./templates/**/*.html")
 /// result = template.render("index.html", {"title": "Hello"})
 /// ```
-#[pyclass(from_py_object, module = "oxapy.templating")]
 #[gen_stub_pyclass]
+#[pyclass(from_py_object, module = "oxapy.templating")]
 #[derive(Clone, Debug)]
 pub struct Template(Arc<tera::Tera>);
 
