@@ -204,7 +204,7 @@ def _verify_session(secret: bytes, cookie: str) -> dict[str, typing.Any] | None:
         return None
 
 
-def _session_middleware(request, next, secret, max_age, **kwargs):
+def _session_middleware(request, next, secret, max_age, same_site, **kwargs):
     cookie = request.get_cookie("session")
 
     session_data = {}
@@ -230,7 +230,7 @@ def _session_middleware(request, next, secret, max_age, **kwargs):
                 f"Path=/; "
                 f"HttpOnly; "
                 f"Secure; "
-                f"SameSite=Strict; "
+                f"SameSite={same_site}; "
                 f"Max-Age={max_age}"
             ),
         )
@@ -238,7 +238,7 @@ def _session_middleware(request, next, secret, max_age, **kwargs):
     return response
 
 
-def Session(secret: bytes, max_age: int = 3600 * 24 * 7):
+def Session(secret: bytes, max_age: int = 3600 * 24 * 7, same_site="Lax"):
     r"""
     Create a session middleware for signed, client-side cookie storage.
 
@@ -284,7 +284,7 @@ def Session(secret: bytes, max_age: int = 3600 * 24 * 7):
             main()
 
     """
-    return partial(_session_middleware, secret=secret, max_age=max_age)
+    return partial(_session_middleware, secret=secret, max_age=max_age, same_site=same_site)
 
 def _generate_csrf_token(length: int = 32) -> str:
     return secrets.token_urlsafe(length)

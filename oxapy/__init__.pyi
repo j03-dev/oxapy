@@ -24,7 +24,6 @@ __all__ = [
     "Session",
     "Status",
     "convert_to_response",
-    "csrf_input",
     "delete",
     "exceptions",
     "from typing_extensions import Self",
@@ -1461,8 +1460,6 @@ def convert_to_response(result: typing.Any) -> Response:
         This function is mainly used internally by the framework to unify handler return types,
         but it can also be used manually if you’re building custom middlewares or decorators.
     """
-
-def csrf_input(token: builtins.str) -> builtins.str: ...
 
 def delete(path: builtins.str, handler: typing.Optional[typing.Any] = None) -> Route:
     r"""

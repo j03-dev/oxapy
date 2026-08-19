@@ -662,13 +662,6 @@ fn CsrfProtect(
     todo!("dummy CsrfProtect function")
 }
 
-#[gen_stub_pyfunction]
-#[pyfunction]
-fn csrf_input(token: &str) -> String {
-    // the implementation of this function is in __init__.py
-    todo!("dummy csrf_input function")
-}
-
 #[pymodule]
 fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Cors>()?;
@@ -694,7 +687,6 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(static_file, m)?)?;
     m.add_function(wrap_pyfunction!(Session, m)?)?;
     m.add_function(wrap_pyfunction!(CsrfProtect, m)?)?;
-    m.add_function(wrap_pyfunction!(csrf_input, m)?)?;
 
     exceptions::exceptions(m)?;
     jwt::jwt_submodule(m)?;

@@ -166,7 +166,7 @@ impl Response {
     /// ```
     pub fn insert_header(&mut self, key: &str, value: &str) -> PyResult<()> {
         let header_name = HeaderName::from_str(key).into_py_exception()?;
-        let header_value = HeaderValue::from_str(key).into_py_exception()?;
+        let header_value = HeaderValue::from_str(value).into_py_exception()?;
         self.headers.insert(header_name, header_value);
         Ok(())
     }
@@ -192,7 +192,7 @@ impl Response {
     /// ```
     pub fn append_header(&mut self, key: &str, value: &str) -> PyResult<()> {
         let header_name = HeaderName::from_str(key).into_py_exception()?;
-        let header_value = HeaderValue::from_str(key).into_py_exception()?;
+        let header_value = HeaderValue::from_str(value).into_py_exception()?;
         self.headers.append(header_name, header_value);
         Ok(())
     }
