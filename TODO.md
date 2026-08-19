@@ -91,32 +91,25 @@ Roadmap based on feature gap analysis against Flask, FastAPI, Django, Litestar, 
 - [ ] Add `response.delete_cookie(name, path, domain)`
 - [ ] Type-safe API instead of manual `insert_header("set-cookie", "...")`
 
-### 13. CSRF Protection
-- [x] Add `CsrfMiddleware` that generates and validates CSRF tokens
-- [x] Support synchronizer token pattern (double submit cookie)
-- [x] Auto-exempt safe methods (GET, HEAD, OPTIONS)
-- [x] Configurable exempt routes/patterns
-- [x] Integrate with session middleware
-
-### 14. Per-Status Error Handlers
+### 13. Per-Status Error Handlers
 - [ ] Add `@app.errorhandler(404)` decorator
 - [ ] Add `@app.exception_handler(ExceptionType)` decorator
 - [ ] Override default exception-to-status mapping
 - [ ] Support custom error pages (HTML) and error responses (JSON)
 
-### 15. URL Reverse Routing (`url_for`)
+### 14. URL Reverse Routing (`url_for`)
 - [ ] Register route names alongside path patterns
 - [ ] Add `url_for(route_name, **params)` function
 - [ ] Generate correct URLs with path parameters filled in
 - [ ] Useful for templates, redirects, and emails
 
-### 16. OAuth2 / Security Utilities
+### 15. OAuth2 / Security Utilities
 - [ ] Add `OAuth2PasswordBearer(tokenUrl="/token")` dependency
 - [ ] Add `HTTPBasic` dependency for HTTP Basic auth
 - [ ] Add `APIKeyHeader` / `APIKeyQuery` dependencies
 - [ ] Support OAuth2 scopes
 
-### 17. Content Negotiation
+### 16. Content Negotiation
 - [ ] Inspect `Accept` header to determine response format
 - [ ] Support multiple serializers per route (JSON, XML, MessagePack)
 - [ ] Default to JSON, fallback based on client preference
@@ -125,32 +118,22 @@ Roadmap based on feature gap analysis against Flask, FastAPI, Django, Litestar, 
 
 ## Nice-to-Have (P2)
 
-### 18. Class-Based Views / Controllers
-- [ ] Add `Controller` class that groups related route handlers
-- [ ] Support shared middleware, pre/post hooks per controller
-- [ ] Auto-register routes from controller methods
-
-### 19. Blueprint / Module System
-- [ ] Add `Blueprint` class for splitting routes across files
-- [ ] Support `app.register_blueprint(bp, prefix="/api/v1")`
-- [ ] Auto-merge middleware and static files from blueprints
-
-### 20. CLI Runner
+### 17. CLI Runner
 - [ ] Add `oxapy run app:main` command
 - [ ] Auto-detect uvicorn-like reload in dev
 - [ ] Support `--host`, `--port`, `--reload` flags
 
-### 21. Rate Limiting
+### 18. Rate Limiting
 - [ ] Add `RateLimitMiddleware` with configurable limits
 - [ ] Support per-IP and per-route limits
 - [ ] Use in-memory store or pluggable backend (Redis)
 
-### 22. Settings / Environment Configuration
+### 19. Settings / Environment Configuration
 - [ ] Add `Settings` base class (pydantic-settings style)
 - [ ] Load from `.env` files and environment variables
 - [ ] Type validation at startup
 
-### 23. i18n / Localization
+### 20. i18n / Localization
 - [ ] Add `gettext`-style translation function
 - [ ] Support locale detection from `Accept-Language` header
 - [ ] Date/number formatting per locale
@@ -162,7 +145,7 @@ Roadmap based on feature gap analysis against Flask, FastAPI, Django, Litestar, 
 ### Stubs
 - [x] Fix `Session()` return type in `__init__.pyi` — should be `Callable`, not `Response`
 - [x] Remove `catcher` from `__init__.py.__all__` (doesn't exist)
-- [ ] Remove `"from typing_extensions import Self"` from stub `__all__`
+- [x] Remove `"from typing_extensions import Self"` from stub `__all__`
 - [x] Fix docstrings: `app_data()`, `attach()`, `wrap()` say `Returns: None` but return `self`
 
 ### Security
