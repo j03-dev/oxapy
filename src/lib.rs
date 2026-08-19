@@ -4,6 +4,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use ahash::HashMap;
 use cors::Cors;
 use exceptions::IntoPyException;
 use into_response::convert_to_response;
@@ -50,7 +51,7 @@ pyo3_stub_gen::export_verbatim!("oxapy", "from typing_extensions import Self");
 pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
 
 struct ProcessRequest {
-    match_route: Option<MatchRoute<'static>>,
+    match_route: Option<OwnedMatchRoute>,
     middlewares: Option<Arc<[Middleware]>>,
     request: Arc<Request>,
     response_sender: oneshot::Sender<Response>,
@@ -549,13 +550,13 @@ impl HttpServer {
 
 async fn call_python_handler<'l>(
     middlewares: &Option<Arc<[Middleware]>>,
-    match_route: &Option<MatchRoute<'l>>,
+    match_route: &Option<OwnedMatchRoute>,
     request: &Request,
     is_async: bool,
 ) -> PyResult<Response> {
     if let Some(match_route) = match_route {
         let mut result = Python::attach(|py| {
-            let route = match_route.value;
+            let route = &match_route.value;
             let params = &match_route.params;
             let kwargs = build_route_params(py, params)?;
 
@@ -584,7 +585,7 @@ async fn call_python_handler<'l>(
 
 fn build_route_params<'py>(
     py: Python<'py>,
-    params: &matchit::Params,
+    params: &HashMap<String, String>,
 ) -> PyResult<Bound<'py, PyDict>> {
     let kwargs = PyDict::new(py);
     for (key, value) in params.iter() {

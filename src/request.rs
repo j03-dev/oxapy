@@ -18,7 +18,7 @@ use crate::status::Status;
 use crate::{
     Context, IntoPyException, ProcessRequest, json, multipart::File, templating::Template,
 };
-use crate::{middleware::Middleware, routing::MatchRoute};
+use crate::{middleware::Middleware, routing::MatchRoute, routing::OwnedMatchRoute};
 use crate::{multipart::parse_multipart, response::Body};
 
 /// HTTP request object containing information about the incoming request.
@@ -283,10 +283,11 @@ impl Request {
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
         let (response_sender, response_receiver) = oneshot::channel();
 
-        let transmutate_route: MatchRoute<'static> = unsafe { std::mem::transmute(match_route) };
+
+        let owned_match_route = OwnedMatchRoute::from(match_route);
 
         let process_request = ProcessRequest {
-            match_route: Some(transmutate_route),
+            match_route: Some(owned_match_route),
             middlewares,
             request: Arc::new(self),
             response_sender,

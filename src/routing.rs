@@ -8,6 +8,20 @@ use crate::{IntoPyException, middleware::Middleware};
 
 pub type MatchRoute<'l> = matchit::Match<'l, 'l, &'l Route>;
 
+pub struct OwnedMatchRoute {
+    pub value: Route,
+    pub params: HashMap<String, String>,
+}
+
+impl<'l> From<MatchRoute<'l>> for OwnedMatchRoute {
+    fn from(it: MatchRoute) -> Self {
+        Self {
+            value: it.value.clone(),
+            params: it.params.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
+        }
+    }
+}
+
 /// A route definition that maps a URL path to a handler function.
 ///
 /// Args:
