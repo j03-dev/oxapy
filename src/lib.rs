@@ -220,7 +220,7 @@ impl HttpServer {
     ///     app_data (any): Any Python object to be stored as application data.
     ///
     /// Returns:
-    ///     None
+    ///     Self
     ///
     /// Example:
     /// ```python
@@ -256,7 +256,7 @@ impl HttpServer {
     ///     router (Router): The router instance to attach.
     ///
     /// Returns:
-    ///     None
+    ///     Self
     ///
     /// Example:
     /// ```python
@@ -289,7 +289,7 @@ impl HttpServer {
     ///     template (Template): An instance of Template for rendering HTML.
     ///
     /// Returns:
-    ///     None
+    ///     Self
     ///
     /// Example:
     /// ```python
@@ -308,7 +308,7 @@ impl HttpServer {
     ///     cors (Cors): An instance of Cors with your desired CORS configuration.
     ///
     /// Returns:
-    ///     None
+    ///     Self
     ///
     /// Example:
     /// ```python
@@ -327,7 +327,7 @@ impl HttpServer {
     ///     max_connections (int): Maximum number of concurrent connections.
     ///
     /// Returns:
-    ///     None
+    ///     Self
     ///
     /// Example:
     /// ```python
@@ -347,7 +347,7 @@ impl HttpServer {
     ///     channel_capacity (int): The channel capacity.
     ///
     /// Returns:
-    ///     None
+    ///     Self
     ///
     /// Example:
     /// ```python
@@ -643,7 +643,7 @@ fn send_file(path: &str) -> Response {
 #[gen_stub_pyfunction]
 #[pyfunction]
 #[pyo3(signature=(secret, max_age = 3600 * 24 * 7))]
-fn Session(secret: Py<PyBytes>, max_age: i32) -> Response {
+fn Session(secret: Py<PyBytes>, max_age: i32) -> Py<PyAny> {
     // the implementation of this function is in __init__.py
     todo!("dummy session_middleware fonction")
 }

@@ -160,10 +160,10 @@ Roadmap based on feature gap analysis against Flask, FastAPI, Django, Litestar, 
 ## Bug Fixes & Quality
 
 ### Stubs
-- [ ] Fix `Session()` return type in `__init__.pyi` — should be `Callable`, not `Response`
-- [ ] Remove `catcher` from `__init__.py.__all__` (doesn't exist)
+- [x] Fix `Session()` return type in `__init__.pyi` — should be `Callable`, not `Response`
+- [x] Remove `catcher` from `__init__.py.__all__` (doesn't exist)
 - [ ] Remove `"from typing_extensions import Self"` from stub `__all__`
-- [ ] Fix docstrings: `app_data()`, `attach()`, `wrap()` say `Returns: None` but return `self`
+- [x] Fix docstrings: `app_data()`, `attach()`, `wrap()` say `Returns: None` but return `self`
 
 ### Security
 - [ ] Change `SameSite=Lax` to `SameSite=Strict` on session cookies (or make configurable)
@@ -171,11 +171,11 @@ Roadmap based on feature gap analysis against Flask, FastAPI, Django, Litestar, 
 - [ ] Replace `unwrap()` in `insert_header` / `append_header` with proper error handling
 
 ### Performance
-- [ ] Cache `Regex::new` in `parse_params_value` (slug parsing) — currently recompiles every call
+- [x] Cache `Regex::new` in `parse_params_value` (slug parsing) — currently recompiles every call
 - [ ] Evaluate middleware chain `py.eval()` overhead — consider alternatives
 
 ### Safety
-- [ ] Replace `unsafe { std::mem::transmute }` in `request.rs:286` with safe alternative (e.g., `ouroboros` or restructure lifetime)
+- [x] Replace `unsafe { std::mem::transmute }`
 
 ### Cleanup
 - [ ] Remove `#![allow(unused_variables, non_snake_case)]` crate-level attribute — fix individually
