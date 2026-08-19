@@ -56,6 +56,7 @@ const sidebars: SidebarsConfig = {
         {type: 'doc', id: 'guides/app-state', label: 'Application State'},
         {type: 'doc', id: 'guides/templates', label: 'Templates'},
         {type: 'doc', id: 'guides/sessions', label: 'Sessions'},
+        {type: 'doc', id: 'guides/csrf-protection', label: 'CSRF Protection'},
         {type: 'doc', id: 'guides/cors', label: 'CORS'},
         {type: 'doc', id: 'guides/error-handling', label: 'Error Handling'},
         {type: 'doc', id: 'guides/async-handlers', label: 'Async Handlers'},

@@ -7,6 +7,7 @@ Roadmap based on feature gap analysis against Flask, FastAPI, Django, Litestar, 
 ## Critical (P0)
 
 ### 1. WebSocket Support
+
 - [ ] Add WebSocket upgrade handling via hyper's `hyper::upgrade::on()`
 - [ ] Expose `WebSocket` class to Python with `send()`, `receive()`, `close()`
 - [ ] Add `@ws("/path")` decorator or `Router.websocket()` method
@@ -14,6 +15,7 @@ Roadmap based on feature gap analysis against Flask, FastAPI, Django, Litestar, 
 - [ ] Tests: echo server, broadcast, concurrent connections
 
 ### 2. Dependency Injection
+
 - [ ] Add `Depends()` function that registers a callable dependency
 - [ ] Resolve dependency graph per-request (with caching per-request scope)
 - [ ] Support nested dependencies (`Depends(get_db)` -> `Depends(get_user)`)
@@ -22,6 +24,7 @@ Roadmap based on feature gap analysis against Flask, FastAPI, Django, Litestar, 
 - [ ] Tests: nested deps, override in tests, caching
 
 ### 3. OpenAPI / Swagger Auto-Generation
+
 - [ ] Generate OpenAPI 3.x schema from route definitions, serializers, and type hints
 - [ ] Serve Swagger UI at `/docs` and ReDoc at `/redoc`
 - [ ] Auto-document path params, query params, request body, response models
@@ -29,6 +32,7 @@ Roadmap based on feature gap analysis against Flask, FastAPI, Django, Litestar, 
 - [ ] Tests: schema correctness, UI serving
 
 ### 4. Signature-Based Request Validation
+
 - [ ] Inspect handler function signatures at registration time
 - [ ] Auto-parse and validate query params, headers, cookies from type hints
 - [ ] Auto-parse request body from Pydantic/dataclass/serializer models
@@ -37,6 +41,7 @@ Roadmap based on feature gap analysis against Flask, FastAPI, Django, Litestar, 
 - [ ] Tests: query validation, header extraction, body parsing, error responses
 
 ### 5. Background Tasks
+
 - [ ] Add `BackgroundTasks` class with `add_task(func, *args, **kwargs)`
 - [ ] Execute tasks after response is sent to client
 - [ ] Support async background tasks
@@ -44,6 +49,7 @@ Roadmap based on feature gap analysis against Flask, FastAPI, Django, Litestar, 
 - [ ] Tests: task execution after response, async tasks
 
 ### 6. Lifespan Events (Startup/Shutdown)
+
 - [ ] Add `on_startup(func)` and `on_shutdown(func)` to `HttpServer`
 - [ ] Support async startup/shutdown hooks
 - [ ] Execute startup hooks before accepting connections
@@ -52,6 +58,7 @@ Roadmap based on feature gap analysis against Flask, FastAPI, Django, Litestar, 
 - [ ] Tests: hook execution order, async hooks
 
 ### 7. Generic Streaming Responses
+
 - [ ] Add `StreamingResponse` class (generalize `FileStreaming`)
 - [ ] Accept async generators, sync generators, or `StreamBody` as body source
 - [ ] Support custom content type
@@ -59,6 +66,7 @@ Roadmap based on feature gap analysis against Flask, FastAPI, Django, Litestar, 
 - [ ] Tests: async generator streaming, chunked delivery
 
 ### 8. Test Client
+
 - [ ] Add `TestClient(app)` that makes in-process HTTP requests
 - [ ] No real TCP server needed (use hyper's in-process service)
 - [ ] Support context manager (`with TestClient(app) as client:`)
@@ -71,45 +79,53 @@ Roadmap based on feature gap analysis against Flask, FastAPI, Django, Litestar, 
 ## Important (P1)
 
 ### 9. GZip Response Compression
+
 - [ ] Add `GZipMiddleware` that compresses responses based on `Accept-Encoding`
 - [ ] Configurable minimum response size threshold
 - [ ] Support gzip and/or brotli
 - [ ] Skip compression for streaming responses
 
 ### 10. Trusted Host / HTTPS Redirect
+
 - [ ] Add `TrustedHostMiddleware` that validates `Host` header
 - [ ] Add `HTTPSRedirectMiddleware` that redirects HTTP to HTTPS
 - [ ] Configurable allowed hosts list
 
 ### 11. Client IP Address
+
 - [ ] Expose `request.client.host` on the `Request` object
 - [ ] Extract from `hyper`'s connected socket info
 - [ ] Support `X-Forwarded-For` / `X-Real-IP` behind reverse proxy (configurable)
 
 ### 12. Response Cookies API
+
 - [ ] Add `response.set_cookie(name, value, max_age, path, domain, httponly, secure, samesite)`
 - [ ] Add `response.delete_cookie(name, path, domain)`
 - [ ] Type-safe API instead of manual `insert_header("set-cookie", "...")`
 
 ### 13. Per-Status Error Handlers
+
 - [ ] Add `@app.errorhandler(404)` decorator
 - [ ] Add `@app.exception_handler(ExceptionType)` decorator
 - [ ] Override default exception-to-status mapping
 - [ ] Support custom error pages (HTML) and error responses (JSON)
 
 ### 14. URL Reverse Routing (`url_for`)
+
 - [ ] Register route names alongside path patterns
 - [ ] Add `url_for(route_name, **params)` function
 - [ ] Generate correct URLs with path parameters filled in
 - [ ] Useful for templates, redirects, and emails
 
 ### 15. OAuth2 / Security Utilities
+
 - [ ] Add `OAuth2PasswordBearer(tokenUrl="/token")` dependency
 - [ ] Add `HTTPBasic` dependency for HTTP Basic auth
 - [ ] Add `APIKeyHeader` / `APIKeyQuery` dependencies
 - [ ] Support OAuth2 scopes
 
 ### 16. Content Negotiation
+
 - [ ] Inspect `Accept` header to determine response format
 - [ ] Support multiple serializers per route (JSON, XML, MessagePack)
 - [ ] Default to JSON, fallback based on client preference
@@ -119,21 +135,25 @@ Roadmap based on feature gap analysis against Flask, FastAPI, Django, Litestar, 
 ## Nice-to-Have (P2)
 
 ### 17. CLI Runner
+
 - [ ] Add `oxapy run app:main` command
 - [ ] Auto-detect uvicorn-like reload in dev
 - [ ] Support `--host`, `--port`, `--reload` flags
 
 ### 18. Rate Limiting
+
 - [ ] Add `RateLimitMiddleware` with configurable limits
 - [ ] Support per-IP and per-route limits
 - [ ] Use in-memory store or pluggable backend (Redis)
 
 ### 19. Settings / Environment Configuration
+
 - [ ] Add `Settings` base class (pydantic-settings style)
 - [ ] Load from `.env` files and environment variables
 - [ ] Type validation at startup
 
 ### 20. i18n / Localization
+
 - [ ] Add `gettext`-style translation function
 - [ ] Support locale detection from `Accept-Language` header
 - [ ] Date/number formatting per locale
@@ -143,24 +163,29 @@ Roadmap based on feature gap analysis against Flask, FastAPI, Django, Litestar, 
 ## Bug Fixes & Quality
 
 ### Stubs
+
 - [x] Fix `Session()` return type in `__init__.pyi` — should be `Callable`, not `Response`
 - [x] Remove `catcher` from `__init__.py.__all__` (doesn't exist)
 - [x] Remove `"from typing_extensions import Self"` from stub `__all__`
 - [x] Fix docstrings: `app_data()`, `attach()`, `wrap()` say `Returns: None` but return `self`
 
 ### Security
+
 - [x] Change `SameSite=Lax` to `SameSite=Strict` on session cookies (or make configurable)
 - [ ] Add `Origin` / `Referer` header check in session middleware for state-changing methods
 - [x] Replace `unwrap()` in `insert_header` / `append_header` with proper error handling
 
 ### Performance
+
 - [x] Cache `Regex::new` in `parse_params_value` (slug parsing) — currently recompiles every call
 - [ ] Evaluate middleware chain `py.eval()` overhead — consider alternatives
 
 ### Safety
+
 - [x] Replace `unsafe { std::mem::transmute }`
 
 ### Cleanup
+
 - [ ] Remove `#![allow(unused_variables, non_snake_case)]` crate-level attribute — fix individually
 - [ ] Add `CHANGELOG.md`
 - [ ] Add `CONTRIBUTING.md`

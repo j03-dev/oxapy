@@ -204,87 +204,87 @@ def _verify_session(secret: bytes, cookie: str) -> dict[str, typing.Any] | None:
         return None
 
 
-def _session_middleware(request, next, secret, max_age, same_site, **kwargs):
-    cookie = request.get_cookie("session")
-
-    session_data = {}
-
-    if cookie:
-        verified = _verify_session(secret, cookie)
-        if verified is not None:
-            session_data = verified
-
-    request.session = session_data
-    initial_state = json.dumps(session_data)
-
-    response = convert_to_response(next(request, **kwargs))
-
-    current_state = json.dumps(request.session)
-    if current_state != initial_state:
-        signed_cookie = _sign_session(secret, max_age, request.session)
-
-        response.insert_header(
-            "set-cookie",
-            (
-                f"session={signed_cookie}; "
-                f"Path=/; "
-                f"HttpOnly; "
-                f"Secure; "
-                f"SameSite={same_site}; "
-                f"Max-Age={max_age}"
-            ),
-        )
-
-    return response
-
-
-def Session(secret: bytes, max_age: int = 3600 * 24 * 7, same_site="Lax"):
-    r"""
+class Session:
+    """
     Create a session middleware for signed, client-side cookie storage.
 
-    This middleware extracts session data from a "session" cookie, verifies its
-    HMAC-SHA256 signature, and injects the payload into `request.session`.
+    This middleware extracts session data from a ``session`` cookie, verifies its
+    HMAC-SHA256 signature, and injects the payload into ``request.session``.
     At the end of the request cycle, it compares the session state; if the
     dictionary was modified, it automatically signs the new data and inserts
-    a "set-cookie" header into the response.
+    a ``Set-Cookie`` header into the response.
 
     Args:
         secret (bytes): The secret key used for HMAC signing and verification.
         max_age (int): Session expiration in seconds. Defaults to 1 week (604800s).
+        same_site (str): SameSite cookie attribute. Defaults to ``"Strict"``.
 
     Returns:
-        functools.partial: A partially applied middleware function to be
-                           attached via `.middleware()`.
+        A middleware function to be registered via ``router.middleware()``.
 
     Example:
         ```python
-        from oxapy import HttpServer, Session, Router, get
+        from oxapy import Oxapy, Session, Router, get
 
 
         @get("/")
-        def home_view(request):
-            # Modification triggers an automatic set-cookie in the response
+        def home(request):
             request.session["visited"] = True
-            return "Session updated
+            return "Session updated"
 
 
         def main():
             session = Session(b"my-secret-key")
             (
-                HttpServer(("0.0.0.0", 8000))
-                .attach(
-                    Router()
-                    .middleware(session)
-                    .routes([home_view])
-                )
+                Oxapy(("127.0.0.1", 8000))
+                .attach(Router().middleware(session).route(home))
                 .run()
             )
 
+
         if __name__ == "__main__":
             main()
-
+        ```
     """
-    return partial(_session_middleware, secret=secret, max_age=max_age, same_site=same_site)
+
+    def __init__(self, secret=bytes, max_age: int = 3600 * 24 * 7, same_site="Lax"):
+        self.secret = secret
+        self.max_age = max_age
+        self.same_site = same_site
+
+    def __call__(self, request, next, **kwargs) -> Response:
+        cookie = request.get_cookie("session")
+
+        session_data = {}
+
+        if cookie:
+            verified = _verify_session(self.secret, cookie)
+            if verified is not None:
+                session_data = verified
+
+        request.session = session_data
+        initial_state = json.dumps(session_data)
+
+        response = convert_to_response(next(request, **kwargs))
+
+        current_state = json.dumps(request.session)
+        if current_state != initial_state:
+            signed_cookie = _sign_session(self.secret, self.max_age, request.session)
+
+            response.insert_header(
+                "set-cookie",
+                (
+                    f"session={signed_cookie}; "
+                    f"Path=/; "
+                    f"HttpOnly; "
+                    f"Secure; "
+                    f"SameSite={self.same_site}; "
+                    f"Max-Age={self.max_age}"
+                ),
+            )
+
+        return response
+
 
 def _generate_csrf_token(length: int = 32) -> str:
     return secrets.token_urlsafe(length)
@@ -305,29 +305,37 @@ def _verify_csrf_token(secret: bytes, signed: str) -> str | None:
     except Exception:
         return None
 
+
 class CsrfProtect:
-    r"""
+    """
     CSRF protection middleware using the Double Submit Cookie pattern.
 
     Validates a signed token on state-changing requests (POST, PUT, DELETE, PATCH)
     and sets a readable cookie on every response.
 
-    The middleware stores the token on ``request.csrf_token``.  The Rust ``render()``
-    function automatically injects ``csrf_token`` into the template context, so
-    Tera templates can use ``{{ csrf_input(csrf_token) }}`` to render the hidden
-    ``<input>`` — no manual passing required.
+    The middleware stores the token on ``request.csrf_token``.  The ``render()``
+    function automatically injects ``csrf_token`` into the template context, and
+    the built-in ``csrf_input`` template function renders the hidden ``<input>``
+    — no manual passing required.
 
     Args:
         secret (bytes): HMAC signing key for the token.
         cookie_name (str): Name of the cookie storing the signed token.
-        header_name (str): Request header to check for the token (AJAX).
+            Defaults to ``"csrf_token"``.
+        header_name (str): Request header to check for the token (for AJAX).
+            Defaults to ``"x-csrf-token"``.
         field_name (str): Form/JSON field name for the token.
-        cookie_max_age (int): Cookie lifetime in seconds (default 1 hour).
+            Defaults to ``"_csrf_token"``.
+        cookie_max_age (int): Cookie lifetime in seconds. Defaults to 3600 (1 hour).
         safe_methods (tuple): HTTP methods that skip validation.
+            Defaults to ``("GET", "HEAD", "OPTIONS", "TRACE")``.
+
+    Returns:
+        A middleware function to be registered via ``router.middleware()``.
 
     Example:
         ```python
-        from oxapy import HttpServer, Router, CsrfProtect, get, post, render
+        from oxapy import Oxapy, Router, CsrfProtect, get, post, render
         from oxapy import templating
 
         csrf = CsrfProtect(secret=b"my-secret-key")
@@ -347,19 +355,24 @@ class CsrfProtect:
         router.middleware(csrf)
         router.routes([form_view, submit])
 
-        HttpServer(("0.0.0.0", 8000)).template(template).attach(router).run()
+        Oxapy(("127.0.0.1", 8000)).template(template).attach(router).run()
         ```
 
     Templates:
+        The ``csrf_input`` function is registered automatically. Use it with the
+        injected ``csrf_token`` variable:
+
         ```html
         <form method="POST" action="/submit">
-            {{ csrf_input(csrf_token) }}
+            {{ csrf_input(token=csrf_token) }}
             <input type="text" name="username">
             <button type="submit">Submit</button>
         </form>
         ```
 
     AJAX:
+        Read the token from the cookie and send it as a header:
+
         ```javascript
         const token = document.cookie.match(/csrf_token=([^;]+)/)?.[1];
         fetch('/api/data', {
@@ -386,7 +399,7 @@ class CsrfProtect:
         self.cookie_max_age = cookie_max_age
         self.safe_methods = safe_methods
 
-    def __call__(self, request, next, **kwargs):
+    def __call__(self, request, next, **kwargs) -> Response:
         raw_cookie = request.get_cookie(self.cookie_name)
         token = None
         if raw_cookie:

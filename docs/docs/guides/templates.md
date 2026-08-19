@@ -1,6 +1,6 @@
 # Templates
 
-OxAPY ships a template engine based on [Tera](https://keats.github.io/tera/) (a Jinja2-like language) for rendering server-side HTML.
+OxAPY ships a template engine based on [Tera](https://keats.github.io/tera/) (a Jinja2-like language) for rendering server-side HTML. See the [Tera documentation](https://keats.github.io/tera/) for the full template syntax reference.
 
 ## Enabling templates
 
@@ -45,7 +45,9 @@ Given this template file `templates/index.html`:
 ```html
 <!DOCTYPE html>
 <html>
-  <head><title>{{ title }}</title></head>
+  <head>
+    <title>{{ title }}</title>
+  </head>
   <body>
     <h1>{{ title }}</h1>
     <ul>
@@ -58,6 +60,27 @@ Given this template file `templates/index.html`:
 ```
 
 The rendered page is served with `Content-Type: text/html`. When the `session` is set on the request, it is made available to templates as `{{ session }}` automatically.
+
+## Automatic template variables
+
+The `render()` function injects variables into the template context based on active middleware:
+
+| Variable     | Source                   | Description                                     |
+| ------------ | ------------------------ | ----------------------------------------------- |
+| `session`    | `Session` middleware     | The session dictionary from `request.session`   |
+| `csrf_token` | `CsrfProtect` middleware | The CSRF token string from `request.csrf_token` |
+
+When `CsrfProtect` is active, the built-in `csrf_input` template function is also available:
+
+```html
+<form method="POST" action="/submit">
+  {{ csrf_input(token=csrf_token) }}
+  <input type="text" name="username" />
+  <button type="submit">Submit</button>
+</form>
+```
+
+This renders a hidden `<input>` with the token — no manual passing required. See the [CSRF Protection guide](./csrf-protection) for details.
 
 ## Custom template functions
 
