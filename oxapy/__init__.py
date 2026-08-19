@@ -1,4 +1,5 @@
 import os
+import secrets
 import threading
 import sys
 import subprocess
@@ -203,7 +204,7 @@ def _verify_session(secret: bytes, cookie: str) -> dict[str, typing.Any] | None:
         return None
 
 
-def _session_middleware(request, next, secret, max_age, **kwargs):
+def _session_middleware(request, next, secret, max_age, same_site, **kwargs):
     cookie = request.get_cookie("session")
 
     session_data = {}
@@ -229,7 +230,7 @@ def _session_middleware(request, next, secret, max_age, **kwargs):
                 f"Path=/; "
                 f"HttpOnly; "
                 f"Secure; "
-                f"SameSite=Lax; "
+                f"SameSite={same_site}; "
                 f"Max-Age={max_age}"
             ),
         )
@@ -237,7 +238,7 @@ def _session_middleware(request, next, secret, max_age, **kwargs):
     return response
 
 
-def Session(secret: bytes, max_age: int = 3600 * 24 * 7):
+def Session(secret: bytes, max_age: int = 3600 * 24 * 7, same_site="Lax"):
     r"""
     Create a session middleware for signed, client-side cookie storage.
 
@@ -283,7 +284,151 @@ def Session(secret: bytes, max_age: int = 3600 * 24 * 7):
             main()
 
     """
-    return partial(_session_middleware, secret=secret, max_age=max_age)
+    return partial(_session_middleware, secret=secret, max_age=max_age, same_site=same_site)
+
+def _generate_csrf_token(length: int = 32) -> str:
+    return secrets.token_urlsafe(length)
+
+
+def _sign_csrf_token(secret: bytes, token: str) -> str:
+    signature = hmac.new(secret, token.encode(), hashlib.sha256).hexdigest()
+    return f"{token}.{signature}"
+
+
+def _verify_csrf_token(secret: bytes, signed: str) -> str | None:
+    try:
+        token, signature = signed.split(".", 1)
+        expected = hmac.new(secret, token.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(signature, expected):
+            return None
+        return token
+    except Exception:
+        return None
+
+class CsrfProtect:
+    r"""
+    CSRF protection middleware using the Double Submit Cookie pattern.
+
+    Validates a signed token on state-changing requests (POST, PUT, DELETE, PATCH)
+    and sets a readable cookie on every response.
+
+    The middleware stores the token on ``request.csrf_token``.  The Rust ``render()``
+    function automatically injects ``csrf_token`` into the template context, so
+    Tera templates can use ``{{ csrf_input(csrf_token) }}`` to render the hidden
+    ``<input>`` — no manual passing required.
+
+    Args:
+        secret (bytes): HMAC signing key for the token.
+        cookie_name (str): Name of the cookie storing the signed token.
+        header_name (str): Request header to check for the token (AJAX).
+        field_name (str): Form/JSON field name for the token.
+        cookie_max_age (int): Cookie lifetime in seconds (default 1 hour).
+        safe_methods (tuple): HTTP methods that skip validation.
+
+    Example:
+        ```python
+        from oxapy import HttpServer, Router, CsrfProtect, get, post, render
+        from oxapy import templating
+
+        csrf = CsrfProtect(secret=b"my-secret-key")
+
+        template = templating.Template()
+        template.load("./templates/**/*.html")
+
+        @get("/form")
+        def form_view(request):
+            return render(request, "form.html")
+
+        @post("/submit")
+        def submit(request):
+            return {"status": "ok"}
+
+        router = Router()
+        router.middleware(csrf)
+        router.routes([form_view, submit])
+
+        HttpServer(("0.0.0.0", 8000)).template(template).attach(router).run()
+        ```
+
+    Templates:
+        ```html
+        <form method="POST" action="/submit">
+            {{ csrf_input(csrf_token) }}
+            <input type="text" name="username">
+            <button type="submit">Submit</button>
+        </form>
+        ```
+
+    AJAX:
+        ```javascript
+        const token = document.cookie.match(/csrf_token=([^;]+)/)?.[1];
+        fetch('/api/data', {
+            method: 'POST',
+            headers: { 'X-CSRF-Token': token },
+            body: JSON.stringify({ key: 'value' })
+        });
+        ```
+    """
+
+    def __init__(
+        self,
+        secret: bytes,
+        cookie_name: str = "csrf_token",
+        header_name: str = "x-csrf-token",
+        field_name: str = "_csrf_token",
+        cookie_max_age: int = 3600,
+        safe_methods: tuple[str, ...] = ("GET", "HEAD", "OPTIONS", "TRACE"),
+    ):
+        self.secret = secret
+        self.cookie_name = cookie_name
+        self.header_name = header_name
+        self.field_name = field_name
+        self.cookie_max_age = cookie_max_age
+        self.safe_methods = safe_methods
+
+    def __call__(self, request, next, **kwargs):
+        raw_cookie = request.get_cookie(self.cookie_name)
+        token = None
+        if raw_cookie:
+            token = _verify_csrf_token(self.secret, raw_cookie)
+
+        if token is None:
+            token = _generate_csrf_token()
+
+        request.csrf_token = token
+
+        if request.method.upper() in self.safe_methods:
+            response = convert_to_response(next(request, **kwargs))
+        else:
+            submitted = request.headers.get(self.header_name)
+            if not submitted and self.field_name in request.form:
+                submitted = request.form[self.field_name]
+            if not submitted:
+                try:
+                    body = request.json()
+                    if isinstance(body, dict):
+                        submitted = body.get(self.field_name)
+                except Exception:
+                    pass
+
+            if not submitted or not hmac.compare_digest(submitted, token):
+                raise exceptions.ForbiddenError("CSRF token missing or invalid")
+
+            response = convert_to_response(next(request, **kwargs))
+
+        signed = _sign_csrf_token(self.secret, token)
+        response.insert_header(
+            "set-cookie",
+            (
+                f"{self.cookie_name}={signed}; "
+                f"Path=/; "
+                f"Secure; "
+                f"SameSite=Lax; "
+                f"Max-Age={self.cookie_max_age}"
+            ),
+        )
+
+        return response
 
 
 def secure_join(base: str, *paths: str) -> str:
@@ -351,6 +496,7 @@ __all__ = (
     "Request",
     "Cors",
     "Session",
+    "CsrfProtect",
     "Redirect",
     "FileStreaming",
     "File",

@@ -6,7 +6,28 @@ use pyo3_stub_gen::derive::*;
 
 use crate::{IntoPyException, middleware::Middleware};
 
-pub type MatchRoute<'l> = matchit::Match<'l, 'l, &'l Route>;
+pub type MatchRoute<'l> = matchit::Match<'l, 'l, &'l Arc<Route>>;
+
+pub struct OwnedMatchRoute {
+    pub value: Arc<Route>,
+    pub params: Vec<(String, String)>,
+}
+
+impl<'l> From<MatchRoute<'l>> for OwnedMatchRoute {
+    fn from(match_route: MatchRoute) -> Self {
+        let p = match_route.params;
+        let mut params = Vec::with_capacity(p.len());
+
+        for (k, v) in p.iter() {
+            params.push((k.to_string(), v.to_string()));
+        }
+
+        Self {
+            value: match_route.value.clone(),
+            params,
+        }
+    }
+}
 
 /// A route definition that maps a URL path to a handler function.
 ///
@@ -351,7 +372,7 @@ pub struct Router {
     pub base_path: Option<String>,
     pub count: usize,
     pub middlewares: Option<Arc<[Middleware]>>,
-    pub routes: HashMap<String, matchit::Router<Route>>,
+    pub routes: HashMap<String, matchit::Router<Arc<Route>>>,
 }
 
 impl Router {
@@ -469,7 +490,9 @@ impl Router {
             None => route.path.clone(),
         };
 
-        method_router.insert(full_path, route).into_py_exception()?;
+        method_router
+            .insert(full_path, Arc::new(route))
+            .into_py_exception()?;
 
         Ok(self.clone())
     }

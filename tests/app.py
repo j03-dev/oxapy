@@ -2,13 +2,15 @@ from oxapy import Oxapy, Router, get
 
 
 @get("/hello/{name}")
-def hello(_req, name):
+async def hello(_req, name):
     return f"Hello, {name}!"
 
 
-def main():
-    Oxapy(("127.0.0.1", 5555)).attach(Router().route(hello)).run()
+async def main():
+    await Oxapy(("127.0.0.1", 5555)).attach(Router().route(hello)).async_mode().run()
 
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+
+    asyncio.run(main())

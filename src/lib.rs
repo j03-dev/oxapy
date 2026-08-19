@@ -50,7 +50,7 @@ pyo3_stub_gen::export_verbatim!("oxapy", "from typing_extensions import Self");
 pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
 
 struct ProcessRequest {
-    match_route: Option<MatchRoute<'static>>,
+    match_route: Option<OwnedMatchRoute>,
     middlewares: Option<Arc<[Middleware]>>,
     request: Arc<Request>,
     response_sender: oneshot::Sender<Response>,
@@ -220,7 +220,7 @@ impl HttpServer {
     ///     app_data (any): Any Python object to be stored as application data.
     ///
     /// Returns:
-    ///     None
+    ///     Self
     ///
     /// Example:
     /// ```python
@@ -256,7 +256,7 @@ impl HttpServer {
     ///     router (Router): The router instance to attach.
     ///
     /// Returns:
-    ///     None
+    ///     Self
     ///
     /// Example:
     /// ```python
@@ -289,7 +289,7 @@ impl HttpServer {
     ///     template (Template): An instance of Template for rendering HTML.
     ///
     /// Returns:
-    ///     None
+    ///     Self
     ///
     /// Example:
     /// ```python
@@ -308,7 +308,7 @@ impl HttpServer {
     ///     cors (Cors): An instance of Cors with your desired CORS configuration.
     ///
     /// Returns:
-    ///     None
+    ///     Self
     ///
     /// Example:
     /// ```python
@@ -327,7 +327,7 @@ impl HttpServer {
     ///     max_connections (int): Maximum number of concurrent connections.
     ///
     /// Returns:
-    ///     None
+    ///     Self
     ///
     /// Example:
     /// ```python
@@ -347,7 +347,7 @@ impl HttpServer {
     ///     channel_capacity (int): The channel capacity.
     ///
     /// Returns:
-    ///     None
+    ///     Self
     ///
     /// Example:
     /// ```python
@@ -537,7 +537,7 @@ impl HttpServer {
                         .await
                         .unwrap_or_else(Response::from)
                         .call_wrapper(&pr)
-                        .apply_cors(&pr.cors);
+                        .apply_cors(&pr.cors)?;
                     let _ = pr.response_sender.send(response);
                 },
                 _ = shutdown.wait() => break,
@@ -547,15 +547,15 @@ impl HttpServer {
     }
 }
 
-async fn call_python_handler<'l>(
+async fn call_python_handler(
     middlewares: &Option<Arc<[Middleware]>>,
-    match_route: &Option<MatchRoute<'l>>,
+    match_route: &Option<OwnedMatchRoute>,
     request: &Request,
     is_async: bool,
 ) -> PyResult<Response> {
     if let Some(match_route) = match_route {
         let mut result = Python::attach(|py| {
-            let route = match_route.value;
+            let route = &match_route.value;
             let params = &match_route.params;
             let kwargs = build_route_params(py, params)?;
 
@@ -584,7 +584,7 @@ async fn call_python_handler<'l>(
 
 fn build_route_params<'py>(
     py: Python<'py>,
-    params: &matchit::Params,
+    params: &[(String, String)],
 ) -> PyResult<Bound<'py, PyDict>> {
     let kwargs = PyDict::new(py);
     for (key, value) in params.iter() {
@@ -643,9 +643,23 @@ fn send_file(path: &str) -> Response {
 #[gen_stub_pyfunction]
 #[pyfunction]
 #[pyo3(signature=(secret, max_age = 3600 * 24 * 7))]
-fn Session(secret: Py<PyBytes>, max_age: i32) -> Response {
+fn Session(secret: Py<PyBytes>, max_age: i32) -> Py<PyAny> {
     // the implementation of this function is in __init__.py
     todo!("dummy session_middleware fonction")
+}
+
+#[gen_stub_pyfunction]
+#[pyfunction]
+#[pyo3(signature=(secret, cookie_name = "csrf_token", header_name = "x-csrf-token", field_name = "_csrf_token", cookie_max_age = 3600))]
+fn CsrfProtect(
+    secret: Py<PyBytes>,
+    cookie_name: &str,
+    header_name: &str,
+    field_name: &str,
+    cookie_max_age: i32,
+) -> Py<PyAny> {
+    // the implementation of this function is in __init__.py
+    todo!("dummy CsrfProtect function")
 }
 
 #[pymodule]
@@ -672,6 +686,7 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(send_file, m)?)?;
     m.add_function(wrap_pyfunction!(static_file, m)?)?;
     m.add_function(wrap_pyfunction!(Session, m)?)?;
+    m.add_function(wrap_pyfunction!(CsrfProtect, m)?)?;
 
     exceptions::exceptions(m)?;
     jwt::jwt_submodule(m)?;

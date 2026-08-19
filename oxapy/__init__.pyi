@@ -11,6 +11,7 @@ from . import serializer
 from . import templating
 __all__ = [
     "Cors",
+    "CsrfProtect",
     "File",
     "FileStreaming",
     "HttpServer",
@@ -389,7 +390,7 @@ class HttpServer:
             app_data (any): Any Python object to be stored as application data.
         
         Returns:
-            None
+            Self
         
         Example:
         ```python
@@ -423,7 +424,7 @@ class HttpServer:
             router (Router): The router instance to attach.
         
         Returns:
-            None
+            Self
         
         Example:
         ```python
@@ -454,7 +455,7 @@ class HttpServer:
             template (Template): An instance of Template for rendering HTML.
         
         Returns:
-            None
+            Self
         
         Example:
         ```python
@@ -471,7 +472,7 @@ class HttpServer:
             cors (Cors): An instance of Cors with your desired CORS configuration.
         
         Returns:
-            None
+            Self
         
         Example:
         ```python
@@ -488,7 +489,7 @@ class HttpServer:
             max_connections (int): Maximum number of concurrent connections.
         
         Returns:
-            None
+            Self
         
         Example:
         ```python
@@ -506,7 +507,7 @@ class HttpServer:
             channel_capacity (int): The channel capacity.
         
         Returns:
-            None
+            Self
         
         Example:
         ```python
@@ -1410,7 +1411,9 @@ class Status(enum.Enum):
             int: The status code
         """
 
-def Session(secret: bytes, max_age: builtins.int = 604800) -> Response: ...
+def CsrfProtect(secret: bytes, cookie_name: builtins.str = 'csrf_token', header_name: builtins.str = 'x-csrf-token', field_name: builtins.str = '_csrf_token', cookie_max_age: builtins.int = 3600) -> typing.Any: ...
+
+def Session(secret: bytes, max_age: builtins.int = 604800) -> typing.Any: ...
 
 def convert_to_response(result: typing.Any) -> Response:
     r"""

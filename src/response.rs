@@ -164,9 +164,11 @@ impl Response {
     /// response = Response("Hello")
     /// response.insert_header("Cache-Control", "no-cache")
     /// ```
-    pub fn insert_header(&mut self, key: &str, value: &str) {
-        self.headers
-            .insert(HeaderName::from_str(key).unwrap(), value.parse().unwrap());
+    pub fn insert_header(&mut self, key: &str, value: &str) -> PyResult<()> {
+        let header_name = HeaderName::from_str(key).into_py_exception()?;
+        let header_value = HeaderValue::from_str(value).into_py_exception()?;
+        self.headers.insert(header_name, header_value);
+        Ok(())
     }
 
     /// Append a header to the response.
@@ -188,9 +190,11 @@ impl Response {
     /// response.insert_header("Set-Cookie", "sessionid=abc123")
     /// response.append_header("Set-Cookie", "theme=dark")
     /// ```
-    pub fn append_header(&mut self, key: &str, value: &str) {
-        self.headers
-            .append(HeaderName::from_str(key).unwrap(), value.parse().unwrap());
+    pub fn append_header(&mut self, key: &str, value: &str) -> PyResult<()> {
+        let header_name = HeaderName::from_str(key).into_py_exception()?;
+        let header_value = HeaderValue::from_str(value).into_py_exception()?;
+        self.headers.append(header_name, header_value);
+        Ok(())
     }
 }
 
@@ -200,12 +204,13 @@ impl Response {
         self
     }
 
-    pub fn insert_or_append_cookie(&mut self, cookie_header: &str) {
+    pub fn insert_or_append_cookie(&mut self, cookie_header: &str) -> PyResult<()> {
         if self.headers.contains_key("Set-Cookie") {
-            self.append_header("Set-Cookie", cookie_header);
+            self.append_header("Set-Cookie", cookie_header)?;
         } else {
-            self.insert_header("Set-Cookie", cookie_header);
+            self.insert_header("Set-Cookie", cookie_header)?;
         }
+        Ok(())
     }
 
     fn from_str(s: String, status: Status, content_type: HeaderValue) -> PyResult<Self> {
@@ -244,11 +249,11 @@ impl Response {
         self
     }
 
-    pub(crate) fn apply_cors(mut self, cors: &Option<Arc<Cors>>) -> Self {
+    pub(crate) fn apply_cors(mut self, cors: &Option<Arc<Cors>>) -> PyResult<Self> {
         if let Some(cors) = cors {
-            cors.apply_headers(&mut self);
+            cors.apply_headers(&mut self)?;
         }
-        self
+        Ok(self)
     }
 }
 
