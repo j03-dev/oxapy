@@ -283,7 +283,6 @@ impl Request {
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
         let (response_sender, response_receiver) = oneshot::channel();
 
-
         let owned_match_route = OwnedMatchRoute::from(match_route);
 
         let process_request = ProcessRequest {

@@ -4,7 +4,6 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use ahash::HashMap;
 use cors::Cors;
 use exceptions::IntoPyException;
 use into_response::convert_to_response;
@@ -585,7 +584,7 @@ async fn call_python_handler<'l>(
 
 fn build_route_params<'py>(
     py: Python<'py>,
-    params: &HashMap<String, String>,
+    params: &Vec<(String, String)>,
 ) -> PyResult<Bound<'py, PyDict>> {
     let kwargs = PyDict::new(py);
     for (key, value) in params.iter() {
