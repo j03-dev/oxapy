@@ -247,7 +247,7 @@ class Session:
         ```
     """
 
-    def __init__(self, secret=bytes, max_age: int = 3600 * 24 * 7, same_site="Lax"):
+    def __init__(self, secret: bytes, max_age: int = 3600 * 24 * 7, same_site="Lax"):
         self.secret = secret
         self.max_age = max_age
         self.same_site = same_site
