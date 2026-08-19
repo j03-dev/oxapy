@@ -537,7 +537,7 @@ impl HttpServer {
                         .await
                         .unwrap_or_else(Response::from)
                         .call_wrapper(&pr)
-                        .apply_cors(&pr.cors);
+                        .apply_cors(&pr.cors)?;
                     let _ = pr.response_sender.send(response);
                 },
                 _ = shutdown.wait() => break,
@@ -547,7 +547,7 @@ impl HttpServer {
     }
 }
 
-async fn call_python_handler<'l>(
+async fn call_python_handler(
     middlewares: &Option<Arc<[Middleware]>>,
     match_route: &Option<OwnedMatchRoute>,
     request: &Request,
@@ -584,7 +584,7 @@ async fn call_python_handler<'l>(
 
 fn build_route_params<'py>(
     py: Python<'py>,
-    params: &Vec<(String, String)>,
+    params: &[(String, String)],
 ) -> PyResult<Bound<'py, PyDict>> {
     let kwargs = PyDict::new(py);
     for (key, value) in params.iter() {
@@ -648,6 +648,27 @@ fn Session(secret: Py<PyBytes>, max_age: i32) -> Py<PyAny> {
     todo!("dummy session_middleware fonction")
 }
 
+#[gen_stub_pyfunction]
+#[pyfunction]
+#[pyo3(signature=(secret, cookie_name = "csrf_token", header_name = "x-csrf-token", field_name = "_csrf_token", cookie_max_age = 3600))]
+fn CsrfProtect(
+    secret: Py<PyBytes>,
+    cookie_name: &str,
+    header_name: &str,
+    field_name: &str,
+    cookie_max_age: i32,
+) -> Py<PyAny> {
+    // the implementation of this function is in __init__.py
+    todo!("dummy CsrfProtect function")
+}
+
+#[gen_stub_pyfunction]
+#[pyfunction]
+fn csrf_input(token: &str) -> String {
+    // the implementation of this function is in __init__.py
+    todo!("dummy csrf_input function")
+}
+
 #[pymodule]
 fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Cors>()?;
@@ -672,6 +693,8 @@ fn oxapy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(send_file, m)?)?;
     m.add_function(wrap_pyfunction!(static_file, m)?)?;
     m.add_function(wrap_pyfunction!(Session, m)?)?;
+    m.add_function(wrap_pyfunction!(CsrfProtect, m)?)?;
+    m.add_function(wrap_pyfunction!(csrf_input, m)?)?;
 
     exceptions::exceptions(m)?;
     jwt::jwt_submodule(m)?;

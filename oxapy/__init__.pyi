@@ -11,6 +11,7 @@ from . import serializer
 from . import templating
 __all__ = [
     "Cors",
+    "CsrfProtect",
     "File",
     "FileStreaming",
     "HttpServer",
@@ -23,6 +24,7 @@ __all__ = [
     "Session",
     "Status",
     "convert_to_response",
+    "csrf_input",
     "delete",
     "exceptions",
     "from typing_extensions import Self",
@@ -1410,6 +1412,8 @@ class Status(enum.Enum):
             int: The status code
         """
 
+def CsrfProtect(secret: bytes, cookie_name: builtins.str = 'csrf_token', header_name: builtins.str = 'x-csrf-token', field_name: builtins.str = '_csrf_token', cookie_max_age: builtins.int = 3600) -> typing.Any: ...
+
 def Session(secret: bytes, max_age: builtins.int = 604800) -> typing.Any: ...
 
 def convert_to_response(result: typing.Any) -> Response:
@@ -1457,6 +1461,8 @@ def convert_to_response(result: typing.Any) -> Response:
         This function is mainly used internally by the framework to unify handler return types,
         but it can also be used manually if you’re building custom middlewares or decorators.
     """
+
+def csrf_input(token: builtins.str) -> builtins.str: ...
 
 def delete(path: builtins.str, handler: typing.Optional[typing.Any] = None) -> Route:
     r"""

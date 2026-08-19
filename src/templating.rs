@@ -120,7 +120,14 @@ impl Template {
     /// template.load("./templates/**/*.html")
     /// ```
     #[pyo3(signature=(dir="./templates/**/*.html"))]
-    fn load(&mut self, dir: &str) -> PyResult<()> {
+    fn load(&mut self, dir: &str, py: Python<'_>) -> PyResult<()> {
+        let callable = py.eval(
+            c"lambda token: f'<input type=\"hidden\" name=\"_csrf_token\" value=\"{token}\">'",
+            None,
+            None,
+        )?;
+        self.register_function("csrf_input".to_string(), callable.into())?;
+
         if let Some(tera) = Arc::get_mut(&mut self.0) {
             tera.load_from_glob(dir).into_py_exception()?;
             Ok(())
@@ -230,6 +237,10 @@ fn render(
 
     if let Some(session) = request.ext.get("session") {
         ctx.set_item("session", session.clone_ref(py))?;
+    }
+
+    if let Some(csrf_token) = request.ext.get("csrf_token") {
+        ctx.set_item("csrf_token", csrf_token.clone_ref(py))?;
     }
 
     let body = template.render(name, Some(ctx))?;

@@ -255,7 +255,9 @@ impl Request {
         if self.method == "OPTIONS"
             && let Some(ref cors) = ctx.cors
         {
-            return Response::from((**cors).clone()).try_into();
+            return Response::try_from((**cors).clone())
+                .unwrap_or_else(Response::from)
+                .try_into();
         }
 
         let method = self.method.clone();

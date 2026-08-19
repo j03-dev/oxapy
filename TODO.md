@@ -92,11 +92,11 @@ Roadmap based on feature gap analysis against Flask, FastAPI, Django, Litestar, 
 - [ ] Type-safe API instead of manual `insert_header("set-cookie", "...")`
 
 ### 13. CSRF Protection
-- [ ] Add `CsrfMiddleware` that generates and validates CSRF tokens
-- [ ] Support synchronizer token pattern (double submit cookie)
-- [ ] Auto-exempt safe methods (GET, HEAD, OPTIONS)
-- [ ] Configurable exempt routes/patterns
-- [ ] Integrate with session middleware
+- [x] Add `CsrfMiddleware` that generates and validates CSRF tokens
+- [x] Support synchronizer token pattern (double submit cookie)
+- [x] Auto-exempt safe methods (GET, HEAD, OPTIONS)
+- [x] Configurable exempt routes/patterns
+- [x] Integrate with session middleware
 
 ### 14. Per-Status Error Handlers
 - [ ] Add `@app.errorhandler(404)` decorator
@@ -166,9 +166,9 @@ Roadmap based on feature gap analysis against Flask, FastAPI, Django, Litestar, 
 - [x] Fix docstrings: `app_data()`, `attach()`, `wrap()` say `Returns: None` but return `self`
 
 ### Security
-- [ ] Change `SameSite=Lax` to `SameSite=Strict` on session cookies (or make configurable)
+- [x] Change `SameSite=Lax` to `SameSite=Strict` on session cookies (or make configurable)
 - [ ] Add `Origin` / `Referer` header check in session middleware for state-changing methods
-- [ ] Replace `unwrap()` in `insert_header` / `append_header` with proper error handling
+- [x] Replace `unwrap()` in `insert_header` / `append_header` with proper error handling
 
 ### Performance
 - [x] Cache `Regex::new` in `parse_params_value` (slug parsing) — currently recompiles every call

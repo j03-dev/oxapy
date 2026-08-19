@@ -107,11 +107,13 @@ impl From<PyErr> for Response {
     }
 }
 
-impl From<Cors> for Response {
-    fn from(cors: Cors) -> Self {
+impl TryFrom<Cors> for Response {
+    type Error = PyErr;
+
+    fn try_from(cors: Cors) -> Result<Self, Self::Error> {
         let mut response = Response::from(Status::NO_CONTENT);
-        cors.apply_headers(&mut response);
-        response
+        cors.apply_headers(&mut response)?;
+        Ok(response)
     }
 }
 

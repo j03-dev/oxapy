@@ -105,11 +105,113 @@ The site is served from `https://j03-dev.github.io/oxapy/`. Two ways to publish:
 - Use relative links, and mind the depth prefix: from `tutorial/`, `guides/`, `advanced/`, or `api/` pages, links to a sibling category need `../` (e.g. `../guides/routing`); from `intro.md` use `./guides/routing`. The `onBrokenLinks: 'throw'` build is the safety net — never ship a doc change without running `npx docusaurus build`.
 - API pages (`docs/docs/api/*`) document the Python surface; guides (`docs/docs/guides/*`) teach usage with examples; `docs/docs/tutorial/notes-api.md` walks through a complete production-style app (SQLAlchemy + serializers + JWT + async mode).
 
+## Project Structure
+
+```
+oxapy/
+├── Cargo.toml                 # Rust crate config (pyo3 cdylib + rlib)
+├── pyproject.toml             # Python packaging (maturin)
+├── build.sh                   # Build helper script
+├── src/
+│   ├── lib.rs                 # HttpServer, server loop, request dispatch, PyModule registration
+│   ├── middleware.rs           # Middleware chain builder (sequence-based wrapping)
+│   ├── request.rs             # Request struct, RequestBuilder, cookie/JSON/form parsing
+│   ├── response.rs            # Response struct, Redirect, FileStreaming, header manipulation
+│   ├── routing.rs             # Route, Router, HTTP method decorators (get/post/etc), matchit
+│   ├── status.rs              # Status enum (all HTTP status codes)
+│   ├── into_response.rs       # convert_to_response: normalizes handler returns to Response
+│   ├── exceptions.rs          # BadRequest/Unauthorized/Forbidden/NotFound/Conflict/InternalError
+│   ├── cors.rs                # CORS config and header injection
+│   ├── jwt.rs                 # JWT encode/decode (jsonwebtoken crate)
+│   ├── json.rs                # JSON serialization (wraps orjson)
+│   ├── multipart.rs           # Multipart form/file parsing (multer crate)
+│   ├── templating.rs          # Tera template engine + render() function
+│   └── serializer/
+│       ├── mod.rs             # Serializer class (DRF-style: validate, create, save, update)
+│       └── fields.rs          # Field types (Char, Email, Integer, Boolean, Number, UUID, etc.)
+├── oxapy/
+│   ├── __init__.py            # Python re-exports + Oxapy (hot-reload), Session, CsrfProtect, static_file
+│   ├── __init__.pyi           # Auto-generated type stubs
+│   ├── jwt/__init__.pyi       # JWT stubs
+│   ├── exceptions/__init__.pyi # Exception stubs
+│   ├── serializer/__init__.pyi # Serializer stubs
+│   └── templating/__init__.pyi # Template stubs
+└── tests/
+    ├── conftest.py            # Test server fixture (Oxapy on port 9999, auth middleware demo)
+    ├── app.py                 # Minimal async Oxapy example
+    ├── test_http_server.py    # Integration tests (ping, echo, forms, uploads, auth, redirects)
+    ├── test_session.py        # JWT encode/decode tests
+    ├── test_response.py       # Response/Redirect unit tests
+    ├── test_cors.py           # CORS config tests
+    ├── test_serializer.py     # Serializer tests
+    ├── test_exceptions.py     # Exception tests
+    └── utils.py               # Multipart test helper
+```
+
+## Architecture
+
+### Request Lifecycle
+
+```
+Client → TcpListener → RequestBuilder → Request::process()
+  → OPTIONS + CORS configured? → return preflight response
+  → iterate routers → router.find(method, uri) via matchit
+  → if match: create ProcessRequest → mpsc channel
+  → process_requests loop:
+      → build middleware chain (sequence-based wrapping)
+      → call_python_handler: middleware chain → Python handler
+      → convert_to_response (normalize return type)
+      → wrapper(request, response)  [if HttpServer.wrap() configured]
+      → response.apply_cors(headers)
+      → send via oneshot channel → hyper Response → Client
+```
+
+### Middleware System
+
+Middleware is **sequence-based** and wraps handlers. Each middleware receives a `next` keyword argument:
+
+```python
+def my_middleware(request, next, **kwargs):
+    # runs BEFORE handler
+    result = next(request, **kwargs)  # calls next layer (or handler)
+    # result is the handler's return value
+    return result
+```
+
+- `Router.middleware(fn)` registers middleware; it applies to routes registered **after** it
+- Chain is built recursively: last middleware wraps the handler, second-to-last wraps that, etc.
+- Multiple `Router` instances with different middleware can be attached to the same server
+
+### Template System (Tera)
+
+- Templates are loaded via `Template.load(glob_pattern)` (Tera syntax)
+- Custom functions must be registered **before** `load()`: `template.register_function("name", fn)`
+- `render(request, "template.html", context)` auto-injects:
+  - `session` dict (if `Session` middleware is active and `request.session` exists)
+  - `csrf_token` string (if `CsrfProtect` middleware is active and `request.csrf_token` exists)
+  - `csrf_token` string (if `CsrfProtect` middleware is active and `request.csrf_token` exists)
+
+### Python Modules (oxapy/__init__.py)
+
+Pure Python features implemented in `oxapy/__init__.py`:
+- **`Session(secret, max_age)`** — Signed cookie middleware (HMAC-SHA256)
+- **`CsrfProtect(secret, ...)`** — CSRF protection middleware + `csrf_input()` template helper
+- **`secure_join(base, *paths)`** — Path traversal protection
+- **`static_file(path, directory)`** — Static file serving route
+- **`send_file(path)`** — File response helper
+
+Rust-implemented features exposed via PyO3:
+- `HttpServer`, `Router`, `Route`, `Request`, `Response`, `Status`, `Cors`, `Redirect`, `FileStreaming`
+- HTTP method decorators: `get`, `post`, `put`, `patch`, `delete`, `head`, `options`
+- `templating.Template`, `templating.render`
+- `jwt.Jwt` (encode/decode), `exceptions.*`, `serializer.Serializer`
+
 ## Code Style Guidelines
 
 ### General Project Structure
 
 - **Rust source**: `src/` directory with modular `.rs` files
+- **Python source**: `oxapy/__init__.py` for pure-Python features, Rust for core server
 - **Python tests**: `tests/` directory
 - **Docs site**: `docs/` directory (Docusaurus; markdown in `docs/docs/`)
 
