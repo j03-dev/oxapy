@@ -196,21 +196,71 @@ impl Response {
         self.headers.append(header_name, header_value);
         Ok(())
     }
+
+    /// Add a cookie to the response via the ``Set-Cookie`` header.
+    ///
+    /// Builds a ``Set-Cookie`` header from the provided parameters and inserts
+    /// it into the response. If a ``Set-Cookie`` header already exists the new
+    /// cookie is appended (allowing multiple cookies).
+    ///
+    /// Args:
+    ///     name (str): The cookie name.
+    ///     value (str): The cookie value.
+    ///     max_age (int, optional): Max-Age in seconds. Defaults to 3600.
+    ///     path (str, optional): Path attribute. Defaults to ``"/"``.
+    ///     domain (str, optional): Domain attribute. Empty string means omitted.
+    ///     httponly (bool, optional): HttpOnly flag. Defaults to ``True``.
+    ///     secure (bool, optional): Secure flag. Defaults to ``True``.
+    ///     samesite (str, optional): SameSite attribute. Defaults to ``"Lax"``.
+    ///
+    /// Returns:
+    ///     None
+    ///
+    /// Example:
+    /// ```python
+    /// response = Response("OK")
+    /// response.set_cookie("session", "abc123", max_age=3600, httponly=True, secure=True)
+    /// response.set_cookie("theme", "dark", max_age=86400)
+    /// ```
+    #[pyo3(signature=(name, value, max_age=3600, path="/", domain="", httponly=true, secure=true, samesite="Lax"))]
+    pub fn set_cookie(
+        &mut self,
+        name: &str,
+        value: &str,
+        max_age: i64,
+        path: &str,
+        domain: &str,
+        httponly: bool,
+        secure: bool,
+        samesite: &str,
+    ) -> PyResult<()> {
+        let mut cookie_header =
+            format!("{name}={value}; Path={path}; Max-Age={max_age}; SameSite={samesite}");
+
+        if !domain.is_empty() {
+            cookie_header.push_str(&format!("; Domain={domain}"));
+        }
+        if httponly {
+            cookie_header.push_str("; HttpOnly");
+        }
+        if secure {
+            cookie_header.push_str("; Secure");
+        }
+
+        if self.headers.contains_key("Set-Cookie") {
+            self.append_header("Set-Cookie", &cookie_header)?;
+        } else {
+            self.insert_header("Set-Cookie", &cookie_header)?;
+        }
+
+        Ok(())
+    }
 }
 
 impl Response {
     pub fn set_body(mut self, body: String) -> Self {
         self.body = ResponseBody::Bytes(Bytes::from(body));
         self
-    }
-
-    pub fn insert_or_append_cookie(&mut self, cookie_header: &str) -> PyResult<()> {
-        if self.headers.contains_key("Set-Cookie") {
-            self.append_header("Set-Cookie", cookie_header)?;
-        } else {
-            self.insert_header("Set-Cookie", cookie_header)?;
-        }
-        Ok(())
     }
 
     fn from_str(s: String, status: Status, content_type: HeaderValue) -> PyResult<Self> {
@@ -302,16 +352,16 @@ impl Redirect {
     /// ```
     #[new]
     #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
-    fn new(location: String) -> PyClassInitializer<Self> {
+    fn new(location: String) -> PyResult<PyClassInitializer<Self>> {
         let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, "text/html".parse().unwrap());
-        headers.insert(LOCATION, location.parse().unwrap());
-        PyClassInitializer::from(Response {
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("text/html"));
+        headers.insert(LOCATION, location.parse().into_py_exception()?);
+        Ok(PyClassInitializer::from(Response {
             status: Status::MOVED_PERMANENTLY,
             body: ResponseBody::Bytes(Bytes::new()),
             headers,
         })
-        .add_subclass(Self)
+        .add_subclass(Self))
     }
 }
 
@@ -450,10 +500,7 @@ impl FileStreaming {
         let stream = stream::iter(chunk_iter).map(|bytes| Ok(Frame::data(bytes)));
         let body = StreamBody::new(Box::pin(stream));
         let mut headers = HeaderMap::new();
-        headers.insert(
-            CONTENT_TYPE,
-            HeaderValue::from_str(content_type).into_py_exception()?,
-        );
+        headers.insert(CONTENT_TYPE, content_type.parse().into_py_exception()?);
         headers.insert(CACHE_CONTROL, HeaderValue::from_static("no-cache"));
         Ok(PyClassInitializer::from(Response {
             status,

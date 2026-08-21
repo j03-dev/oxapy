@@ -31,11 +31,11 @@ With the default `application/json` content type the body is serialized with `or
 
 ### Properties
 
-| Property | Type | Description |
-| --- | --- | --- |
-| `status` | `Status` | The response status; settable |
-| `body` | `str` | The response body as a UTF-8 string |
-| `headers` | `list[tuple[str, str]]` | Headers as key-value tuples |
+| Property  | Type                    | Description                         |
+| --------- | ----------------------- | ----------------------------------- |
+| `status`  | `Status`                | The response status; settable       |
+| `body`    | `str`                   | The response body as a UTF-8 string |
+| `headers` | `list[tuple[str, str]]` | Headers as key-value tuples         |
 
 ### Methods
 
@@ -64,6 +64,39 @@ response.append_header("Set-Cookie", "sessionid=abc123")
 response.append_header("Set-Cookie", "theme=dark")
 ```
 
+#### set_cookie
+
+```python
+set_cookie(
+    name: str,
+    value: str,
+    max_age: int = 3600,
+    path: str = "/",
+    domain: str = "",
+    httponly: bool = True,
+    secure: bool = True,
+    samesite: str = "Lax",
+) -> None
+```
+
+Adds a cookie to the response via the `Set-Cookie` header. If a `Set-Cookie` header already exists the new cookie is appended; otherwise a new header is inserted.
+
+| Parameter  | Default | Description                         |
+| ---------- | ------- | ----------------------------------- |
+| `name`     | —       | The cookie name                     |
+| `value`    | —       | The cookie value                    |
+| `max_age`  | `3600`  | Max-Age in seconds                  |
+| `path`     | `"/"`   | Path attribute                      |
+| `domain`   | `""`    | Domain attribute (omitted if empty) |
+| `httponly` | `True`  | HttpOnly flag                       |
+| `secure`   | `True`  | Secure flag                         |
+| `samesite` | `"Lax"` | SameSite attribute                  |
+
+```python
+response.set_cookie("session", "abc123", max_age=3600, httponly=True, secure=True)
+response.set_cookie("theme", "dark", max_age=86400)
+```
+
 ## Redirect
 
 ### Constructor
@@ -87,14 +120,14 @@ def old(request):
 
 The server converts handler results with `convert_to_response`:
 
-| Return value | Result |
-| --- | --- |
-| `Response` | Used as-is |
-| `str` | `text/plain` response |
-| `dict` / JSON-serializable object | JSON response |
-| `Status` | JSON response with an empty body and that status |
-| `(str, Status)` | `text/plain` body with the given status |
-| `(obj, Status)` | JSON body with the given status |
+| Return value                      | Result                                           |
+| --------------------------------- | ------------------------------------------------ |
+| `Response`                        | Used as-is                                       |
+| `str`                             | `text/plain` response                            |
+| `dict` / JSON-serializable object | JSON response                                    |
+| `Status`                          | JSON response with an empty body and that status |
+| `(str, Status)`                   | `text/plain` body with the given status          |
+| `(obj, Status)`                   | JSON body with the given status                  |
 
 Anything else raises a `ValueError`.
 
@@ -108,11 +141,11 @@ FileStreaming(path: str, buf_size: int = 8192, status: Status = Status.OK, conte
 
 Streams a file in chunks for large files without loading the entire file into memory.
 
-| Parameter | Default | Description |
-| --- | --- | --- |
-| `path` | — | Path to the file |
-| `buf_size` | `8192` | Read buffer size in bytes |
-| `status` | `Status.OK` | Response status code |
+| Parameter      | Default                      | Description               |
+| -------------- | ---------------------------- | ------------------------- |
+| `path`         | —                            | Path to the file          |
+| `buf_size`     | `8192`                       | Read buffer size in bytes |
+| `status`       | `Status.OK`                  | Response status code      |
 | `content_type` | `"application/octet-stream"` | The `Content-Type` header |
 
 ```python

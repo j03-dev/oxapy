@@ -217,7 +217,7 @@ class Session:
     Args:
         secret (bytes): The secret key used for HMAC signing and verification.
         max_age (int): Session expiration in seconds. Defaults to 1 week (604800s).
-        same_site (str): SameSite cookie attribute. Defaults to ``"Strict"``.
+        same_site (str): SameSite cookie attribute. Defaults to ``"Lax"``.
 
     Returns:
         A middleware function to be registered via ``router.middleware()``.
@@ -271,16 +271,13 @@ class Session:
         if current_state != initial_state:
             signed_cookie = _sign_session(self.secret, self.max_age, request.session)
 
-            response.insert_header(
-                "set-cookie",
-                (
-                    f"session={signed_cookie}; "
-                    f"Path=/; "
-                    f"HttpOnly; "
-                    f"Secure; "
-                    f"SameSite={self.same_site}; "
-                    f"Max-Age={self.max_age}"
-                ),
+            response.set_cookie(
+                name="session",
+                value=signed_cookie,
+                httponly=True,
+                secure=True,
+                same_site=self.same_site,
+                max_age=self.max_age,
             )
 
         return response
@@ -430,15 +427,11 @@ class CsrfProtect:
             response = convert_to_response(next(request, **kwargs))
 
         signed = _sign_csrf_token(self.secret, token)
-        response.insert_header(
-            "set-cookie",
-            (
-                f"{self.cookie_name}={signed}; "
-                f"Path=/; "
-                f"Secure; "
-                f"SameSite=Lax; "
-                f"Max-Age={self.cookie_max_age}"
-            ),
+        response.set_cookie(
+            name=self.cookie_name,
+            value=signed,
+            max_age=self.cookie_max_age,
+            httponly=False,
         )
 
         return response
