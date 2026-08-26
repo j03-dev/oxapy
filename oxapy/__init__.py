@@ -217,7 +217,7 @@ class Session:
     Args:
         secret (bytes): The secret key used for HMAC signing and verification.
         max_age (int): Session expiration in seconds. Defaults to 1 week (604800s).
-        same_site (str): SameSite cookie attribute. Defaults to ``"Lax"``.
+        samesite (str): SameSite cookie attribute. Defaults to ``"Lax"``.
 
     Returns:
         A middleware function to be registered via ``router.middleware()``.
@@ -247,10 +247,10 @@ class Session:
         ```
     """
 
-    def __init__(self, secret: bytes, max_age: int = 3600 * 24 * 7, same_site="Lax"):
+    def __init__(self, secret: bytes, max_age: int = 3600 * 24 * 7, samesite="Lax"):
         self.secret = secret
         self.max_age = max_age
-        self.same_site = same_site
+        self.samesite = samesite
 
     def __call__(self, request, next, **kwargs) -> Response:
         cookie = request.get_cookie("session")
@@ -276,7 +276,7 @@ class Session:
                 value=signed_cookie,
                 httponly=True,
                 secure=True,
-                same_site=self.same_site,
+                samesite=self.samesite,
                 max_age=self.max_age,
             )
 
