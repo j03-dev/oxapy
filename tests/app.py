@@ -1,16 +1,22 @@
-from oxapy import Oxapy, Router, get
+import multiprocessing
+workers = multiprocessing.cpu_count()
 
 
-@get("/hello/{name}")
-async def hello(_req, name):
-    return f"Hello, {name}!"
+from oxapy import Oxapy, Router, get, post
 
 
-async def main():
-    await Oxapy(("127.0.0.1", 5555)).attach(Router().route(hello)).async_mode().run()
+def main():
+    (
+        Oxapy(("0.0.0.0", 3000))
+        .attach(
+            Router()
+            .route(get("/", lambda _: ""))
+            .route(get("/user/{id:int}", lambda _, id: str(id)))
+            .route(post("/user", lambda _: ""))
+        )
+        .run(workers=workers)
+    )
 
 
 if __name__ == "__main__":
-    import asyncio
-
-    asyncio.run(main())
+    main()
