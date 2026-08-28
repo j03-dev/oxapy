@@ -14,16 +14,7 @@ Roadmap based on feature gap analysis against Flask, FastAPI, Django, Litestar, 
 - [ ] Support async handlers for WebSocket
 - [ ] Tests: echo server, broadcast, concurrent connections
 
-### 2. Dependency Injection
-
-- [ ] Add `Depends()` function that registers a callable dependency
-- [ ] Resolve dependency graph per-request (with caching per-request scope)
-- [ ] Support nested dependencies (`Depends(get_db)` -> `Depends(get_user)`)
-- [ ] Support overriding dependencies in tests (`app.override(Depends(get_db), mock_db)`)
-- [ ] Integrate with OpenAPI schema generation (if implemented)
-- [ ] Tests: nested deps, override in tests, caching
-
-### 3. OpenAPI / Swagger Auto-Generation
+### 2. OpenAPI / Swagger Auto-Generation
 
 - [ ] Generate OpenAPI 3.x schema from route definitions, serializers, and type hints
 - [ ] Serve Swagger UI at `/docs` and ReDoc at `/redoc`
@@ -31,16 +22,7 @@ Roadmap based on feature gap analysis against Flask, FastAPI, Django, Litestar, 
 - [ ] Support `response_model` parameter on route decorators
 - [ ] Tests: schema correctness, UI serving
 
-### 4. Signature-Based Request Validation
-
-- [ ] Inspect handler function signatures at registration time
-- [ ] Auto-parse and validate query params, headers, cookies from type hints
-- [ ] Auto-parse request body from Pydantic/dataclass/serializer models
-- [ ] Return structured validation errors (422 Unprocessable Entity)
-- [ ] Support `Annotated[type, Query()]`, `Annotated[type, Header()]`, etc.
-- [ ] Tests: query validation, header extraction, body parsing, error responses
-
-### 5. Background Tasks
+### 3. Background Tasks
 
 - [ ] Add `BackgroundTasks` class with `add_task(func, *args, **kwargs)`
 - [ ] Execute tasks after response is sent to client
@@ -48,16 +30,7 @@ Roadmap based on feature gap analysis against Flask, FastAPI, Django, Litestar, 
 - [ ] Pass `BackgroundTasks` instance to handler via DI or parameter
 - [ ] Tests: task execution after response, async tasks
 
-### 6. Lifespan Events (Startup/Shutdown)
-
-- [ ] Add `on_startup(func)` and `on_shutdown(func)` to `HttpServer`
-- [ ] Support async startup/shutdown hooks
-- [ ] Execute startup hooks before accepting connections
-- [ ] Execute shutdown hooks on Ctrl+C (before stopping)
-- [ ] Support `@app.on_startup` / `@app.on_shutdown` decorators
-- [ ] Tests: hook execution order, async hooks
-
-### 7. Generic Streaming Responses
+### 4. Generic Streaming Responses
 
 - [ ] Add `StreamingResponse` class (generalize `FileStreaming`)
 - [ ] Accept async generators, sync generators, or `StreamBody` as body source
@@ -65,7 +38,7 @@ Roadmap based on feature gap analysis against Flask, FastAPI, Django, Litestar, 
 - [ ] Use cases: SSE, NDJSON, LLM token streaming, real-time logs
 - [ ] Tests: async generator streaming, chunked delivery
 
-### 8. Test Client
+### 5. Test Client
 
 - [ ] Add `TestClient(app)` that makes in-process HTTP requests
 - [ ] No real TCP server needed (use hyper's in-process service)
@@ -78,85 +51,43 @@ Roadmap based on feature gap analysis against Flask, FastAPI, Django, Litestar, 
 
 ## Important (P1)
 
-### 9. GZip Response Compression
+### 6. GZip Response Compression
 
 - [ ] Add `GZipMiddleware` that compresses responses based on `Accept-Encoding`
 - [ ] Configurable minimum response size threshold
 - [ ] Support gzip and/or brotli
 - [ ] Skip compression for streaming responses
 
-### 10. Trusted Host / HTTPS Redirect
+### 7. Trusted Host / HTTPS Redirect
 
 - [ ] Add `TrustedHostMiddleware` that validates `Host` header
 - [ ] Add `HTTPSRedirectMiddleware` that redirects HTTP to HTTPS
 - [ ] Configurable allowed hosts list
 
-### 11. Client IP Address
+### 8. Client IP Address
 
 - [ ] Expose `request.client.host` on the `Request` object
 - [ ] Extract from `hyper`'s connected socket info
 - [ ] Support `X-Forwarded-For` / `X-Real-IP` behind reverse proxy (configurable)
 
-### 12. Response Cookies API
+### 9. Response Cookies API
 
-- [ ] Add `response.set_cookie(name, value, max_age, path, domain, httponly, secure, samesite)`
+- [x] Add `response.set_cookie(name, value, max_age, path, domain, httponly, secure, samesite)`
 - [ ] Add `response.delete_cookie(name, path, domain)`
-- [ ] Type-safe API instead of manual `insert_header("set-cookie", "...")`
+- [x] Type-safe API instead of manual `insert_header("set-cookie", "...")`
 
-### 13. Per-Status Error Handlers
-
-- [ ] Add `@app.errorhandler(404)` decorator
-- [ ] Add `@app.exception_handler(ExceptionType)` decorator
-- [ ] Override default exception-to-status mapping
-- [ ] Support custom error pages (HTML) and error responses (JSON)
-
-### 14. URL Reverse Routing (`url_for`)
-
-- [ ] Register route names alongside path patterns
-- [ ] Add `url_for(route_name, **params)` function
-- [ ] Generate correct URLs with path parameters filled in
-- [ ] Useful for templates, redirects, and emails
-
-### 15. OAuth2 / Security Utilities
+### 13. OAuth2 / Security Utilities
 
 - [ ] Add `OAuth2PasswordBearer(tokenUrl="/token")` dependency
 - [ ] Add `HTTPBasic` dependency for HTTP Basic auth
 - [ ] Add `APIKeyHeader` / `APIKeyQuery` dependencies
 - [ ] Support OAuth2 scopes
 
-### 16. Content Negotiation
+### 14 Content Negotiation
 
 - [ ] Inspect `Accept` header to determine response format
 - [ ] Support multiple serializers per route (JSON, XML, MessagePack)
 - [ ] Default to JSON, fallback based on client preference
-
----
-
-## Nice-to-Have (P2)
-
-### 17. CLI Runner
-
-- [ ] Add `oxapy run app:main` command
-- [ ] Auto-detect uvicorn-like reload in dev
-- [ ] Support `--host`, `--port`, `--reload` flags
-
-### 18. Rate Limiting
-
-- [ ] Add `RateLimitMiddleware` with configurable limits
-- [ ] Support per-IP and per-route limits
-- [ ] Use in-memory store or pluggable backend (Redis)
-
-### 19. Settings / Environment Configuration
-
-- [ ] Add `Settings` base class (pydantic-settings style)
-- [ ] Load from `.env` files and environment variables
-- [ ] Type validation at startup
-
-### 20. i18n / Localization
-
-- [ ] Add `gettext`-style translation function
-- [ ] Support locale detection from `Accept-Language` header
-- [ ] Date/number formatting per locale
 
 ---
 

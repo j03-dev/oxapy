@@ -942,6 +942,34 @@ class Response:
         response.append_header("Set-Cookie", "theme=dark")
         ```
         """
+    def set_cookie(self, name: builtins.str, value: builtins.str, max_age: builtins.int = 3600, path: builtins.str = '/', domain: builtins.str = '', httponly: builtins.bool = True, secure: builtins.bool = True, samesite: builtins.str = 'Lax') -> None:
+        r"""
+        Add a cookie to the response via the ``Set-Cookie`` header.
+        
+        Builds a ``Set-Cookie`` header from the provided parameters and inserts
+        it into the response. If a ``Set-Cookie`` header already exists the new
+        cookie is appended (allowing multiple cookies).
+        
+        Args:
+            name (str): The cookie name.
+            value (str): The cookie value.
+            max_age (int, optional): Max-Age in seconds. Defaults to 3600.
+            path (str, optional): Path attribute. Defaults to ``"/"``.
+            domain (str, optional): Domain attribute. Empty string means omitted.
+            httponly (bool, optional): HttpOnly flag. Defaults to ``True``.
+            secure (bool, optional): Secure flag. Defaults to ``True``.
+            samesite (str, optional): SameSite attribute. Defaults to ``"Lax"``.
+        
+        Returns:
+            None
+        
+        Example:
+        ```python
+        response = Response("OK")
+        response.set_cookie("session", "abc123", max_age=3600, httponly=True, secure=True)
+        response.set_cookie("theme", "dark", max_age=86400)
+        ```
+        """
 
 @typing.final
 class Route:
