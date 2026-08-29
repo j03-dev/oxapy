@@ -26,7 +26,6 @@ __all__ = [
     "convert_to_response",
     "delete",
     "exceptions",
-    "from typing_extensions import Self",
     "get",
     "head",
     "jwt",

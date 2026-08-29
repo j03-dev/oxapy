@@ -46,7 +46,6 @@ mod serializer;
 mod status;
 mod templating;
 
-pyo3_stub_gen::export_verbatim!("oxapy", "from typing_extensions import Self");
 pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
 
 struct ProcessRequest {
