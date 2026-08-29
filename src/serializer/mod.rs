@@ -394,7 +394,7 @@ impl Serializer {
 
         static SQL_ALCHEMY_INSPECT: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
         let inspect = SQL_ALCHEMY_INSPECT.get_or_try_init(py, || {
-            let sqlalchemy = PyModule::import(py, "sqlalchemy")?;
+            let sqlalchemy = py.import("sqlalchemy")?;
             let inspection = sqlalchemy.getattr("inspection")?;
             inspection.getattr("inspect").map(|i| i.into())
         })?;
@@ -543,10 +543,7 @@ pub fn serializer_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
     serializer.add_class::<DateTimeField>()?;
     serializer.add_class::<EnumField>()?;
     serializer.add_class::<Serializer>()?;
-    serializer.add(
-        "ValidationException",
-        m.py().get_type::<ValidationException>(),
-    )?;
+    serializer.add("ValidationException", py.get_type::<ValidationException>())?;
     m.add_submodule(&serializer)?;
     Ok(())
 }
