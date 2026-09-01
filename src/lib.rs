@@ -51,7 +51,7 @@ pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
 struct ProcessRequest {
     match_route: Option<OwnedMatchRoute>,
     middlewares: Option<Arc<[Middleware]>>,
-    request: Arc<Request>,
+    request: Request,
     response_sender: oneshot::Sender<Response>,
     cors: Option<Arc<Cors>>,
     wrapper: Option<Arc<Py<PyAny>>>,
