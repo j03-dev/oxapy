@@ -289,9 +289,8 @@ impl Response {
 
     pub(crate) fn call_wrapper(mut self, pr: &ProcessRequest) -> Self {
         if let Some(wrapper) = &pr.wrapper {
-            let request = (*pr.request).clone();
             self = Python::attach(|py| {
-                let result = wrapper.call(py, (request, self), None)?;
+                let result = wrapper.call(py, (pr.request.clone(), self), None)?;
                 convert_to_response(result, py)
             })
             .unwrap_or_else(Response::from);

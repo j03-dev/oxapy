@@ -102,7 +102,8 @@ impl From<PyErr> for Response {
             };
             let response = Response::from(status);
             let detail = value.value(py).to_string().replace('"', "'");
-            response.set_body(format!(r#"{{"detail": "{}"}}"#, detail))
+            let body = serde_json::json!({ "detail": detail }).to_string();
+            response.set_body(body)
         })
     }
 }

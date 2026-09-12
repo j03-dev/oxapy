@@ -1,7 +1,11 @@
 use ahash::HashMap;
 use futures_util::stream;
 use hyper::body::Bytes;
-use pyo3::{exceptions::PyValueError, prelude::*, types::PyBytes};
+use pyo3::{
+    exceptions::{PyKeyError, PyValueError},
+    prelude::*,
+    types::PyBytes,
+};
 use pyo3_stub_gen::derive::*;
 
 use crate::IntoPyException;
@@ -108,17 +112,28 @@ pub struct Multipart {
 
 impl Multipart {
     async fn parse_field(&mut self, field: multer::Field<'_>) -> PyResult<()> {
-        let name = field.name().unwrap_or_default().to_string();
+        let name = field
+            .name()
+            .ok_or_else(|| PyKeyError::new_err("missing field 'name'"))?
+            .to_string();
         let value = field.text().await.into_py_exception()?;
         self.fields.insert(name, value);
         Ok(())
     }
 
     async fn parse_file(&mut self, mut field: multer::Field<'_>) -> PyResult<()> {
-        let name = field.file_name().unwrap().to_string();
-        let content_type = field.content_type().unwrap().to_string();
-        let field_name = field.name().unwrap_or_default().to_string();
-
+        let name = field
+            .file_name()
+            .ok_or_else(|| PyKeyError::new_err("missing 'file_name'"))?
+            .to_string();
+        let content_type = field
+            .content_type()
+            .ok_or_else(|| PyKeyError::new_err("missing 'content-type'"))?
+            .to_string();
+        let field_name = field
+            .name()
+            .ok_or_else(|| PyKeyError::new_err("missing field 'name'"))?
+            .to_string();
         let mut data = Vec::new();
         while let Some(chunk) = field.chunk().await.into_py_exception()? {
             data.extend_from_slice(&chunk);

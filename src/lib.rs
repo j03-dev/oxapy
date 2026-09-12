@@ -51,7 +51,7 @@ pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
 struct ProcessRequest {
     match_route: Option<OwnedMatchRoute>,
     middlewares: Option<Arc<[Middleware]>>,
-    request: Arc<Request>,
+    request: Request,
     response_sender: oneshot::Sender<Response>,
     cors: Option<Arc<Cors>>,
     wrapper: Option<Arc<Py<PyAny>>>,
@@ -451,7 +451,6 @@ impl HttpServer {
     #[pyo3(signature=(workers=None))]
     fn run<'py>(&self, workers: Option<usize>, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let server = self.clone();
-
         if self.is_async {
             future_into_py(py, async move { server.run_server().await })
         } else {

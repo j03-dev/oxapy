@@ -290,7 +290,7 @@ impl Request {
         let process_request = ProcessRequest {
             match_route: Some(owned_match_route),
             middlewares,
-            request: Arc::new(self),
+            request: self,
             response_sender,
             wrapper: ctx.wrapper.clone(),
             cors: ctx.cors.clone(),
@@ -308,7 +308,7 @@ impl Request {
         let process_request = ProcessRequest {
             match_route: None,
             middlewares: None,
-            request: Arc::new(self),
+            request: self,
             response_sender,
             wrapper: ctx.wrapper.clone(),
             cors: ctx.cors.clone(),
