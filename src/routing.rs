@@ -112,8 +112,8 @@ macro_rules! methods {
             #[pyfunction]
             #[pyo3(signature = (path, handler = None))]
             pub fn $method(path: String, handler: Option<Py<PyAny>>, py: Python<'_>) -> PyResult<Route> {
-                if handler.is_some() {
-                    static_check_handler(handler.as_ref().unwrap().clone_ref(py), &path, py)?;
+                if let Some(handler_func) = handler.as_ref() {
+                    static_check_handler(handler_func.clone_ref(py), &path, py)?;
                 }
 
                 Ok(Route {
@@ -142,7 +142,7 @@ fn static_check_handler(handler: Py<PyAny>, path: &str, py: Python<'_>) -> PyRes
     for param in params {
         if !keys.contains(&param) {
             return Err(PyValueError::new_err(format!(
-                "Missing '{param}' in handler params"
+                "Missing required route arguement '{param}'"
             )));
         }
     }
