@@ -6,7 +6,7 @@ from oxapy import Oxapy, Request, Router, get, post
 
 
 @get("/hello/{name:str}")
-def hello(r: Request):
+def hello(r: Request, name: str):
     return "Hello, {name}"
 
 

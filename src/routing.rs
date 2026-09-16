@@ -127,7 +127,6 @@ macro_rules! methods {
     };
 }
 
-// TODO: handle "typehint" params
 fn static_check_handler(handler: Py<PyAny>, path: &str, py: Python<'_>) -> PyResult<()> {
     static INSPECT: PyOnceLock<Py<PyModule>> = PyOnceLock::new();
     let inspect = INSPECT.get_or_try_init(py, || py.import("inspect").map(|m| m.into()))?;
@@ -156,20 +155,17 @@ fn extract_params(path: &str, py: Python<'_>) -> PyResult<Vec<String>> {
     let re = RE
         .get_or_try_init(py, || Regex::new(r"\{([^}]+)\}"))
         .into_py_exception()?;
-    let args: Vec<String> = re
+
+    let params = re
         .captures_iter(path)
-        .map(|cap| cap[1].to_string())
-        .collect();    
-
-    let mut params = Vec::with_capacity(args.len());
-
-    for arg in args {
-        if let Some((a, _)) = arg.split_once(':') {
-            params.push(a.to_string());
-        } else {
-            params.push(arg);
-        }
-    }
+        .map(|cap| {
+            let arg = cap[1].to_string();
+            match arg.split_once(':') {
+                Some((a, _)) => a.to_string(),
+                None => arg,
+            }
+        })
+        .collect();
 
     Ok(params)
 }
