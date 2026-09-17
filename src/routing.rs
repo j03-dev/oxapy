@@ -140,7 +140,8 @@ fn static_check_handler(handler: Py<PyAny>, path: &str, py: Python<'_>) -> PyRes
     let keys: Vec<String> = parameters.keys()?.extract()?;
 
     for param in params {
-        if !keys.contains(&param) {
+        let name = param.strip_prefix('*').unwrap_or(&param);
+        if !keys.iter().any(|k| k.as_str() == name) {
             return Err(PyValueError::new_err(format!(
                 "Missing required route arguement '{param}'"
             )));
