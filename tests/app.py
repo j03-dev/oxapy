@@ -2,7 +2,7 @@ import multiprocessing
 workers = multiprocessing.cpu_count()
 
 
-from oxapy import Oxapy, Request, Router, get, post
+from oxapy import Oxapy, Router, get, post
 
 
 def main():

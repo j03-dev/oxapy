@@ -462,7 +462,18 @@ impl HttpServer {
 
 impl HttpServer {
     async fn run_server(&self) -> PyResult<()> {
-        let listener = TcpListener::bind(self.addr).await?;
+        let domain = match self.addr.is_ipv6() {
+            true => socket2::Domain::IPV6,
+            false => socket2::Domain::IPV4,
+        };
+        let socket = socket2::Socket::new(domain, socket2::Type::STREAM, None)?;
+        socket.set_reuse_port(true)?;
+        socket.bind(&self.addr.into()).into_py_exception()?;
+        socket.listen(4096).into_py_exception()?;
+        socket.set_nonblocking(true)?;
+
+        let tcp = std::net::TcpListener::from(socket);
+        let listener = TcpListener::from_std(tcp)?;
         println!("Listening on {}", self.addr);
         let shutdown = ShutDownSignal::new()?;
 
