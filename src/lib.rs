@@ -462,11 +462,12 @@ impl HttpServer {
 
 impl HttpServer {
     async fn run_server(&self) -> PyResult<()> {
-        let domain = match self.addr.is_ipv6() {
-            true => socket2::Domain::IPV6,
-            false => socket2::Domain::IPV4,
-        };
-        let socket = socket2::Socket::new(domain, socket2::Type::STREAM, None)?;
+        let socket = socket2::Socket::new(
+            socket2::Domain::for_address(self.addr),
+            socket2::Type::STREAM,
+            None,
+        )?;
+        socket.set_reuse_address(true)?;
         socket.set_reuse_port(true)?;
         socket.bind(&self.addr.into()).into_py_exception()?;
         socket.listen(4096).into_py_exception()?;
