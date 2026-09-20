@@ -26,14 +26,14 @@ impl MiddlewareChain {
         route_sequence: usize,
         route_handler: &Py<PyAny>,
         args: A,
-        kwargs: Bound<'py, PyDict>,
+        kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Py<PyAny>>
     where
         A: PyCallArgs<'py>,
     {
         let handler =
             Self::build_middleware_chain(py, middlewares, route_sequence, route_handler, 0)?;
-        handler.call(py, args, Some(&kwargs))
+        handler.call(py, args, kwargs)
     }
 
     fn build_middleware_chain(

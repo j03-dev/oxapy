@@ -555,7 +555,11 @@ async fn call_python_handler(
         let mut result = Python::attach(|py| {
             let route = &match_route.value;
             let params = &match_route.params;
-            let kwargs = build_route_params(py, params)?;
+            let kwargs = if !params.is_empty() {
+                Some(build_route_params(py, params)?)
+            } else {
+                None
+            };
 
             match middlewares {
                 Some(middlewares) => MiddlewareChain::execute(
@@ -564,9 +568,9 @@ async fn call_python_handler(
                     route.sequence,
                     &route.handler,
                     (request.clone(),),
-                    kwargs,
+                    kwargs.as_ref(),
                 ),
-                None => route.handler.call(py, (request.clone(),), Some(&kwargs)),
+                None => route.handler.call(py, (request.clone(),), kwargs.as_ref()),
             }
         })?;
 
