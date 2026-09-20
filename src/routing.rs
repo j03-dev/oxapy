@@ -131,7 +131,7 @@ fn static_check_handler(handler: Py<PyAny>, path: &str, py: Python<'_>) -> PyRes
     static INSPECT: PyOnceLock<Py<PyModule>> = PyOnceLock::new();
     let inspect = INSPECT.get_or_try_init(py, || py.import("inspect").map(|m| m.into()))?;
 
-    let params = extract_params(&path, py)?;
+    let params = extract_params(path, py)?;
 
     let signature = inspect
         .call_method1(py, "signature", (handler,))?
@@ -143,7 +143,7 @@ fn static_check_handler(handler: Py<PyAny>, path: &str, py: Python<'_>) -> PyRes
         let name = param.strip_prefix('*').unwrap_or(&param);
         if !keys.iter().any(|k| k.as_str() == name) {
             return Err(PyValueError::new_err(format!(
-                "Missing required route arguement '{param}'"
+                "Missing required route argument '{param}'"
             )));
         }
     }

@@ -531,12 +531,7 @@ impl HttpServer {
         loop {
             tokio::select! {
                 Some(pr) = request_receiver.recv() => {
-                    let response = call_python_handler(&pr.middlewares, &pr.match_route, &pr.request, self.is_async)
-                        .await
-                        .unwrap_or_else(Response::from)
-                        .call_wrapper(&pr)
-                        .apply_cors(&pr.cors)?;
-                    let _ = pr.response_sender.send(response);
+                    pr.respond(self.is_async).await;
                 },
                 _ = shutdown.wait() => break,
             }
@@ -545,42 +540,88 @@ impl HttpServer {
     }
 }
 
-async fn call_python_handler(
-    middlewares: &Option<Arc<[Middleware]>>,
-    match_route: &Option<OwnedMatchRoute>,
-    request: &Request,
-    is_async: bool,
-) -> PyResult<Response> {
-    if let Some(match_route) = match_route {
-        let mut result = Python::attach(|py| {
+impl ProcessRequest {
+    pub async fn respond(self, is_async: bool) {
+        let Self {
+            match_route,
+            middlewares,
+            wrapper,
+            request,
+            response_sender,
+            cors,
+        } = self;
+
+        let response = Self::dispatch(match_route, middlewares, wrapper, request, is_async)
+            .await
+            .unwrap_or_else(Response::from)
+            .apply_cors(&cors)
+            .unwrap_or_else(Response::from);
+
+        let _ = response_sender.send(response);
+    }
+
+    async fn dispatch(
+        match_route: Option<OwnedMatchRoute>,
+        middlewares: Option<Arc<[Middleware]>>,
+        wrapper: Option<Arc<Py<PyAny>>>,
+        request: Request,
+        is_async: bool,
+    ) -> PyResult<Response> {
+        let ref py_request = Python::attach(|py| Py::new(py, request))?;
+
+        let Some(match_route) = match_route else {
+            return match wrapper {
+                Some(wrapper) => Python::attach(|py| -> PyResult<_> {
+                    Self::apply_wrapper(py, py_request, Status::NOT_FOUND.into(), &wrapper)
+                }),
+                None => Ok(Status::NOT_FOUND.into()),
+            };
+        };
+
+        let mut result = Python::attach(|py| -> PyResult<_> {
             let route = &match_route.value;
-            let params = &match_route.params;
-            let kwargs = if !params.is_empty() {
-                Some(build_route_params(py, params)?)
-            } else {
-                None
+            let kwargs = match !match_route.params.is_empty() {
+                true => Some(build_route_params(py, &match_route.params)?),
+                _ => None,
             };
 
-            match middlewares {
-                Some(middlewares) => MiddlewareChain::execute(
+            let res = match middlewares.as_deref() {
+                Some(chain) => MiddlewareChain::execute(
                     py,
-                    middlewares,
+                    chain,
                     route.sequence,
                     &route.handler,
-                    (request.clone(),),
+                    (py_request,),
                     kwargs.as_ref(),
                 ),
-                None => route.handler.call(py, (request.clone(),), kwargs.as_ref()),
-            }
+                None => route.handler.call(py, (py_request,), kwargs.as_ref()),
+            }?;
+
+            Ok(res)
         })?;
 
         if is_async {
             result = Python::attach(|py| into_future(result.into_bound(py)))?.await?;
         }
 
-        Python::attach(|py| into_response::convert_to_response(result, py))
-    } else {
-        Ok(Status::NOT_FOUND.into())
+        Python::attach(|py| -> PyResult<_> {
+            let response = into_response::convert_to_response(result, py)?;
+            match wrapper {
+                Some(ref wrapper) => Self::apply_wrapper(py, py_request, response, wrapper),
+                None => Ok(response),
+            }
+        })
+    }
+
+    #[inline]
+    fn apply_wrapper(
+        py: Python<'_>,
+        py_request: &Py<Request>,
+        response: Response,
+        wrapper: &Py<PyAny>,
+    ) -> PyResult<Response> {
+        let wrapped = wrapper.call(py, (py_request, response), None)?;
+        into_response::convert_to_response(wrapped, py)
     }
 }
 
