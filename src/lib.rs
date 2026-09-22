@@ -567,22 +567,24 @@ impl ProcessRequest {
         request: Request,
         is_async: bool,
     ) -> PyResult<Response> {
-        let ref request = Python::attach(|py| Py::new(py, request))?;
-
         let Some(match_route) = match_route else {
-            return match wrapper {
-                Some(wrapper) => Python::attach(|py| -> PyResult<_> {
-                    Self::apply_wrapper(py, request, Status::NOT_FOUND.into(), &wrapper)
+            return match wrapper.as_deref() {
+                Some(wrapper) => Python::attach(|py| {
+                    let request = Py::new(py, request)?;
+                    Self::apply_wrapper(py, &request, Status::NOT_FOUND.into(), wrapper)
                 }),
                 None => Ok(Status::NOT_FOUND.into()),
             };
         };
 
-        let mut result = Python::attach(|py| -> PyResult<_> {
+        let (result, request) = Python::attach(|py| -> PyResult<_> {
+            let request = Py::new(py, request)?;
             let route = &match_route.value;
-            let kwargs = match !match_route.params.is_empty() {
-                true => Some(build_route_params(py, &match_route.params)?),
-                _ => None,
+
+            let kwargs = if match_route.params.is_empty() {
+                None
+            } else {
+                Some(build_route_params(py, &match_route.params)?)
             };
 
             let res = match middlewares.as_deref() {
@@ -591,23 +593,25 @@ impl ProcessRequest {
                     chain,
                     route.sequence,
                     &route.handler,
-                    (request,),
+                    (&request,),
                     kwargs.as_ref(),
                 ),
-                None => route.handler.call(py, (request,), kwargs.as_ref()),
+                None => route.handler.call(py, (&request,), kwargs.as_ref()),
             }?;
 
-            Ok(res)
+            Ok((res, request))
         })?;
 
-        if is_async {
-            result = Python::attach(|py| into_future(result.into_bound(py)))?.await?;
-        }
+        let result = if is_async {
+            Python::attach(|py| into_future(result.into_bound(py)))?.await?
+        } else {
+            result
+        };
 
-        Python::attach(|py| -> PyResult<_> {
+        Python::attach(|py| {
             let response = into_response::convert_to_response(result, py)?;
-            match wrapper {
-                Some(ref wrapper) => Self::apply_wrapper(py, request, response, wrapper),
+            match wrapper.as_deref() {
+                Some(wrapper) => Self::apply_wrapper(py, &request, response, wrapper),
                 None => Ok(response),
             }
         })
