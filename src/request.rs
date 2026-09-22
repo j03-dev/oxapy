@@ -3,13 +3,14 @@ use tokio::sync::oneshot;
 
 use ahash::{HashMap, HashMapExt};
 use http_body_util::BodyExt;
+use hyper::body::{Body as _, Bytes};
+use hyper::header::{CONTENT_TYPE, COOKIE, HeaderMap, HeaderName, HeaderValue};
+use hyper::{Method, Uri};
 use pyo3::{
     exceptions::{PyAttributeError, PyException},
     prelude::*,
     types::PyDict,
 };
-
-use hyper::Uri;
 use pyo3_stub_gen::derive::*;
 use url::form_urlencoded;
 
@@ -18,7 +19,7 @@ use crate::status::Status;
 use crate::{
     Context, IntoPyException, ProcessRequest, json, multipart::File, templating::Template,
 };
-use crate::{middleware::Middleware, routing::MatchRoute, routing::OwnedMatchRoute};
+use crate::{middleware::Middleware, routing::OwnedMatchRoute};
 use crate::{multipart::parse_multipart, response::Body};
 
 /// HTTP request object containing information about the incoming request.
@@ -51,14 +52,11 @@ use crate::{multipart::parse_multipart, response::Body};
 #[derive(Clone, Debug, Default)]
 pub struct Request {
     /// The HTTP method of the request (e.g., GET, POST, PUT).
-    #[pyo3(get)]
-    pub method: String,
+    pub method: Method,
     /// The full URI of the request including path and query string.
-    #[pyo3(get)]
-    pub uri: String,
+    pub uri: Uri,
     /// HTTP headers as key-value pairs.
-    #[pyo3(get)]
-    pub headers: HashMap<String, String>,
+    pub headers: HeaderMap,
     /// The raw data content of the request as a string, if present.
     #[pyo3(get)]
     pub data: Option<String>,
@@ -91,12 +89,43 @@ impl Request {
     #[new]
     #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
     pub fn new(method: String, uri: String, headers: HashMap<String, String>) -> Self {
+        let method = method.parse::<Method>().unwrap_or(Method::GET);
+        let uri = uri.parse::<Uri>().unwrap_or_default();
+        let mut header_map = HeaderMap::with_capacity(headers.len());
+        for (name, value) in headers {
+            if let (Ok(name), Ok(value)) =
+                (HeaderName::try_from(name), HeaderValue::from_str(&value))
+            {
+                header_map.append(name, value);
+            }
+        }
         Self {
             method,
             uri,
-            headers,
+            headers: header_map,
             ..Default::default()
         }
+    }
+
+    #[getter]
+    fn method(&self) -> String {
+        self.method.as_str().to_string()
+    }
+
+    #[getter]
+    fn uri(&self) -> String {
+        self.uri.to_string()
+    }
+
+    #[getter]
+    fn headers(&self, py: Python<'_>) -> PyResult<Py<PyDict>> {
+        let dict = PyDict::new(py);
+        for (name, value) in self.headers.iter() {
+            if let Ok(value) = value.to_str() {
+                dict.set_item(name.as_str(), value)?;
+            }
+        }
+        Ok(dict.into())
     }
 
     /// Parse the request body as JSON and return it as a dictionary.
@@ -178,15 +207,13 @@ impl Request {
     ///     return {"name": name, "age": age}
     /// ```
     #[getter]
-    fn query(&self) -> PyResult<HashMap<String, String>> {
-        let uri: Uri = self.uri.parse().into_py_exception()?;
-        if let Some(query_string) = uri.query() {
-            let parsed_query = form_urlencoded::parse(query_string.as_bytes())
-                .map(|(key, value)| (key.to_string(), value.to_string()))
-                .collect();
-            return Ok(parsed_query);
+    fn query(&self) -> HashMap<String, String> {
+        match self.uri.query() {
+            Some(query_string) => form_urlencoded::parse(query_string.as_bytes())
+                .map(|(key, value)| (key.into_owned(), value.into_owned()))
+                .collect(),
+            None => HashMap::new(),
         }
-        Ok(HashMap::default())
     }
 
     /// Get cookie value by the name from the request headers
@@ -210,7 +237,8 @@ impl Request {
     ///     render(request, "index.html.j2", {"theme": theme})
     /// ```
     fn get_cookie(&self, name: &str) -> Option<&str> {
-        let cookie = self.headers.get("cookie")?;
+        let cookie = self.headers.get(COOKIE)?;
+        let cookie = cookie.to_str().ok()?;
         let cookies = cookie.split(';');
         for c in cookies {
             let (k, v) = c.trim().split_once('=')?;
@@ -252,7 +280,7 @@ impl Request {
         self,
         ctx: Arc<Context>,
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
-        if self.method == "OPTIONS"
+        if self.method == Method::OPTIONS
             && let Some(ref cors) = ctx.cors
         {
             return Response::try_from((**cors).clone())
@@ -260,13 +288,10 @@ impl Request {
                 .try_into();
         }
 
-        let method = self.method.clone();
-        let uri = self.uri.clone();
-
         let matched = ctx.routers.iter().find_map(|router| {
             router
-                .find(&method, &uri)
-                .map(|m| (m, router.middlewares.clone()))
+                .find(self.method.as_str(), self.uri.path())
+                .map(|m| (OwnedMatchRoute::from(m), router.middlewares.clone()))
         });
 
         if let Some((match_route, middlewares)) = matched {
@@ -280,15 +305,13 @@ impl Request {
     async fn handle_found_route(
         self,
         ctx: &Context,
-        match_route: MatchRoute<'_>,
+        match_route: OwnedMatchRoute,
         middlewares: Option<Arc<[Middleware]>>,
     ) -> Result<hyper::Response<Body>, hyper::http::Error> {
         let (response_sender, response_receiver) = oneshot::channel();
 
-        let owned_match_route = OwnedMatchRoute::from(match_route);
-
         let process_request = ProcessRequest {
-            match_route: Some(owned_match_route),
+            match_route: Some(match_route),
             middlewares,
             request: self,
             response_sender,
@@ -332,28 +355,23 @@ impl Request {
 }
 
 pub struct RequestBuilder {
-    method: String,
-    uri: String,
-    headers: HashMap<String, String>,
+    method: Method,
+    uri: Uri,
+    headers: HeaderMap,
     app_data: Option<Arc<Py<PyAny>>>,
     template: Option<Arc<Template>>,
-    req: hyper::Request<hyper::body::Incoming>,
+    body: hyper::body::Incoming,
 }
 
 impl RequestBuilder {
     pub fn new(req: hyper::Request<hyper::body::Incoming>) -> Self {
-        let hyper_headers = req.headers();
-        let mut headers = HashMap::with_capacity(hyper_headers.len());
-
-        for (k, v) in hyper_headers {
-            headers.insert(k.to_string(), v.to_str().unwrap_or_default().to_string());
-        }
+        let (parts, body) = req.into_parts();
 
         Self {
-            method: req.method().to_string(),
-            uri: req.uri().to_string(),
-            headers,
-            req,
+            method: parts.method,
+            uri: parts.uri,
+            headers: parts.headers,
+            body,
             app_data: None,
             template: None,
         }
@@ -370,11 +388,23 @@ impl RequestBuilder {
     }
 
     pub async fn build(self) -> PyResult<Request> {
-        let mut request = Request::new(self.method, self.uri, self.headers);
+        let mut request = Request {
+            method: self.method,
+            uri: self.uri,
+            headers: self.headers,
+            ..Default::default()
+        };
 
-        let bytes = self.req.collect().await.into_py_exception()?.to_bytes();
+        let bytes = match self.body.size_hint().upper() {
+            Some(0) => Bytes::new(),
+            _ => self.body.collect().await.into_py_exception()?.to_bytes(),
+        };
 
-        if let Some(content_type) = request.headers.get("content-type") {
+        if let Some(content_type) = request
+            .headers
+            .get(CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+        {
             if content_type.starts_with("multipart/form-data") {
                 let parsed_multipart = parse_multipart(content_type, bytes)
                     .await
@@ -382,17 +412,16 @@ impl RequestBuilder {
                 request.form = parsed_multipart.fields;
                 request.files = parsed_multipart.files;
             } else if content_type.starts_with("application/json") {
-                let body = String::from_utf8_lossy(&bytes).into_owned();
-                if !body.is_empty() {
-                    request.data = Some(body);
+                if !bytes.is_empty() {
+                    request.data = Some(match String::from_utf8(bytes.to_vec()) {
+                        Ok(body) => body,
+                        Err(err) => String::from_utf8_lossy(err.as_bytes()).into_owned(),
+                    });
                 }
-            } else {
-                let form = String::from_utf8_lossy(&bytes).into_owned();
-                if !form.is_empty() {
-                    request.form = form_urlencoded::parse(form.as_bytes())
-                        .map(|(k, v)| (k.to_string(), v.to_string()))
-                        .collect();
-                }
+            } else if !bytes.is_empty() {
+                request.form = form_urlencoded::parse(bytes.as_ref())
+                    .map(|(k, v)| (k.into_owned(), v.into_owned()))
+                    .collect();
             }
         }
 

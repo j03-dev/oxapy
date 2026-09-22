@@ -41,7 +41,7 @@ matchit = { git = "https://github.com/ibraheemdev/matchit", branch = "master" }
 # Serialization / Data formats
 serde = "1.0.229"
 serde_json = "1.0.151"
-jsonschema = { version = "0.56.0", default-features = false }
+jsonschema = { version = "0.57.0", default-features = false }
 
 # Template engines
 tera = { version = "2", features = ["glob_fs", "fast"] }

@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use futures_util::{StreamExt, stream};
 use http_body_util::{BodyExt, Full, StreamBody, combinators::BoxBody};
+use hyper::StatusCode;
 use hyper::{
     HeaderMap,
     body::{Bytes, Frame},
@@ -18,14 +19,14 @@ use pyo3::types::{PyBytes, PyString};
 use pyo3_stub_gen::derive::*;
 
 use crate::cors::Cors;
-use crate::{IntoPyException, ProcessRequest, Status, convert_to_response, json};
+use crate::{IntoPyException, Status, json};
 
 pub type Body = BoxBody<Bytes, Infallible>;
 
 #[derive(Clone)]
 pub enum ResponseBody {
     Bytes(Bytes),
-    Stream(Arc<Body>),
+    Stream(Arc<dyn Fn() -> Body + Send + Sync>),
 }
 
 /// HTTP response object that is returned from request handlers.
@@ -59,6 +60,17 @@ pub struct Response {
     pub headers: HeaderMap,
 }
 
+#[inline(always)]
+fn with_ct(status: Status, content_type: HeaderValue, body: Bytes) -> Response {
+    let mut headers = HeaderMap::with_capacity(1);
+    headers.insert(CONTENT_TYPE, content_type);
+    Response {
+        status,
+        headers,
+        body: ResponseBody::Bytes(body),
+    }
+}
+
 #[gen_stub_pymethods]
 #[pymethods]
 impl Response {
@@ -83,25 +95,24 @@ impl Response {
     /// # Return error
     /// response = Response("Not authorized", status=Status.UNAUTHORIZED)
     /// ```
+    #[inline]
     #[new]
     #[pyo3(signature=(body, status = Status::OK , content_type="application/json"))]
     #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
-    pub fn new(body: Bound<PyAny>, status: Status, content_type: &str) -> PyResult<Self> {
-        let content_type = HeaderValue::from_str(content_type).into_py_exception()?;
-
-        if content_type == "application/json" {
-            return Self::from_json(body, status, content_type);
+    pub fn new(body: Bound<'_, PyAny>, status: Status, content_type: &str) -> PyResult<Self> {
+        if let Ok(s) = body.cast::<PyString>() {
+            let text = s.to_str().into_py_exception()?.to_owned();
+            let ct = HeaderValue::from_str(content_type).into_py_exception()?;
+            return Ok(with_ct(status, ct, Bytes::from(text)));
         }
 
-        if body.is_instance_of::<PyBytes>() {
-            return Self::from_bytes(body.extract()?, status, content_type);
+        if let Ok(b) = body.cast::<PyBytes>() {
+            let ct = HeaderValue::from_str(content_type).into_py_exception()?;
+            return Ok(with_ct(status, ct, Bytes::copy_from_slice(b.as_bytes())));
         }
 
-        if body.is_instance_of::<PyString>() {
-            return Self::from_str(body.to_string(), status, content_type);
-        }
-
-        Err(PyTypeError::new_err("Unsupported response type"))
+        let ct = HeaderValue::from_str(content_type).into_py_exception()?;
+        Ok(with_ct(status, ct, json::dumps(&body)?.into()))
     }
 
     /// Get the response body as a string.
@@ -118,10 +129,9 @@ impl Response {
                 let s = str::from_utf8(b).into_py_exception()?;
                 Ok(s.to_string())
             }
-            _ => {
-                let message = "response body is streaming and cannot be extracted as a string";
-                Err(PyTypeError::new_err(message))
-            }
+            _ => Err(PyTypeError::new_err(
+                "response body is streaming and cannot be extracted as a string",
+            )),
         }
     }
 
@@ -141,12 +151,23 @@ impl Response {
     ///     print(f"{name}: {value}")
     /// ```
     #[getter]
-    fn headers(&self) -> Vec<(&str, &str)> {
+    fn headers(&self) -> PyResult<Vec<(String, String)>> {
         // we return vec of tuple over dictionary because,
         // dict can't store diff value with same key
         self.headers
             .iter()
-            .map(|(k, v)| (k.as_str(), v.to_str().unwrap()))
+            .map(|(k, v)| {
+                let value = v
+                    .to_str()
+                    .map_err(|_| {
+                        PyTypeError::new_err(format!(
+                            "header `{}` contains non-UTF-8 bytes",
+                            k.as_str()
+                        ))
+                    })?
+                    .to_owned();
+                Ok((k.as_str().to_owned(), value))
+            })
             .collect()
     }
 
@@ -234,11 +255,19 @@ impl Response {
         secure: bool,
         samesite: &str,
     ) -> PyResult<()> {
-        let mut cookie_header =
-            format!("{name}={value}; Path={path}; Max-Age={max_age}; SameSite={samesite}");
+        use std::fmt::Write;
+
+        // Pre-size: base + domain + flags fits comfortably in 128 bytes.
+        let mut cookie_header = String::with_capacity(128);
+        write!(
+            cookie_header,
+            "{name}={value}; Path={path}; Max-Age={max_age}; SameSite={samesite}"
+        )
+        .map_err(|e| PyTypeError::new_err(e.to_string()))?;
 
         if !domain.is_empty() {
-            cookie_header.push_str(&format!("; Domain={domain}"));
+            cookie_header.push_str("; Domain=");
+            cookie_header.push_str(domain);
         }
         if httponly {
             cookie_header.push_str("; HttpOnly");
@@ -260,41 +289,6 @@ impl Response {
 impl Response {
     pub fn set_body(mut self, body: String) -> Self {
         self.body = ResponseBody::Bytes(Bytes::from(body));
-        self
-    }
-
-    fn from_str(s: String, status: Status, content_type: HeaderValue) -> PyResult<Self> {
-        Ok(Self {
-            body: ResponseBody::Bytes(Bytes::from(s)),
-            status,
-            headers: HeaderMap::from_iter([(CONTENT_TYPE, content_type)]),
-        })
-    }
-
-    fn from_bytes(b: &[u8], status: Status, content_type: HeaderValue) -> PyResult<Self> {
-        Ok(Self {
-            status,
-            body: ResponseBody::Bytes(Bytes::copy_from_slice(b)),
-            headers: HeaderMap::from_iter([(CONTENT_TYPE, content_type)]),
-        })
-    }
-
-    fn from_json(obj: Bound<PyAny>, status: Status, content_type: HeaderValue) -> PyResult<Self> {
-        Ok(Self {
-            status,
-            body: ResponseBody::Bytes(json::dumps(&obj)?.into()),
-            headers: HeaderMap::from_iter([(CONTENT_TYPE, content_type)]),
-        })
-    }
-
-    pub(crate) fn call_wrapper(mut self, pr: &ProcessRequest) -> Self {
-        if let Some(wrapper) = &pr.wrapper {
-            self = Python::attach(|py| {
-                let result = wrapper.call(py, (pr.request.clone(), self), None)?;
-                convert_to_response(result, py)
-            })
-            .unwrap_or_else(Response::from);
-        }
         self
     }
 
@@ -352,7 +346,7 @@ impl Redirect {
     #[new]
     #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
     fn new(location: String) -> PyResult<PyClassInitializer<Self>> {
-        let mut headers = HeaderMap::new();
+        let mut headers = HeaderMap::with_capacity(2);
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("text/html"));
         headers.insert(LOCATION, location.parse().into_py_exception()?);
         Ok(PyClassInitializer::from(Response {
@@ -494,16 +488,29 @@ impl FileStreaming {
         status: Status,
         content_type: &str,
     ) -> PyResult<PyClassInitializer<Self>> {
-        let file = fs::File::open(path)?;
-        let chunk_iter = ChunkIter { file, buf_size };
-        let stream = stream::iter(chunk_iter).map(|bytes| Ok(Frame::data(bytes)));
-        let body = StreamBody::new(Box::pin(stream));
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, content_type.parse().into_py_exception()?);
+        fs::File::open(path)?;
+
+        let content_type: HeaderValue = content_type.parse().into_py_exception()?;
+
+        let path = Arc::new(path.to_owned());
+        let make: Arc<dyn Fn() -> Body + Send + Sync> = {
+            let path = Arc::clone(&path);
+            Arc::new(move || {
+                let file =
+                    fs::File::open(&*path).expect("file existed at construction but vanished");
+                let chunk_iter = ChunkIter { file, buf_size };
+                let stream = stream::iter(chunk_iter).map(|b| Ok(Frame::data(b)));
+                BodyExt::boxed(StreamBody::new(Box::pin(stream)))
+            })
+        };
+
+        let mut headers = HeaderMap::with_capacity(2);
+        headers.insert(CONTENT_TYPE, content_type);
         headers.insert(CACHE_CONTROL, HeaderValue::from_static("no-cache"));
+
         Ok(PyClassInitializer::from(Response {
             status,
-            body: ResponseBody::Stream(Arc::new(BodyExt::boxed(body))),
+            body: ResponseBody::Stream(make),
             headers,
         })
         .add_subclass(Self))
@@ -513,15 +520,22 @@ impl FileStreaming {
 impl TryFrom<Response> for hyper::Response<Body> {
     type Error = hyper::http::Error;
 
+    #[inline]
     fn try_from(response: Response) -> Result<Self, Self::Error> {
-        let mut builder = hyper::Response::builder().status(response.status as u16);
-        for (name, value) in response.headers.iter() {
-            builder = builder.header(name, value);
-        }
+        let Response {
+            status,
+            headers,
+            body,
+        } = response;
 
-        match response.body {
-            ResponseBody::Bytes(b) => builder.body(Full::new(b).boxed()),
-            ResponseBody::Stream(s) => builder.body(Arc::try_unwrap(s).unwrap()),
-        }
+        let body: Body = match body {
+            ResponseBody::Bytes(b) => BodyExt::boxed(Full::new(b)),
+            ResponseBody::Stream(make) => make(),
+        };
+
+        let mut res = hyper::Response::new(body);
+        *res.status_mut() = StatusCode::from_u16(status as u16)?;
+        *res.headers_mut() = headers; // move, no clone
+        Ok(res)
     }
 }
