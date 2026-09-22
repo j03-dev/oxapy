@@ -567,12 +567,12 @@ impl ProcessRequest {
         request: Request,
         is_async: bool,
     ) -> PyResult<Response> {
-        let ref py_request = Python::attach(|py| Py::new(py, request))?;
+        let ref request = Python::attach(|py| Py::new(py, request))?;
 
         let Some(match_route) = match_route else {
             return match wrapper {
                 Some(wrapper) => Python::attach(|py| -> PyResult<_> {
-                    Self::apply_wrapper(py, py_request, Status::NOT_FOUND.into(), &wrapper)
+                    Self::apply_wrapper(py, request, Status::NOT_FOUND.into(), &wrapper)
                 }),
                 None => Ok(Status::NOT_FOUND.into()),
             };
@@ -591,10 +591,10 @@ impl ProcessRequest {
                     chain,
                     route.sequence,
                     &route.handler,
-                    (py_request,),
+                    (request,),
                     kwargs.as_ref(),
                 ),
-                None => route.handler.call(py, (py_request,), kwargs.as_ref()),
+                None => route.handler.call(py, (request,), kwargs.as_ref()),
             }?;
 
             Ok(res)
@@ -607,7 +607,7 @@ impl ProcessRequest {
         Python::attach(|py| -> PyResult<_> {
             let response = into_response::convert_to_response(result, py)?;
             match wrapper {
-                Some(ref wrapper) => Self::apply_wrapper(py, py_request, response, wrapper),
+                Some(ref wrapper) => Self::apply_wrapper(py, request, response, wrapper),
                 None => Ok(response),
             }
         })

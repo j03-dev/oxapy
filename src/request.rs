@@ -3,6 +3,7 @@ use tokio::sync::oneshot;
 
 use ahash::{HashMap, HashMapExt};
 use http_body_util::BodyExt;
+use hyper::body::{Body as _, Bytes};
 use hyper::header::{CONTENT_TYPE, COOKIE, HeaderMap, HeaderName, HeaderValue};
 use hyper::{Method, Uri};
 use pyo3::{
@@ -394,7 +395,10 @@ impl RequestBuilder {
             ..Default::default()
         };
 
-        let bytes = self.body.collect().await.into_py_exception()?.to_bytes();
+        let bytes = match self.body.size_hint().upper() {
+            Some(0) => Bytes::new(),
+            _ => self.body.collect().await.into_py_exception()?.to_bytes(),
+        };
 
         if let Some(content_type) = request
             .headers
