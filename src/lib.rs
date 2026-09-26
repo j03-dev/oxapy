@@ -163,8 +163,8 @@ impl Oxapy {
         todo!("dummy init")
     }
 
-    #[pyo3(signature=(reload = false, workers = None))]
-    fn run(&self, reload: bool, workers: Option<usize>) -> Py<PyAny> {
+    #[pyo3(signature=(reload = false, processes = None, workers = None))]
+    fn run(&self, reload: bool, processes: Option<usize>, workers: Option<usize>) -> Py<PyAny> {
         todo!("dummy fonction")
     }
 
@@ -460,9 +460,24 @@ impl HttpServer {
     }
 }
 
+fn create_listener(addr: SocketAddr) -> std::io::Result<TcpListener> {
+    let socket = socket2::Socket::new(
+        socket2::Domain::for_address(addr),
+        socket2::Type::STREAM,
+        None,
+    )?;
+    socket.set_reuse_address(true)?;
+    socket.set_reuse_port(true)?;
+    socket.bind(&addr.into())?;
+    socket.listen(4096)?;
+    socket.set_nonblocking(true)?;
+
+    TcpListener::from_std(socket.into())
+}
+
 impl HttpServer {
     async fn run_server(&self) -> PyResult<()> {
-        let listener = TcpListener::bind(self.addr).await?;
+        let listener = create_listener(self.addr)?;
         println!("Listening on {}", self.addr);
         let shutdown = ShutDownSignal::new()?;
 

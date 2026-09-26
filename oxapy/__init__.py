@@ -5,13 +5,12 @@ import sys
 import subprocess
 import time
 import base64
+import signal
 import typing
 import mimetypes
 import hmac
 import orjson as json
 import hashlib
-
-from functools import partial
 
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
@@ -63,60 +62,49 @@ class Oxapy(HttpServer):
         self.__watch_dir = watch_dir
         return self
 
-    def run(self, reload: bool = False, workers: typing.Optional[int] = None):
+    def run(
+        self,
+        reload: bool = False,
+        processes: typing.Optional[int] = None,
+        workers: typing.Optional[int] = None,
+    ):
         """
-        Starts the server or the supervisor process.
-
-        If `reload` is enabled and the current process is not flagged as a worker,
-        it launches the supervisor to watch for file changes. Otherwise, it starts
-        the actual HTTP server instance.
+        Starts the server, optionally as a pool of OS processes.
 
         Args:
-            reload (bool): Whether to enable auto-reloading on file changes. Defaults to False.
-            workers (int, optional): The number of worker processes to run. Defaults to None.
+            reload (bool): Watch for file changes and restart the pool. Defaults to False.
+            processes (int, optional): Number of OS-level worker processes to run,
+                all sharing the listening port via SO_REUSEPORT. Defaults to 1.
+            workers (int, optional): Tokio worker threads per process (passed through
+                to the Rust runtime's block_on).
         """
-        if reload and os.environ.get("OXAPY_WORKER") != "1":
-            self._run_supervisor()
-        else:
+        if os.environ.get("OXAPY_WORKER") == "1":
+            # We are a spawned worker: just run the actual server.
             return super().run(workers)
 
-    def _run_supervisor(self):
-        """
-        Manages the file watcher and the child worker process.
+        num_processes = processes if processes and processes > 0 else 1
 
-        Sets up a directory observer. When a watched file is modified, created,
-        or deleted, it gracefully terminates the current worker process and
-        spawns a fresh one.
+        if not reload and num_processes <= 1:
+            return super().run(workers)
+
+        self._run_supervisor(num_processes, reload)
+
+    def _run_supervisor(self, num_processes: int, reload: bool):
+        """
+        Manages a pool of `num_processes` worker processes.
+
+        In reload mode, any watched file change tears down and restarts the whole
+        pool. Outside of reload mode, a worker that dies unexpectedly is respawned
+        on its own (self-healing pool); a worker that exits cleanly is left down,
+        and once every worker has exited cleanly the supervisor returns.
         """
         env = os.environ.copy()
         env["OXAPY_WORKER"] = "1"
 
-        reload_requested = threading.Event()
-        changed_file_path = ""
-
-        def on_file_changed(event):
-            """Triggers a reload sequence when a watched file is modified."""
-            nonlocal changed_file_path
-            changed_file_path = event.src_path
-            reload_requested.set()
-
-        handler = PatternMatchingEventHandler(
-            patterns=self.__patterns, ignore_directories=True
-        )
-        handler.on_modified = on_file_changed
-        handler.on_created = on_file_changed
-        handler.on_deleted = on_file_changed
-
-        observer = Observer()
-        observer.schedule(handler, self.__watch_dir, recursive=True)
-        observer.start()
-
         def spawn_worker() -> subprocess.Popen:
-            """Spawns the child server process with the worker environment flag."""
             return subprocess.Popen([sys.executable] + sys.argv, env=env)
 
         def terminate_worker(proc: subprocess.Popen):
-            """Gracefully terminates a worker process, escalating to a kill if it hangs."""
             if proc and proc.poll() is None:
                 proc.terminate()
                 try:
@@ -124,31 +112,78 @@ class Oxapy(HttpServer):
                 except subprocess.TimeoutExpired:
                     proc.kill()
 
-        worker_process = spawn_worker()
+        def terminate_pool(pool: list[subprocess.Popen]):
+            for proc in pool:
+                terminate_worker(proc)
+
+        pool = [spawn_worker() for _ in range(num_processes)]
+
+        reload_requested = threading.Event()
+        changed_file_path = ""
+        observer = None
+
+        # Let SIGTERM unwind the same way SIGINT/KeyboardInterrupt does.
+        def _on_sigterm(signum, frame):
+            raise KeyboardInterrupt
+
+        previous_sigterm = signal.signal(signal.SIGTERM, _on_sigterm)
+
+        if reload:
+
+            def on_file_changed(event):
+                nonlocal changed_file_path
+                changed_file_path = event.src_path
+                reload_requested.set()
+
+            handler = PatternMatchingEventHandler(
+                patterns=self.__patterns, ignore_directories=True
+            )
+            handler.on_modified = on_file_changed
+            handler.on_created = on_file_changed
+            handler.on_deleted = on_file_changed
+
+            observer = Observer()
+            observer.schedule(handler, self.__watch_dir, recursive=True)
+            observer.start()
 
         try:
             while True:
-                if reload_requested.wait(timeout=0.2):
+                if reload and reload_requested.wait(timeout=0.2):
                     time.sleep(0.3)
                     reload_requested.clear()
-                    terminate_worker(worker_process)
+                    terminate_pool(pool)
                     filename = os.path.basename(changed_file_path)
-                    print(f"Reloading... ({filename} changed)")
-                    worker_process = spawn_worker()
-                elif worker_process.poll() is not None:
-                    if worker_process.returncode != 0:
-                        reload_requested.wait()
-                        time.sleep(0.3)
-                        reload_requested.clear()
-                        worker_process = spawn_worker()
-                    else:
-                        break
+                    print(
+                        f"Reloading {num_processes} worker(s)... ({filename} changed)"
+                    )
+                    pool = [spawn_worker() for _ in range(num_processes)]
+                    continue
+
+                time.sleep(0.2)
+
+                for i, proc in enumerate(pool):
+                    if proc.poll() is None:
+                        continue
+                    if proc.returncode != 0:
+                        if reload:
+                            reload_requested.wait()
+                            time.sleep(0.3)
+                            reload_requested.clear()
+                        else:
+                            print(
+                                f"Worker {i} exited with code {proc.returncode}, restarting..."
+                            )
+                        pool[i] = spawn_worker()
+                    elif not reload and all(p.poll() is not None for p in pool):
+                        return
         except KeyboardInterrupt:
             pass
         finally:
-            observer.stop()
-            observer.join()
-            terminate_worker(worker_process)
+            signal.signal(signal.SIGTERM, previous_sigterm)
+            if observer:
+                observer.stop()
+                observer.join()
+            terminate_pool(pool)
 
 
 def _b64_encode(data: bytes) -> str:

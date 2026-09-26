@@ -51,11 +51,8 @@ use crate::{multipart::parse_multipart, response::Body};
 #[pyclass(from_py_object)]
 #[derive(Clone, Debug, Default)]
 pub struct Request {
-    /// The HTTP method of the request (e.g., GET, POST, PUT).
     pub method: Method,
-    /// The full URI of the request including path and query string.
     pub uri: Uri,
-    /// HTTP headers as key-value pairs.
     pub headers: HeaderMap,
     /// The raw data content of the request as a string, if present.
     #[pyo3(get)]
@@ -107,11 +104,13 @@ impl Request {
         }
     }
 
+    /// The HTTP method of the request (e.g., GET, POST, PUT).
     #[getter]
     fn method(&self) -> String {
         self.method.as_str().to_string()
     }
 
+    /// The full URI of the request including path and query string.
     #[getter]
     fn uri(&self) -> String {
         self.uri.to_string()

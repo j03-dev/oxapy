@@ -1,23 +1,18 @@
-import multiprocessing
-
-workers = multiprocessing.cpu_count()
-
-
 from oxapy import Oxapy, Router, get, post
 
 
 def main():
     (
         Oxapy(("0.0.0.0", 3000))
-        .channel_capacity(1000 * 2)
-        .max_connections(5000)
+        .channel_capacity(1000 * 8)
+        .max_connections(1000 * 8)
         .attach(
             Router()
             .route(get("/", lambda _: ""))
             .route(get("/user/{id:int}", lambda _, id: str(id)))
             .route(post("/user", lambda _: ""))
         )
-        .run()
+        .run(workers=1, processes=8)
     )
 
 
