@@ -62,6 +62,7 @@ const sidebars: SidebarsConfig = {
         {type: 'doc', id: 'guides/async-handlers', label: 'Async Handlers'},
         {type: 'doc', id: 'guides/file-streaming', label: 'File Streaming'},
         {type: 'doc', id: 'guides/hot-reload', label: 'Hot Reload'},
+        {type: 'doc', id: 'guides/multiprocess', label: 'Multiprocess'},
         {
           type: 'doc',
           id: 'guides/jwt-authentication',
@@ -88,6 +89,7 @@ const sidebars: SidebarsConfig = {
       items: [
         {type: 'doc', id: 'api/server', label: 'Oxapy'},
         {type: 'doc', id: 'api/router', label: 'Router & Route'},
+        {type: 'doc', id: 'api/static-files', label: 'Static Files'},
         {type: 'doc', id: 'api/request', label: 'Request & File'},
         {type: 'doc', id: 'api/response', label: 'Response & Redirect'},
         {type: 'doc', id: 'api/status', label: 'Status'},

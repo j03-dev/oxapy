@@ -37,6 +37,15 @@ def create_app():
 
 
 if __name__ == "__main__":
+    create_app().run(processes=4)
+```
+
+`processes=4` serves the app from four OS processes sharing the port. Keep the `if __name__ == "__main__":` guard — the worker pool is created by re-executing this script. `SO_REUSEPORT` is Unix only, so on Windows run separate instances on separate ports behind a load balancer instead. See the [Multiprocess guide](../guides/multiprocess).
+
+Alternatively, stay in a single process and give the Tokio runtime more threads:
+
+```python
+if __name__ == "__main__":
     create_app().run(workers=4)
 ```
 
@@ -95,8 +104,10 @@ api.example.com {
 - Use `Oxapy` with the default `reload=False`. Never run with `reload=True` in production.
 - Run behind a reverse proxy that terminates TLS. Session cookies and JWT secrets travel over the wire otherwise.
 - Set a strong `Session` secret / JWT secret via environment variables.
-- Tune `workers` to match the machine's CPU count and `max_connections` to your expected load.
-- Serve static assets with a dedicated server (Nginx, CDN) when traffic is high, or keep them behind `static_file()` for small apps.
+- Tune `workers` to match the machine's CPU count and `max_connections` to your expected load. Add `processes` only if handlers are CPU-bound — remember it is Unix only and does not drain in-flight requests on restart.
+- Keep anything that must be consistent across workers in a shared store. Each process has its own copy of `app_data` and module state.
+- Serve static assets with a dedicated server (Nginx, CDN) when traffic is high, or keep them behind `static_file()` for small apps. `static_file()` guards against path traversal with `secure_join()`, but uploads written with `File.save()` need their own filename sanitizing.
+- Budget for abrupt shutdowns: restarting a worker pool cuts in-flight requests rather than draining them. Use a draining proxy if you need zero-downtime deploys.
 
 ## Documentation site
 
@@ -113,5 +124,6 @@ The configuration targets GitHub Pages at `https://j03-dev.github.io/oxapy`. If 
 
 ## Next steps
 
+- [Multiprocess](../guides/multiprocess) — the `processes` argument and its limits
 - [Server Configuration](./server-configuration) — the full configuration reference
 - [API Reference: Server](../api/server) — signatures and defaults

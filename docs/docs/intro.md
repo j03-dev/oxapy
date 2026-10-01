@@ -10,6 +10,7 @@
 - Template rendering, static files, file streaming
 - Serializers with validation
 - Async handlers
+- Multiprocess serving for CPU-bound workloads
 - Hot reload for development
 
 ## A taste of OxAPY

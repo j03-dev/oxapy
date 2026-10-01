@@ -118,6 +118,46 @@ def serve_file(request, path):
 
 A request to `/files/docs/readme.txt` calls the handler with `path="docs/readme.txt"`.
 
+## Handler signature checking
+
+OxAPY verifies at **decoration time** that your handler can accept every path parameter declared in the route. It inspects the handler's signature and raises `ValueError` immediately if a parameter is missing, so a typo fails when the app starts rather than when a request arrives:
+
+```python
+@get("/users/{user_id:int}")
+def get_user(request):
+    return {"name": "nobody"}
+```
+
+```text
+ValueError: Missing required route argument 'user_id'
+```
+
+The fix is to accept the argument:
+
+```python
+@get("/users/{user_id:int}")
+def get_user(request, user_id):
+    return {"user_id": user_id}
+```
+
+The check runs whenever a handler is bound to a path, which covers both calling styles:
+
+```python
+@get("/users/{user_id}")          # decorator
+def get_user(request, user_id): ...
+
+route = get("/users/{user_id}", get_user)   # decorator used as a function
+route = Route("/users/{user_id}")(get_user) # Route called with the handler
+```
+
+Details worth knowing:
+
+- **It matches parameter names literally.** The name inside the braces must appear in the handler signature. `{user_id}` requires a `user_id` parameter; `userId` will not do.
+- **The type annotation is stripped before checking.** `{user_id:int}` is checked as `user_id`, not `user_id:int`.
+- **A leading `*` is stripped too**, so `{*path}` requires a `path` parameter.
+- **`**kwargs` does not satisfy the check.** The comparison is against literal parameter names, so `def handler(request, **kwargs)` still raises — declare the parameters explicitly.
+- **No check runs for a handler-less route.** `Route("/users/{user_id}")` constructed without a handler is not validated, because there is no signature to inspect yet.
+
 ## Router base path
 
 A `Router` can be created with a `base_path` that is prepended to every route registered on it. This is the recommended way to version an API.
@@ -167,3 +207,4 @@ When no route matches the request, the server responds with `404 Not Found`. Not
 - [Requests](./requests) — read headers, query strings, JSON bodies, forms, and uploads
 - [Responses](./responses) — return values, status codes, and custom headers
 - [Middleware](./middleware) — process requests before handlers run
+- [Static Files](./static-files) — serve a directory with `static_file()`

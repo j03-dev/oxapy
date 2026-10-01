@@ -96,15 +96,35 @@ def upload(request):
 
 ### Saving an uploaded file
 
+:::warning Sanitize the filename before saving
+
+`File.save(path)` writes to exactly the path you give it — it does no validation whatsoever. The `name` attribute comes straight from the client, so `image.save(f"uploads/{image.name}")` lets an attacker choose where the file lands, including escaping the upload directory with a crafted name like `../../etc/cron.d/evil`.
+
+Strip any directory component from the name, then resolve the result inside a fixed base directory with `secure_join()`:
+
 ```python
+import os
+
+from oxapy import secure_join
+
+UPLOADS = "./uploads"
+
+
 @post("/upload")
 def upload(request):
     if "profile_image" in request.files:
         image = request.files["profile_image"]
-        image.save(f"uploads/{image.name}")
-        return {"status": "success", "filename": image.name}
+        # os.path.basename drops any directory part from the client-supplied name;
+        # secure_join rejects anything that still escapes UPLOADS.
+        safe_name = os.path.basename(image.name)
+        image.save(secure_join(UPLOADS, safe_name))
+        return {"status": "success", "filename": safe_name}
     return {"status": "error", "message": "No file uploaded"}
 ```
+
+`secure_join()` answers "is this path inside the base directory?" — it does not make a name safe to create, so both steps are needed. Prefer generating your own filename (a UUID, for example) over reusing the client's. See the [Static Files API reference](../api/static-files#secure_join).
+
+:::
 
 ## Cookies
 

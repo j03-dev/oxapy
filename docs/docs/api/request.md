@@ -83,15 +83,31 @@ def auth_middleware(request, next, **kw):
 save(path: str) -> None
 ```
 
-Writes the uploaded file to `path`.
+Writes the uploaded file to `path`. The file is **not** validated in any way — the exact path given is the path written, so never pass client-controlled input here.
 
 ```python
+import os
+
+from oxapy import post, secure_join
+
+UPLOADS = "./uploads"
+
+
 @post("/upload")
 def upload(request):
     image = request.files["profile_image"]
-    image.save(f"uploads/{image.name}")
-    return {"filename": image.name}
+    # os.path.basename strips the client-supplied directory part, and
+    # secure_join rejects any path that still escapes UPLOADS.
+    safe_name = os.path.basename(image.name)
+    image.save(secure_join(UPLOADS, safe_name))
+    return {"filename": safe_name}
 ```
+
+:::warning `save()` does no path validation
+
+`File.save()` writes to exactly the path you pass. Because `File.name` comes from the client, `image.save(f"uploads/{image.name}")` lets a caller pick the destination and escape the upload directory with a crafted name. Combine `os.path.basename()` with [`secure_join`](./static-files#secure_join), or generate your own filename.
+
+:::
 
 ## Example: full request handling
 
@@ -116,3 +132,4 @@ def submit(request):
 
 - [Requests guide](../guides/requests) — examples for every property
 - [Response](./response) — what handlers return
+- [Static Files API](./static-files) — `secure_join` for path validation

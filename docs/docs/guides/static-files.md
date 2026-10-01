@@ -32,7 +32,7 @@ Because `static_file()` returns a `Route`, it can be registered alongside normal
 router = Router("/api/v1").routes([ping, hello, static_file("/static", str(static_dir))])
 ```
 
-The static route is then served at `/api/v1/static/...`.
+The static route is then served at `/api/v1/static/...`. Router paths are normalized when they are registered, so redundant slashes in the combined prefix collapse rather than producing a route that never matches.
 
 ## How it works
 
@@ -42,6 +42,21 @@ The static route is then served at `/api/v1/static/...`.
 2. Reads the file with `send_file()`, raising `404 Not Found` when the file does not exist.
 3. Guesses the `Content-Type` from the file extension.
 
+`secure_join()` resolves both the base directory and the joined target through `os.path.realpath` before comparing them, so the check also rejects a symlink inside the directory that points outside it:
+
+```python
+def secure_join(base, *paths):
+    base = os.path.realpath(base)
+    target = os.path.realpath(os.path.join(base, *paths))
+
+    if target != base and not target.startswith(base + os.sep):
+        raise exceptions.ForbiddenError("Access denied")
+
+    return target
+```
+
+`send_file()` then reads the file and guesses its content type:
+
 ```python
 def send_file(path):
     if not os.path.exists(path):
@@ -50,10 +65,13 @@ def send_file(path):
     if not os.path.isfile(path):
         raise exceptions.ForbiddenError("Not a file")
 
-    content = open(path, "rb").read()
+    with open(path, "rb") as f:
+        content = f.read()
     content_type, _ = mimetypes.guess_type(path)
     return Response(content, content_type=content_type or "application/octet-stream")
 ```
+
+Note that `send_file()` reads the whole file into memory, and it applies **no** traversal check of its own — only the `secure_join()` call inside `static_file()` protects the route. When you call `send_file()` from your own handler, resolve user input through `secure_join()` first. See the [Static Files API reference](../api/static-files).
 
 ## Serving individual files
 
@@ -68,9 +86,10 @@ def report(request):
     return send_file("./files/report.pdf")
 ```
 
-For very large files, prefer [FileStreaming](./file-streaming), which streams the file in chunks instead of loading it into memory.
+For very large files, prefer [File Streaming](./file-streaming), which streams the file in chunks instead of loading it into memory. `FileStreaming` performs no path validation either — validate the path yourself before handing it over.
 
 ## Next steps
 
 - [File Streaming](./file-streaming) — chunked streaming of large files
+- [Static Files API](../api/static-files) — `static_file`, `send_file`, and `secure_join` reference
 - [API Reference: Response](../api/response) — building file responses by hand

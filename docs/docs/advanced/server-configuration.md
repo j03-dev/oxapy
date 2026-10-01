@@ -68,15 +68,20 @@ server = (
 
 ### run
 
-`server.run(reload=False, workers=None)` — start the blocking server. `reload=True` enables hot reload for development. `workers` sets the number of Tokio worker threads; when omitted the runtime decides.
+`server.run(reload=False, processes=None, workers=None)` — start the server. `reload=True` enables hot reload for development. `processes` sets the number of OS processes sharing the port (Unix only, default `1`). `workers` sets the number of Tokio worker threads inside each process; when omitted the runtime decides.
 
 ```python
-server.run()                    # default workers
-server.run(reload=True)         # hot reload for development
-server.run(workers=4)           # four worker threads
+server.run()                        # default workers
+server.run(reload=True)             # hot reload for development
+server.run(workers=4)               # four Tokio threads in one process
+server.run(processes=4)             # four processes on the same port
+server.run(processes=4, workers=2)  # four processes, two threads each
 ```
+
+`reload` and `processes` are `Oxapy`-only. Anything other than a single process without reload goes through the Python supervisor, which re-executes your script — so an `if __name__ == "__main__":` guard is required. See the [Multiprocess guide](../guides/multiprocess).
 
 ## Next steps
 
+- [Multiprocess](../guides/multiprocess) — the `processes` argument in depth
 - [Deployment](./deployment) — running OxAPY in production
 - [API Reference: Server](../api/server) — every method with signatures

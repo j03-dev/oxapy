@@ -27,11 +27,17 @@ if __name__ == "__main__":
     main()
 ```
 
-With `reload=True`, `Oxapy` acts as a supervisor: it spawns a worker process that runs the real server and watches your files. When a watched file changes, the worker is restarted:
+With `reload=True`, `Oxapy` acts as a **supervisor**: it spawns a worker process that runs the real server, and watches your files itself. When a watched file changes, the worker is restarted:
 
 ```
-Reloading... (app.py changed)
+Reloading 1 worker(s)... (app.py changed)
 ```
+
+:::warning The `if __name__ == "__main__":` guard is required
+
+The worker is spawned by re-executing your script with `sys.argv`, so an unguarded entry point spawns workers that each spawn more workers. The example above includes the guard for this reason — keep it in any script that uses `reload=True`.
+
+:::
 
 ## Watching specific patterns and directories
 
@@ -51,17 +57,36 @@ Both methods return the instance, so they can be chained.
 
 ## How it works
 
-1. `run(reload=True)` detects it is not a worker (the `OXAPY_WORKER` environment variable is not set) and starts the supervisor.
+1. `run(reload=True)` checks the `OXAPY_WORKER` environment variable. If it is not set, this process is the supervisor and starts the watching loop; otherwise it is already a worker and calls straight through to the Rust server. This is the recursion guard.
 2. The supervisor starts a `watchdog` observer on the watch directory and spawns a worker subprocess running your script with `OXAPY_WORKER=1`.
-3. When a watched file is created, modified, or deleted, the worker is terminated and a fresh one is spawned.
-4. If the worker crashes, it is restarted automatically; the supervisor exits when the worker exits cleanly.
+3. When a watched file is created, modified, or deleted, the whole worker pool is terminated and a fresh pool is spawned.
+4. If a worker **crashes**, the same pool restart happens — the surviving workers would otherwise keep serving pre-crash code.
+5. A worker that exits **cleanly** (exit code `0`) is left down and is not respawned, so the pool shrinks until the next reload or a manual restart. The supervisor itself exits on `Ctrl-C` or `SIGTERM`.
+
+## Reloading a pool of workers
+
+Reload and multiprocess mode are the same supervisor, so `reload=True` combines with `processes=N` to reload every worker at once:
+
+```python
+Oxapy(("127.0.0.1", 5555)).attach(router).run(reload=True, processes=4)
+```
+
+The notice reflects the pool size:
+
+```
+Reloading 4 worker(s)... (app.py changed)
+```
+
+See the [Multiprocess guide](./multiprocess) for how the pool itself works.
 
 ## Notes
 
 - This is a development feature. Keep `reload=False` (the default) in production.
 - The watched script is re-run as a new process, so in-memory state does not survive a reload.
+- Reloads are not graceful — in-flight requests are cut off when the pool is torn down.
 
 ## Next steps
 
+- [Multiprocess](./multiprocess) — serving from several processes with `processes=N`
 - [Deployment](../advanced/deployment) — running OxAPY in production
 - [API Reference: Server](../api/server) — the `Oxapy` subclass methods

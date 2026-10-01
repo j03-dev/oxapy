@@ -112,6 +112,22 @@ def get_user(request, user_id: int):
     return {"user_id": user_id}
 ```
 
+## Signature checking
+
+Binding a handler to a path that declares parameters validates the handler's signature and raises `ValueError` at decoration time if a parameter is missing:
+
+```python
+@get("/users/{user_id}")
+def get_user(request):
+    ...
+```
+
+```text
+ValueError: Missing required route argument 'user_id'
+```
+
+The check applies to the `@get`/`@post`/… decorators (with or without a handler argument) and to `Route.__call__`. Parameter names are matched literally, the `:type` suffix and a leading `*` are stripped before matching, and `**kwargs` does **not** satisfy a declared parameter.
+
 ## Related
 
 - [Routing guide](../guides/routing) — examples and patterns
