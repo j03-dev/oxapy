@@ -163,8 +163,8 @@ impl Oxapy {
         todo!("dummy init")
     }
 
-    #[pyo3(signature=(reload = false, workers = None))]
-    fn run(&self, reload: bool, workers: Option<usize>) -> Py<PyAny> {
+    #[pyo3(signature=(reload = false, processes = None, workers = None))]
+    fn run(&self, reload: bool, processes: Option<usize>, workers: Option<usize>) -> Py<PyAny> {
         todo!("dummy fonction")
     }
 
@@ -460,9 +460,25 @@ impl HttpServer {
     }
 }
 
+fn create_listener(addr: SocketAddr) -> std::io::Result<TcpListener> {
+    let socket = socket2::Socket::new(
+        socket2::Domain::for_address(addr),
+        socket2::Type::STREAM,
+        None,
+    )?;
+    socket.set_reuse_address(true)?;
+    #[cfg(unix)]
+    socket.set_reuse_port(true)?;
+    socket.bind(&addr.into())?;
+    socket.listen(4096)?;
+    socket.set_nonblocking(true)?;
+
+    TcpListener::from_std(socket.into())
+}
+
 impl HttpServer {
     async fn run_server(&self) -> PyResult<()> {
-        let listener = TcpListener::bind(self.addr).await?;
+        let listener = create_listener(self.addr)?;
         println!("Listening on {}", self.addr);
         let shutdown = ShutDownSignal::new()?;
 
@@ -531,12 +547,7 @@ impl HttpServer {
         loop {
             tokio::select! {
                 Some(pr) = request_receiver.recv() => {
-                    let response = call_python_handler(&pr.middlewares, &pr.match_route, &pr.request, self.is_async)
-                        .await
-                        .unwrap_or_else(Response::from)
-                        .call_wrapper(&pr)
-                        .apply_cors(&pr.cors)?;
-                    let _ = pr.response_sender.send(response);
+                    pr.respond(self.is_async).await;
                 },
                 _ = shutdown.wait() => break,
             }
@@ -545,38 +556,92 @@ impl HttpServer {
     }
 }
 
-async fn call_python_handler(
-    middlewares: &Option<Arc<[Middleware]>>,
-    match_route: &Option<OwnedMatchRoute>,
-    request: &Request,
-    is_async: bool,
-) -> PyResult<Response> {
-    if let Some(match_route) = match_route {
-        let mut result = Python::attach(|py| {
-            let route = &match_route.value;
-            let params = &match_route.params;
-            let kwargs = build_route_params(py, params)?;
+impl ProcessRequest {
+    pub async fn respond(self, is_async: bool) {
+        let Self {
+            match_route,
+            middlewares,
+            wrapper,
+            request,
+            response_sender,
+            cors,
+        } = self;
 
-            match middlewares {
-                Some(middlewares) => MiddlewareChain::execute(
+        let response = Self::dispatch(match_route, middlewares, wrapper, request, is_async)
+            .await
+            .unwrap_or_else(Response::from)
+            .apply_cors(&cors)
+            .unwrap_or_else(Response::from);
+
+        let _ = response_sender.send(response);
+    }
+
+    async fn dispatch(
+        match_route: Option<OwnedMatchRoute>,
+        middlewares: Option<Arc<[Middleware]>>,
+        wrapper: Option<Arc<Py<PyAny>>>,
+        request: Request,
+        is_async: bool,
+    ) -> PyResult<Response> {
+        let Some(match_route) = match_route else {
+            return match wrapper.as_deref() {
+                Some(wrapper) => Python::attach(|py| {
+                    let request = Py::new(py, request)?;
+                    Self::apply_wrapper(py, &request, Status::NOT_FOUND.into(), wrapper)
+                }),
+                None => Ok(Status::NOT_FOUND.into()),
+            };
+        };
+
+        let (result, request) = Python::attach(|py| -> PyResult<_> {
+            let request = Py::new(py, request)?;
+            let route = &match_route.value;
+
+            let kwargs = if match_route.params.is_empty() {
+                None
+            } else {
+                Some(build_route_params(py, &match_route.params)?)
+            };
+
+            let res = match middlewares.as_deref() {
+                Some(chain) => MiddlewareChain::execute(
                     py,
-                    middlewares,
+                    chain,
                     route.sequence,
                     &route.handler,
-                    (request.clone(),),
-                    kwargs,
+                    (&request,),
+                    kwargs.as_ref(),
                 ),
-                None => route.handler.call(py, (request.clone(),), Some(&kwargs)),
-            }
+                None => route.handler.call(py, (&request,), kwargs.as_ref()),
+            }?;
+
+            Ok((res, request))
         })?;
 
-        if is_async {
-            result = Python::attach(|py| into_future(result.into_bound(py)))?.await?;
-        }
+        let result = if is_async {
+            Python::attach(|py| into_future(result.into_bound(py)))?.await?
+        } else {
+            result
+        };
 
-        Python::attach(|py| into_response::convert_to_response(result, py))
-    } else {
-        Ok(Status::NOT_FOUND.into())
+        Python::attach(|py| {
+            let response = into_response::convert_to_response(result, py)?;
+            match wrapper.as_deref() {
+                Some(wrapper) => Self::apply_wrapper(py, &request, response, wrapper),
+                None => Ok(response),
+            }
+        })
+    }
+
+    #[inline]
+    fn apply_wrapper(
+        py: Python<'_>,
+        py_request: &Py<Request>,
+        response: Response,
+        wrapper: &Py<PyAny>,
+    ) -> PyResult<Response> {
+        let wrapped = wrapper.call(py, (py_request, response), None)?;
+        into_response::convert_to_response(wrapped, py)
     }
 }
 

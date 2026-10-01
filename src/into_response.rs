@@ -11,13 +11,16 @@ use crate::{
 };
 
 type Error = Box<dyn std::error::Error>;
+const TEXT_PLAIN: HeaderValue = HeaderValue::from_static("text/plain");
+const APP_JSON: HeaderValue = HeaderValue::from_static("application/json");
 
 impl TryFrom<String> for Response {
     type Error = Error;
 
+    #[inline]
     fn try_from(val: String) -> Result<Self, Self::Error> {
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("text/plain"));
+        let mut headers = HeaderMap::with_capacity(1);
+        headers.insert(CONTENT_TYPE, TEXT_PLAIN);
         Ok(Response {
             status: Status::OK,
             headers,
@@ -29,9 +32,10 @@ impl TryFrom<String> for Response {
 impl TryFrom<Bound<'_, PyAny>> for Response {
     type Error = Error;
 
+    #[inline]
     fn try_from(val: Bound<PyAny>) -> Result<Self, Self::Error> {
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        let mut headers = HeaderMap::with_capacity(1);
+        headers.insert(CONTENT_TYPE, APP_JSON);
         Ok(Response {
             status: Status::OK,
             headers,
@@ -43,9 +47,10 @@ impl TryFrom<Bound<'_, PyAny>> for Response {
 impl TryFrom<(String, Status)> for Response {
     type Error = Error;
 
+    #[inline]
     fn try_from(val: (String, Status)) -> Result<Self, Self::Error> {
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("text/plain"));
+        let mut headers = HeaderMap::with_capacity(1);
+        headers.insert(CONTENT_TYPE, TEXT_PLAIN);
         Ok(Response {
             status: val.1,
             headers,
@@ -57,9 +62,10 @@ impl TryFrom<(String, Status)> for Response {
 impl TryFrom<(Bound<'_, PyAny>, Status)> for Response {
     type Error = Error;
 
+    #[inline]
     fn try_from(val: (Bound<PyAny>, Status)) -> Result<Self, Self::Error> {
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        let mut headers = HeaderMap::with_capacity(1);
+        headers.insert(CONTENT_TYPE, APP_JSON);
         Ok(Response {
             status: val.1,
             headers,
@@ -69,9 +75,10 @@ impl TryFrom<(Bound<'_, PyAny>, Status)> for Response {
 }
 
 impl From<Status> for Response {
+    #[inline]
     fn from(val: Status) -> Self {
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        let mut headers = HeaderMap::with_capacity(1);
+        headers.insert(CONTENT_TYPE, APP_JSON);
         Response {
             status: val,
             headers,
@@ -111,6 +118,7 @@ impl From<PyErr> for Response {
 impl TryFrom<Cors> for Response {
     type Error = PyErr;
 
+    #[inline]
     fn try_from(cors: Cors) -> Result<Self, Self::Error> {
         let mut response = Response::from(Status::NO_CONTENT);
         cors.apply_headers(&mut response)?;
@@ -181,11 +189,11 @@ pub fn convert_to_response(result: Py<PyAny>, py: Python<'_>) -> PyResult<Respon
     to_response!(
         result,
         py,
-        Response,
+        String,
         Status,
+        Response,
         (String, Status),
         (Bound<PyAny>, Status),
-        String,
         Bound<PyAny>
     )
 }

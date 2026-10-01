@@ -1,8 +1,11 @@
 use std::sync::Arc;
 
 use ahash::HashMap;
-use pyo3::{Py, PyAny, prelude::*};
+use pyo3::exceptions::PyValueError;
+use pyo3::sync::PyOnceLock;
+use pyo3::{Py, PyAny, prelude::*, types::PyMapping};
 use pyo3_stub_gen::derive::*;
+use regex::Regex;
 
 use crate::{IntoPyException, middleware::Middleware};
 
@@ -83,7 +86,8 @@ impl Route {
         }
     }
 
-    fn __call__(&self, handler: Py<PyAny>) -> PyResult<Self> {
+    fn __call__(&self, handler: Py<PyAny>, py: Python<'_>) -> PyResult<Self> {
+        static_check_handler(handler.clone_ref(py), &self.path, py)?;
         Ok(Self {
             handler: Arc::new(handler),
             ..self.clone()
@@ -107,16 +111,64 @@ macro_rules! methods {
             #[gen_stub_pyfunction]
             #[pyfunction]
             #[pyo3(signature = (path, handler = None))]
-            pub fn $method(path: String, handler: Option<Py<PyAny>>, py: Python<'_>) -> Route {
-                Route {
+            pub fn $method(path: String, handler: Option<Py<PyAny>>, py: Python<'_>) -> PyResult<Route> {
+                if let Some(handler_func) = handler.as_ref() {
+                    static_check_handler(handler_func.clone_ref(py), &path, py)?;
+                }
+
+                Ok(Route {
                     method: stringify!($method).to_uppercase(),
                     path,
                     sequence: 0,
                     handler: Arc::new(handler.unwrap_or(py.None()))
-                }
+                })
             }
         )+
     };
+}
+
+fn static_check_handler(handler: Py<PyAny>, path: &str, py: Python<'_>) -> PyResult<()> {
+    static INSPECT: PyOnceLock<Py<PyModule>> = PyOnceLock::new();
+    let inspect = INSPECT.get_or_try_init(py, || py.import("inspect").map(|m| m.into()))?;
+
+    let params = extract_params(path, py)?;
+
+    let signature = inspect
+        .call_method1(py, "signature", (handler,))?
+        .into_bound(py);
+    let parameters = signature.getattr("parameters")?.cast_into::<PyMapping>()?;
+    let keys: Vec<String> = parameters.keys()?.extract()?;
+
+    for param in params {
+        let name = param.strip_prefix('*').unwrap_or(&param);
+        if !keys.iter().any(|k| k.as_str() == name) {
+            return Err(PyValueError::new_err(format!(
+                "Missing required route argument '{param}'"
+            )));
+        }
+    }
+
+    Ok(())
+}
+
+fn extract_params(path: &str, py: Python<'_>) -> PyResult<Vec<String>> {
+    static RE: PyOnceLock<Regex> = PyOnceLock::new();
+    let re = RE
+        .get_or_try_init(py, || Regex::new(r"\{([^}]+)\}"))
+        .into_py_exception()?;
+
+    let params = re
+        .captures_iter(path)
+        .map(|cap| {
+            let arg = cap[1].to_string();
+            match arg.split_once(':') {
+                Some((a, _)) => a.to_string(),
+                None => arg,
+            }
+        })
+        .collect();
+
+    Ok(params)
 }
 
 methods!(
