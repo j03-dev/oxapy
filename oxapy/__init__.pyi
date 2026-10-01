@@ -599,7 +599,7 @@ class HttpServer:
 
 class Oxapy(HttpServer):
     def __new__(cls, addr: tuple[builtins.str, builtins.int]) -> typing_extensions.Self: ...
-    def run(self, reload: builtins.bool = False, workers: typing.Optional[builtins.int] = None) -> typing.Any: ...
+    def run(self, reload: builtins.bool = False, processes: typing.Optional[builtins.int] = None, workers: typing.Optional[builtins.int] = None) -> typing.Any: ...
     def set_patterns(self, p: typing.Sequence[builtins.str]) -> Oxapy: ...
     def set_watch_dir(self, dir: builtins.str) -> Oxapy: ...
 
@@ -676,21 +676,6 @@ class Request:
     ```
     """
     @property
-    def method(self) -> builtins.str:
-        r"""
-        The HTTP method of the request (e.g., GET, POST, PUT).
-        """
-    @property
-    def uri(self) -> builtins.str:
-        r"""
-        The full URI of the request including path and query string.
-        """
-    @property
-    def headers(self) -> builtins.dict[builtins.str, builtins.str]:
-        r"""
-        HTTP headers as key-value pairs.
-        """
-    @property
     def data(self) -> typing.Optional[builtins.str]:
         r"""
         The raw data content of the request as a string, if present.
@@ -704,6 +689,21 @@ class Request:
     def files(self) -> builtins.dict[builtins.str, File]:
         r"""
         Files uploaded in a multipart form request, mapping field names to File objects.
+        """
+    @property
+    def method(self) -> builtins.str:
+        r"""
+        The HTTP method of the request (e.g., GET, POST, PUT).
+        """
+    @property
+    def uri(self) -> builtins.str:
+        r"""
+        The full URI of the request including path and query string.
+        """
+    @property
+    def headers(self) -> dict:
+        r"""
+        HTTP headers as key-value pairs.
         """
     @property
     def app_data(self) -> typing.Any:

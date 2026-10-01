@@ -116,6 +116,7 @@ impl Request {
         self.uri.to_string()
     }
 
+    /// HTTP headers as key-value pairs.
     #[getter]
     fn headers(&self, py: Python<'_>) -> PyResult<Py<PyDict>> {
         let dict = PyDict::new(py);
