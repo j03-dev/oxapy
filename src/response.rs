@@ -152,20 +152,10 @@ impl Response {
     /// ```
     #[getter]
     fn headers(&self) -> PyResult<Vec<(String, String)>> {
-        // we return vec of tuple over dictionary because,
-        // dict can't store diff value with same key
         self.headers
             .iter()
             .map(|(k, v)| {
-                let value = v
-                    .to_str()
-                    .map_err(|_| {
-                        PyTypeError::new_err(format!(
-                            "header `{}` contains non-UTF-8 bytes",
-                            k.as_str()
-                        ))
-                    })?
-                    .to_owned();
+                let value = v.to_str().into_py_exception()?.to_owned();
                 Ok((k.as_str().to_owned(), value))
             })
             .collect()
@@ -257,7 +247,6 @@ impl Response {
     ) -> PyResult<()> {
         use std::fmt::Write;
 
-        // Pre-size: base + domain + flags fits comfortably in 128 bytes.
         let mut cookie_header = String::with_capacity(128);
         write!(
             cookie_header,
