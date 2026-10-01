@@ -94,9 +94,11 @@ class Oxapy(HttpServer):
         Manages a pool of `num_processes` worker processes.
 
         In reload mode, any watched file change tears down and restarts the whole
-        pool. Outside of reload mode, a worker that dies unexpectedly is respawned
-        on its own (self-healing pool); a worker that exits cleanly is left down,
-        and once every worker has exited cleanly the supervisor returns.
+        pool; so does a worker that dies unexpectedly, since the surviving workers
+        would otherwise keep serving the pre-crash code. Outside of reload mode, a
+        worker that dies unexpectedly is respawned on its own (self-healing pool);
+        a worker that exits cleanly is left down, and once every worker has exited
+        cleanly the supervisor returns.
         """
         env = os.environ.copy()
         env["OXAPY_WORKER"] = "1"
@@ -121,6 +123,23 @@ class Oxapy(HttpServer):
         reload_requested = threading.Event()
         changed_file_path = ""
         observer = None
+
+        def restart_pool(reason: str) -> list[subprocess.Popen]:
+            """
+            Tears down every worker and spawns a fresh pool, so that no process
+            keeps serving stale code.
+
+            Args:
+                reason (str): Human readable reason, shown in the restart notice.
+
+            Returns:
+                list[subprocess.Popen]: The freshly spawned pool.
+            """
+            time.sleep(0.3)
+            reload_requested.clear()
+            terminate_pool(pool)
+            print(f"Reloading {num_processes} worker(s)... ({reason})")
+            return [spawn_worker() for _ in range(num_processes)]
 
         # Let SIGTERM unwind the same way SIGINT/KeyboardInterrupt does.
         def _on_sigterm(signum, frame):
@@ -149,14 +168,8 @@ class Oxapy(HttpServer):
         try:
             while True:
                 if reload and reload_requested.wait(timeout=0.2):
-                    time.sleep(0.3)
-                    reload_requested.clear()
-                    terminate_pool(pool)
                     filename = os.path.basename(changed_file_path)
-                    print(
-                        f"Reloading {num_processes} worker(s)... ({filename} changed)"
-                    )
-                    pool = [spawn_worker() for _ in range(num_processes)]
+                    pool = restart_pool(f"{filename} changed")
                     continue
 
                 time.sleep(0.2)
@@ -166,13 +179,9 @@ class Oxapy(HttpServer):
                         continue
                     if proc.returncode != 0:
                         if reload:
-                            reload_requested.wait()
-                            time.sleep(0.3)
-                            reload_requested.clear()
-                        else:
-                            print(
-                                f"Worker {i} exited with code {proc.returncode}, restarting..."
-                            )
+                            pool = restart_pool(f"worker {i} exited with code {proc.returncode}")
+                            break
+                        print(f"Worker {i} exited with code {proc.returncode}, restarting...")
                         pool[i] = spawn_worker()
                     elif not reload and all(p.poll() is not None for p in pool):
                         return

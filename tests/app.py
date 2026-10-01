@@ -12,7 +12,7 @@ def main():
             .route(get("/user/{id:int}", lambda _, id: str(id)))
             .route(post("/user", lambda _: ""))
         )
-        .run(workers=1, processes=8)
+        .run(reload=True, processes=8)
     )
 
 
