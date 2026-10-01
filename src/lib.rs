@@ -467,6 +467,7 @@ fn create_listener(addr: SocketAddr) -> std::io::Result<TcpListener> {
         None,
     )?;
     socket.set_reuse_address(true)?;
+    #[cfg(unix)]
     socket.set_reuse_port(true)?;
     socket.bind(&addr.into())?;
     socket.listen(4096)?;
