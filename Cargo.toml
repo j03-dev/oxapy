@@ -55,3 +55,8 @@ jsonwebtoken = { version = "11.0.0", features = ["rust_crypto"] }
 regex = "1.13.1"
 unicode-normalization = "0.1.25"
 socket2 = { version = "0.6.5", features = ["all"] }
+mimalloc = "0.1"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
