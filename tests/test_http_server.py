@@ -1,4 +1,13 @@
+import socket
+import subprocess
+import sys
+import time
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+
+import pytest
 import requests
+
 from tests.utils import Multipart
 
 
@@ -134,3 +143,50 @@ def test_redirect_endpoint(oxapy_server):
 def test_error_response(oxapy_server):
     res = requests.get(f"{oxapy_server}/api/v1/error")
     assert res.status_code == 500
+
+
+@pytest.fixture(scope="module")
+def async_server():
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+    proc = subprocess.Popen(
+        [sys.executable, str(Path(__file__).with_name("async_app.py")), str(port)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    base_url = f"http://127.0.0.1:{port}"
+    deadline = time.time() + 5
+    try:
+        while time.time() < deadline:
+            if proc.poll() is not None:
+                pytest.fail("async server exited during startup")
+            try:
+                if requests.get(f"{base_url}/health", timeout=0.2).status_code == 200:
+                    break
+            except requests.RequestException:
+                pass
+            time.sleep(0.05)
+        else:
+            pytest.fail("async server did not start")
+        yield base_url
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
+
+
+def test_async_handlers_run_concurrently(async_server):
+    def hit(_):
+        return requests.get(f"{async_server}/slow", timeout=15)
+
+    start = time.perf_counter()
+    with ThreadPoolExecutor(max_workers=20) as pool:
+        responses = list(pool.map(hit, range(20)))
+    elapsed = time.perf_counter() - start
+
+    assert all(response.status_code == 200 for response in responses)
+    assert elapsed < 2.0, f"20 async handlers took {elapsed:.2f}s"
