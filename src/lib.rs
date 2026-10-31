@@ -16,7 +16,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
 use pyo3::types::{PyBytes, PyDict, PyInt, PyString};
-use pyo3_async_runtimes::tokio::{future_into_py, into_future};
+use pyo3_async_runtimes::tokio::{future_into_py, get_current_locals, into_future, scope};
 use pyo3_stub_gen::derive::*;
 use regex::Regex;
 use request::{Request, RequestBuilder};
@@ -30,6 +30,7 @@ use tokio::sync::{
     mpsc::{Receiver, Sender, channel},
     oneshot,
 };
+use tokio::task::JoinSet;
 use unicode_normalization::UnicodeNormalization;
 
 use crate::middleware::Middleware;
@@ -547,7 +548,15 @@ impl HttpServer {
         mut shutdown: ShutDownSignal,
         mut request_receiver: Receiver<ProcessRequest>,
     ) -> PyResult<()> {
+        let is_async = self.is_async;
+        let locals = if is_async {
+            Some(Python::attach(get_current_locals)?)
+        } else {
+            None
+        };
+
         let mut batch = Vec::with_capacity(64);
+        let mut tasks = JoinSet::new();
         loop {
             batch.clear();
             tokio::select! {
@@ -556,12 +565,23 @@ impl HttpServer {
                         break;
                     }
                     for pr in batch.drain(..) {
-                        pr.respond(self.is_async).await;
+                        match locals.clone() {
+                            Some(locals) => {
+                                tasks.spawn(async move {
+                                    scope(locals, pr.respond(true)).await;
+                                });
+                            }
+                            None => pr.respond(false).await,
+                        }
                     }
                 },
+                Some(_) = tasks.join_next(), if !tasks.is_empty() => {},
                 _ = shutdown.wait() => break,
             }
         }
+
+        tasks.abort_all();
+        while tasks.join_next().await.is_some() {}
         Ok(())
     }
 }
