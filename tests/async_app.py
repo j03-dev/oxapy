@@ -1,7 +1,7 @@
 import asyncio
 import sys
 
-from oxapy import HttpServer, Router, get
+from oxapy import Oxapy, Router, get
 
 
 @get("/health")
@@ -16,7 +16,7 @@ async def slow(_request):
 
 
 async def main(port):
-    app = HttpServer(("127.0.0.1", port)).attach(Router().routes([health, slow]))
+    app = Oxapy(("127.0.0.1", port)).attach(Router().routes([health, slow]))
     await app.async_mode().run()
 
 
