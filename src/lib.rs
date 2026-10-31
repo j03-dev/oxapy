@@ -547,10 +547,17 @@ impl HttpServer {
         mut shutdown: ShutDownSignal,
         mut request_receiver: Receiver<ProcessRequest>,
     ) -> PyResult<()> {
+        let mut batch = Vec::with_capacity(64);
         loop {
+            batch.clear();
             tokio::select! {
-                Some(pr) = request_receiver.recv() => {
-                    pr.respond(self.is_async).await;
+                n = request_receiver.recv_many(&mut batch, 64) => {
+                    if n == 0 {
+                        break;
+                    }
+                    for pr in batch.drain(..) {
+                        pr.respond(self.is_async).await;
+                    }
                 },
                 _ = shutdown.wait() => break,
             }
