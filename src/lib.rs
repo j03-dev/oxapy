@@ -590,11 +590,7 @@ impl HttpServer {
     ) -> PyResult<()> {
         let mut batch = Vec::with_capacity(64);
         let mut tasks = JoinSet::new();
-        let sync_semaphore = if locals.is_none() && self.handler_threads > 1 {
-            Some(Arc::new(Semaphore::new(self.handler_threads)))
-        } else {
-            None
-        };
+        let dispatcher = Dispatcher::new(locals, self.handler_threads);
         loop {
             batch.clear();
             tokio::select! {
@@ -602,19 +598,8 @@ impl HttpServer {
                     if n == 0 {
                         break;
                     }
-                    for pr in batch.drain(..) {
-                        if let Some(ref local) = locals {
-                            let local = local.clone();
-                            tasks.spawn(async move { scope(local, pr.respond(true)).await});
-                        } else if let Some(ref semaphore) = sync_semaphore {
-                            let permit = semaphore.clone().acquire_owned().await.unwrap();
-                            tasks.spawn_blocking(move || {
-                                let _permit = permit;
-                                pr.respond_sync();
-                            });
-                        } else {
-                            pr.respond_sync();
-                        }
+                    for request in batch.drain(..) {
+                        dispatcher.spawn(request, &mut tasks).await;
                     }
                 },
                 Some(_) = tasks.join_next(), if !tasks.is_empty() => {},
@@ -628,15 +613,42 @@ impl HttpServer {
     }
 }
 
-impl ProcessRequest {
-    pub async fn respond(self, is_async: bool) {
-        if is_async {
-            self.respond_async().await;
-        } else {
-            self.respond_sync();
+enum Dispatcher {
+    Serial,
+    Async(TaskLocals),
+    Threaded { permits: Arc<Semaphore> },
+}
+
+impl Dispatcher {
+    fn new(locals: Option<TaskLocals>, handler_threads: usize) -> Self {
+        match locals {
+            Some(locals) => Self::Async(locals),
+            None if handler_threads > 1 => Self::Threaded {
+                permits: Arc::new(Semaphore::new(handler_threads)),
+            },
+            None => Self::Serial,
         }
     }
 
+    async fn spawn(&self, request: ProcessRequest, tasks: &mut JoinSet<()>) {
+        match self {
+            Self::Serial => request.respond_sync(),
+            Self::Async(locals) => {
+                let locals = locals.clone();
+                tasks.spawn(async move { scope(locals, request.respond_async()).await });
+            }
+            Self::Threaded { permits } => {
+                let permit = permits.clone().acquire_owned().await.unwrap();
+                tasks.spawn_blocking(move || {
+                    let _permit = permit;
+                    request.respond_sync();
+                });
+            }
+        }
+    }
+}
+
+impl ProcessRequest {
     pub fn respond_sync(self) {
         let Self {
             match_route,
@@ -647,15 +659,14 @@ impl ProcessRequest {
             cors,
         } = self;
 
-        let response = Self::dispatch_sync(match_route, middlewares, wrapper, request)
-            .unwrap_or_else(Response::from)
-            .apply_cors(&cors)
-            .unwrap_or_else(Response::from);
-
-        let _ = response_sender.send(response);
+        Self::send(
+            Self::dispatch_sync(match_route, middlewares, wrapper, request),
+            &cors,
+            response_sender,
+        );
     }
 
-    async fn respond_async(self) {
+    pub async fn respond_async(self) {
         let Self {
             match_route,
             middlewares,
@@ -665,10 +676,21 @@ impl ProcessRequest {
             cors,
         } = self;
 
-        let response = Self::dispatch_async(match_route, middlewares, wrapper, request)
-            .await
+        Self::send(
+            Self::dispatch_async(match_route, middlewares, wrapper, request).await,
+            &cors,
+            response_sender,
+        );
+    }
+
+    fn send(
+        response: PyResult<Response>,
+        cors: &Option<Arc<Cors>>,
+        response_sender: oneshot::Sender<Response>,
+    ) {
+        let response = response
             .unwrap_or_else(Response::from)
-            .apply_cors(&cors)
+            .apply_cors(cors)
             .unwrap_or_else(Response::from);
 
         let _ = response_sender.send(response);
@@ -685,14 +707,7 @@ impl ProcessRequest {
         };
 
         let (result, request) = Self::invoke_route(&match_route, middlewares.as_deref(), request)?;
-
-        Python::attach(|py| {
-            let response = into_response::convert_to_response(result, py)?;
-            match wrapper.as_deref() {
-                Some(wrapper) => Self::apply_wrapper(py, &request, response, wrapper),
-                None => Ok(response),
-            }
-        })
+        Self::finalize(result, &request, wrapper)
     }
 
     async fn dispatch_async(
@@ -707,11 +722,18 @@ impl ProcessRequest {
 
         let (result, request) = Self::invoke_route(&match_route, middlewares.as_deref(), request)?;
         let result = Python::attach(|py| into_future(result.into_bound(py)))?.await?;
+        Self::finalize(result, &request, wrapper)
+    }
 
+    fn finalize(
+        result: Py<PyAny>,
+        request: &Py<Request>,
+        wrapper: Option<Arc<Py<PyAny>>>,
+    ) -> PyResult<Response> {
         Python::attach(|py| {
             let response = into_response::convert_to_response(result, py)?;
             match wrapper.as_deref() {
-                Some(wrapper) => Self::apply_wrapper(py, &request, response, wrapper),
+                Some(wrapper) => Self::apply_wrapper(py, request, response, wrapper),
                 None => Ok(response),
             }
         })

@@ -26,6 +26,7 @@ server = Oxapy(("127.0.0.1", 8000))
 | `template(template)` | Enable template rendering |
 | `max_connections(max_connections)` | Max concurrent connections (default `100`) |
 | `channel_capacity(channel_capacity)` | Internal pending-request buffer (default `100`) |
+| `handler_threads(handler_threads)` | OS threads for sync handlers (default `1` = serial) |
 | `wrap(wrapper)` | Install a global `(request, response)` wrapper for response transformation |
 | `async_mode()` | Enable async handlers; `run()` becomes awaitable |
 | `set_patterns(patterns)` | Glob patterns the reload watcher reacts to (default `["*.py"]`) |
@@ -68,11 +69,32 @@ server.run(reload=True)             # hot reload during development
 
 Values of `processes` that are `None`, `0`, or negative are treated as `1`.
 
+:::note `workers` vs `handler_threads`
+
+`workers` controls the Tokio runtime (network and HTTP scheduling). It does not run Python handlers in parallel. `handler_threads` controls the OS threads that execute synchronous Python handlers; see below. In async mode both `workers` and `handler_threads` are ignored.
+
+:::
+
 :::note `reload` and `processes` share one supervisor
 
 Both arguments are handled by the same Python supervisor. Any spawn of more than one process — `reload=True`, `processes > 1`, or both — requires an `if __name__ == "__main__":` guard in your entry point, because workers are created by re-executing your script. `processes > 1` is Unix only, and there is no graceful drain of in-flight requests on restart. See the [Multiprocess guide](../guides/multiprocess) for the full picture.
 
 :::
+
+## handler_threads
+
+```python
+handler_threads(handler_threads: int) -> HttpServer
+```
+
+Sets how many OS threads execute synchronous handlers. The default is `1`, which keeps handlers strictly serial. Values below `1` are treated as `1`.
+
+Use it when sync handlers perform blocking I/O that releases the GIL (sync database drivers, `requests`, file I/O). It does not bypass the GIL: CPU-bound Python still needs `processes=N`. The setting only applies to sync mode.
+
+```python
+server.handler_threads(4)
+server.run()
+```
 
 ## cors
 

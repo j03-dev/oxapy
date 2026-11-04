@@ -104,7 +104,7 @@ api.example.com {
 - Use `Oxapy` with the default `reload=False`. Never run with `reload=True` in production.
 - Run behind a reverse proxy that terminates TLS. Session cookies and JWT secrets travel over the wire otherwise.
 - Set a strong `Session` secret / JWT secret via environment variables.
-- Tune `workers` to match the machine's CPU count and `max_connections` to your expected load. Add `processes` only if handlers are CPU-bound — remember it is Unix only and does not drain in-flight requests on restart.
+- Tune `workers` for network/HTTP concurrency and `max_connections` to your expected load. Add `.handler_threads(n)` when sync handlers block on I/O, or `processes` when handlers are CPU-bound — remember `processes` is Unix only and does not drain in-flight requests on restart.
 - Keep anything that must be consistent across workers in a shared store. Each process has its own copy of `app_data` and module state.
 - Serve static assets with a dedicated server (Nginx, CDN) when traffic is high, or keep them behind `static_file()` for small apps. `static_file()` guards against path traversal with `secure_join()`, but uploads written with `File.save()` need their own filename sanitizing.
 - Budget for abrupt shutdowns: restarting a worker pool cuts in-flight requests rather than draining them. Use a draining proxy if you need zero-downtime deploys.

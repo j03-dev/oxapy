@@ -31,10 +31,11 @@ These two options control different levels of concurrency and are easy to confus
 | --- | --- | --- | --- |
 | `workers` | Tokio worker **threads** inside each process | runtime decides (usually one per CPU core) | Ignored in async mode — see [Limitations](#limitations) |
 | `processes` | **OS processes** | `1` (no supervisor) | Unix only; uses `SO_REUSEPORT` |
+| `handler_threads` | OS threads running **sync Python handlers** | `1` (serial) | Ignored in async mode; does not bypass the GIL |
 
-They compose. `run(processes=4, workers=2)` gives you 4 processes with 2 Tokio threads each — 8 threads of execution for the same port.
+They compose. `run(processes=4, workers=2)` gives you 4 processes with 2 Tokio threads each — 8 threads of execution for the same port. Adding `.handler_threads(4)` lets each process run up to four sync handlers concurrently.
 
-Because the GIL serializes Python bytecode inside a process, `processes` is usually the more effective knob for CPU-bound handlers, while `workers` helps I/O-bound ones.
+Because the GIL serializes Python bytecode inside a process, `processes` is the effective knob for CPU-bound handlers. Use `handler_threads` when sync handlers block on I/O that releases the GIL, and `workers` for Rust-side network/HTTP concurrency. Async handlers need neither.
 
 ## How it works
 
@@ -91,9 +92,9 @@ Windows can still run multiple processes, but not through this mechanism: run se
 
 The request pump stops as soon as the shutdown signal arrives; it does not wait for in-flight connections to complete (`src/lib.rs`, the `process_requests` loop). Expect dropped connections during restarts and deploys.
 
-### `workers` is ignored in async mode
+### `workers` and `handler_threads` are ignored in async mode
 
-In async mode, `run()` returns an awaitable and the `workers` argument is **not** forwarded to the Tokio runtime. Passing `workers=` alongside `.async_mode()` has no effect.
+In async mode, `run()` returns an awaitable and the `workers` argument is **not** forwarded to the Tokio runtime. `.handler_threads()` is also ignored. Passing either alongside `.async_mode()` has no effect.
 
 ### In-memory state is not shared
 
@@ -110,7 +111,7 @@ This is a convenience pool, not a Gunicorn replacement. There is no pre-fork soc
 - You need more than one core for CPU-bound Python handlers.
 - You want a self-healing pool without introducing an external dependency.
 
-Prefer a single process with tuned `workers` when your handlers are I/O-bound or already use async — the supervisor adds a process layer for little gain. For long-running production deployments, [Deployment](../advanced/deployment) covers running behind a reverse proxy and a service manager.
+Prefer a single process with tuned `.handler_threads()` for blocking sync I/O, or async mode for non-blocking I/O — the supervisor adds a process layer for little gain. For long-running production deployments, [Deployment](../advanced/deployment) covers running behind a reverse proxy and a service manager.
 
 ## Next steps
 

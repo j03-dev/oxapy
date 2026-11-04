@@ -55,6 +55,8 @@ async def async_handler(request):
 
 Use `async_mode()` when handlers perform non-blocking I/O — HTTP calls, database queries through an async driver, websocket clients. It keeps the event loop free while those operations are in flight.
 
+For blocking I/O inside ordinary sync handlers, prefer `.handler_threads(n)` on the server instead: it runs up to `n` sync handlers on separate OS threads. The setting is ignored in async mode, and neither option bypasses the GIL for CPU-bound Python.
+
 :::note
 
 In async mode, `app.run()` returns an awaitable; calling it from a synchronous `main()` without awaiting will not start the server. Use the pattern above with `asyncio.run()`.
