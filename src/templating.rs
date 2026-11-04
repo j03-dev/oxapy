@@ -27,7 +27,7 @@ impl tera::Function<TeraResult<tera::Value>> for PyTeraFunction {
     fn call(&self, kwargs: tera::Kwargs, state: &tera::State) -> TeraResult<tera::Value> {
         let kw: Value = kwargs.deserialize()?;
         Python::attach(|py| {
-            let py_kwargs = json::from_rstruct2pydict(kw, py)
+            let py_kwargs = json::from_struct_to_pydict(kw, py)
                 .map_err(tera::Error::message)?
                 .into_bound(py);
             let result = self
@@ -36,7 +36,7 @@ impl tera::Function<TeraResult<tera::Value>> for PyTeraFunction {
                 .map_err(tera::Error::message)?
                 .into_bound(py);
             let json_value: Value =
-                json::from_pydict2rstruct(&result).map_err(tera::Error::message)?;
+                json::from_pydict_to_struct(&result).map_err(tera::Error::message)?;
             Ok(tera::Value::from_serializable(&json_value))
         })
     }
@@ -187,7 +187,7 @@ impl Template {
     ) -> PyResult<String> {
         let mut ctx = tera::Context::new();
         if let Some(context) = context {
-            let map: Value = json::from_pydict2rstruct(&context)?;
+            let map: Value = json::from_pydict_to_struct(&context)?;
             ctx = tera::Context::from_serialize(&map).into_py_exception()?;
         }
         self.0.render(template_name, &ctx).into_py_exception()

@@ -188,7 +188,7 @@ impl Serializer {
         attr: Bound<'a, PyDict>,
         py: Python<'a>,
     ) -> PyResult<Bound<'a, PyDict>> {
-        let json_value = json::from_pydict2rstruct(&attr)?;
+        let json_value = json::from_pydict_to_struct(&attr)?;
 
         let schema_value = Self::json_schema_value(&slf.get_type(), false, py)?;
 

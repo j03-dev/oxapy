@@ -1,11 +1,16 @@
 #![allow(unused_variables, non_snake_case)]
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use cors::Cors;
 use exceptions::IntoPyException;
+use hyper_util::rt::TokioExecutor;
+use hyper_util::server::conn::auto;
 use into_response::convert_to_response;
 use middleware::MiddlewareChain;
 use multipart::File;
@@ -13,7 +18,8 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
 use pyo3::types::{PyBytes, PyDict, PyInt, PyString};
-use pyo3_async_runtimes::tokio::{future_into_py, into_future};
+use pyo3_async_runtimes::TaskLocals;
+use pyo3_async_runtimes::tokio::{future_into_py, get_current_locals, into_future, scope};
 use pyo3_stub_gen::derive::*;
 use regex::Regex;
 use request::{Request, RequestBuilder};
@@ -27,6 +33,7 @@ use tokio::sync::{
     mpsc::{Receiver, Sender, channel},
     oneshot,
 };
+use tokio::task::JoinSet;
 use unicode_normalization::UnicodeNormalization;
 
 use crate::middleware::Middleware;
@@ -493,7 +500,15 @@ impl HttpServer {
         };
 
         self.spawn_connection_handler(listener, Arc::new(ctx)).await;
-        self.process_requests(shutdown, request_receiver).await
+
+        let locals = if self.is_async {
+            Some(Python::attach(get_current_locals)?)
+        } else {
+            None
+        };
+
+        self.process_requests(locals, shutdown, request_receiver)
+            .await
     }
 
     async fn spawn_connection_handler(&self, listener: TcpListener, ctx: Arc<Context>) {
@@ -517,7 +532,7 @@ impl HttpServer {
         _permit: tokio::sync::OwnedSemaphorePermit,
     ) {
         tokio::spawn(async move {
-            hyper_util::server::conn::auto::Builder::new(hyper_util::rt::TokioExecutor::new())
+            auto::Builder::new(TokioExecutor::new())
                 .serve_connection(
                     io,
                     hyper::service::service_fn(move |req| {
@@ -541,17 +556,35 @@ impl HttpServer {
 
     async fn process_requests(
         &self,
+        locals: Option<TaskLocals>,
         mut shutdown: ShutDownSignal,
         mut request_receiver: Receiver<ProcessRequest>,
     ) -> PyResult<()> {
+        let mut batch = Vec::with_capacity(64);
+        let mut tasks = JoinSet::new();
         loop {
+            batch.clear();
             tokio::select! {
-                Some(pr) = request_receiver.recv() => {
-                    pr.respond(self.is_async).await;
+                n = request_receiver.recv_many(&mut batch, 64) => {
+                    if n == 0 {
+                        break;
+                    }
+                    for pr in batch.drain(..) {
+                        if let Some(ref local) = locals {
+                            let local = local.clone();
+                            tasks.spawn(async move { scope(local, pr.respond(true)).await});
+                        } else {
+                            pr.respond(false).await;
+                        }
+                    }
                 },
+                Some(_) = tasks.join_next(), if !tasks.is_empty() => {},
                 _ = shutdown.wait() => break,
             }
         }
+
+        tasks.abort_all();
+        while tasks.join_next().await.is_some() {}
         Ok(())
     }
 }
