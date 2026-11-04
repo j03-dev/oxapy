@@ -14,7 +14,11 @@ impl TryFrom<String> for Response {
 
     #[inline]
     fn try_from(val: String) -> Result<Self, Self::Error> {
-        Ok(Response::with_content_type(Status::OK, TEXT_PLAIN, val.into()))
+        Ok(Response::with_content_type(
+            Status::OK,
+            TEXT_PLAIN,
+            val.into(),
+        ))
     }
 }
 

@@ -678,7 +678,9 @@ impl ProcessRequest {
         Self::send(target.dispatch_async().await, &cors, response_sender);
     }
 
-    fn into_dispatch_target(self) -> (DispatchTarget, oneshot::Sender<Response>, Option<Arc<Cors>>) {
+    fn into_dispatch_target(
+        self,
+    ) -> (DispatchTarget, oneshot::Sender<Response>, Option<Arc<Cors>>) {
         (
             DispatchTarget {
                 match_route: self.match_route,
