@@ -16,7 +16,7 @@ authors = [
 ]
 description = "OxAPY is http server for python build in rust"
 dependencies = [
-    "orjson>=3.11.9",
+    "orjson>=3.13.0",
     "watchdog>=6.0.0",
 ]
 
