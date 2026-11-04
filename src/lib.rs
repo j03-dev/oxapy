@@ -55,7 +55,7 @@ mod templating;
 
 pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
 
-struct ProcessRequest {
+pub(crate) struct ProcessRequest {
     match_route: Option<OwnedMatchRoute>,
     middlewares: Option<Arc<[Middleware]>>,
     request: Request,
@@ -566,9 +566,7 @@ impl HttpServer {
                     hyper::service::service_fn(move |req| {
                         let ctx = ctx.clone();
                         async move {
-                            RequestBuilder::new(req)
-                                .with_app_data(&ctx.app_data)
-                                .with_template(&ctx.template)
+                            RequestBuilder::from_context(req, &ctx)
                                 .build()
                                 .await
                                 .unwrap()
@@ -649,38 +647,48 @@ impl Dispatcher {
 }
 
 impl ProcessRequest {
-    pub fn respond_sync(self) {
-        let Self {
+    pub(crate) fn new(
+        request: Request,
+        matched: Option<(OwnedMatchRoute, Option<Arc<[Middleware]>>)>,
+        ctx: &Context,
+        response_sender: oneshot::Sender<Response>,
+    ) -> Self {
+        let (match_route, middlewares) = match matched {
+            Some((route, mw)) => (Some(route), mw),
+            None => (None, None),
+        };
+
+        Self {
             match_route,
             middlewares,
-            wrapper,
             request,
             response_sender,
-            cors,
-        } = self;
+            cors: ctx.cors.clone(),
+            wrapper: ctx.wrapper.clone(),
+        }
+    }
 
-        Self::send(
-            Self::dispatch_sync(match_route, middlewares, wrapper, request),
-            &cors,
-            response_sender,
-        );
+    pub fn respond_sync(self) {
+        let (target, response_sender, cors) = self.into_dispatch_target();
+        Self::send(target.dispatch_sync(), &cors, response_sender);
     }
 
     pub async fn respond_async(self) {
-        let Self {
-            match_route,
-            middlewares,
-            wrapper,
-            request,
-            response_sender,
-            cors,
-        } = self;
+        let (target, response_sender, cors) = self.into_dispatch_target();
+        Self::send(target.dispatch_async().await, &cors, response_sender);
+    }
 
-        Self::send(
-            Self::dispatch_async(match_route, middlewares, wrapper, request).await,
-            &cors,
-            response_sender,
-        );
+    fn into_dispatch_target(self) -> (DispatchTarget, oneshot::Sender<Response>, Option<Arc<Cors>>) {
+        (
+            DispatchTarget {
+                match_route: self.match_route,
+                middlewares: self.middlewares,
+                wrapper: self.wrapper,
+                request: self.request,
+            },
+            self.response_sender,
+            self.cors,
+        )
     }
 
     fn send(
@@ -695,55 +703,62 @@ impl ProcessRequest {
 
         let _ = response_sender.send(response);
     }
+}
 
-    fn dispatch_sync(
-        match_route: Option<OwnedMatchRoute>,
-        middlewares: Option<Arc<[Middleware]>>,
-        wrapper: Option<Arc<Py<PyAny>>>,
-        request: Request,
-    ) -> PyResult<Response> {
-        let Some(match_route) = match_route else {
-            return Self::not_found(wrapper, request);
+struct DispatchTarget {
+    match_route: Option<OwnedMatchRoute>,
+    middlewares: Option<Arc<[Middleware]>>,
+    wrapper: Option<Arc<Py<PyAny>>>,
+    request: Request,
+}
+
+impl DispatchTarget {
+    fn execute(self) -> PyResult<Result<(Py<PyAny>, Py<Request>), Response>> {
+        let wrapper = self.wrapper.as_deref();
+        let Some(match_route) = self.match_route else {
+            return Ok(Err(Self::not_found(self.request, wrapper)?));
         };
 
-        let (result, request) = Self::invoke_route(&match_route, middlewares.as_deref(), request)?;
-        Self::finalize(result, &request, wrapper)
+        let (result, request) =
+            Self::invoke_route(&match_route, self.middlewares.as_deref(), self.request)?;
+        Ok(Ok((result, request)))
     }
 
-    async fn dispatch_async(
-        match_route: Option<OwnedMatchRoute>,
-        middlewares: Option<Arc<[Middleware]>>,
-        wrapper: Option<Arc<Py<PyAny>>>,
-        request: Request,
-    ) -> PyResult<Response> {
-        let Some(match_route) = match_route else {
-            return Self::not_found(wrapper, request);
-        };
+    fn dispatch_sync(self) -> PyResult<Response> {
+        let wrapper = self.wrapper.clone();
+        match self.execute()? {
+            Ok((result, request)) => Self::finalize(result, &request, wrapper.as_deref()),
+            Err(response) => Ok(response),
+        }
+    }
 
-        let (result, request) = Self::invoke_route(&match_route, middlewares.as_deref(), request)?;
-        let result = Python::attach(|py| into_future(result.into_bound(py)))?.await?;
-        Self::finalize(result, &request, wrapper)
+    async fn dispatch_async(self) -> PyResult<Response> {
+        let wrapper = self.wrapper.clone();
+        match self.execute()? {
+            Ok((result, request)) => {
+                let result = Python::attach(|py| into_future(result.into_bound(py)))?.await?;
+                Self::finalize(result, &request, wrapper.as_deref())
+            }
+            Err(response) => Ok(response),
+        }
     }
 
     fn finalize(
         result: Py<PyAny>,
         request: &Py<Request>,
-        wrapper: Option<Arc<Py<PyAny>>>,
+        wrapper: Option<&Py<PyAny>>,
     ) -> PyResult<Response> {
         Python::attach(|py| {
             let response = into_response::convert_to_response(result, py)?;
-            match wrapper.as_deref() {
-                Some(wrapper) => Self::apply_wrapper(py, request, response, wrapper),
-                None => Ok(response),
-            }
+            Self::wrap_response(py, request, response, wrapper)
         })
     }
 
-    fn not_found(wrapper: Option<Arc<Py<PyAny>>>, request: Request) -> PyResult<Response> {
-        match wrapper.as_deref() {
+    fn not_found(request: Request, wrapper: Option<&Py<PyAny>>) -> PyResult<Response> {
+        match wrapper {
             Some(wrapper) => Python::attach(|py| {
                 let request = Py::new(py, request)?;
-                Self::apply_wrapper(py, &request, Status::NOT_FOUND.into(), wrapper)
+                Self::wrap_response(py, &request, Status::NOT_FOUND.into(), Some(wrapper))
             }),
             None => Ok(Status::NOT_FOUND.into()),
         }
@@ -781,14 +796,19 @@ impl ProcessRequest {
     }
 
     #[inline]
-    fn apply_wrapper(
+    fn wrap_response(
         py: Python<'_>,
         py_request: &Py<Request>,
         response: Response,
-        wrapper: &Py<PyAny>,
+        wrapper: Option<&Py<PyAny>>,
     ) -> PyResult<Response> {
-        let wrapped = wrapper.call(py, (py_request, response), None)?;
-        into_response::convert_to_response(wrapped, py)
+        match wrapper {
+            Some(wrapper) => {
+                let wrapped = wrapper.call(py, (py_request, response), None)?;
+                into_response::convert_to_response(wrapped, py)
+            }
+            None => Ok(response),
+        }
     }
 }
 

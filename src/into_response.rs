@@ -1,13 +1,8 @@
-use hyper::{
-    HeaderMap,
-    body::Bytes,
-    header::{CONTENT_TYPE, HeaderValue},
-};
+use hyper::{body::Bytes, header::HeaderValue};
 use pyo3::{Py, prelude::*, types::PyAny};
 
 use crate::{
-    Response, cors::Cors, exceptions::IntoPyException, exceptions::*, json, response::ResponseBody,
-    status::Status,
+    Response, cors::Cors, exceptions::IntoPyException, exceptions::*, json, status::Status,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -19,13 +14,7 @@ impl TryFrom<String> for Response {
 
     #[inline]
     fn try_from(val: String) -> Result<Self, Self::Error> {
-        let mut headers = HeaderMap::with_capacity(1);
-        headers.insert(CONTENT_TYPE, TEXT_PLAIN);
-        Ok(Response {
-            status: Status::OK,
-            headers,
-            body: ResponseBody::Bytes(val.into()),
-        })
+        Ok(Response::with_content_type(Status::OK, TEXT_PLAIN, val.into()))
     }
 }
 
@@ -34,13 +23,11 @@ impl TryFrom<Bound<'_, PyAny>> for Response {
 
     #[inline]
     fn try_from(val: Bound<PyAny>) -> Result<Self, Self::Error> {
-        let mut headers = HeaderMap::with_capacity(1);
-        headers.insert(CONTENT_TYPE, APP_JSON);
-        Ok(Response {
-            status: Status::OK,
-            headers,
-            body: ResponseBody::Bytes(json::dumps(&val)?.into()),
-        })
+        Ok(Response::with_content_type(
+            Status::OK,
+            APP_JSON,
+            json::dumps(&val)?.into(),
+        ))
     }
 }
 
@@ -48,14 +35,8 @@ impl TryFrom<(String, Status)> for Response {
     type Error = Error;
 
     #[inline]
-    fn try_from(val: (String, Status)) -> Result<Self, Self::Error> {
-        let mut headers = HeaderMap::with_capacity(1);
-        headers.insert(CONTENT_TYPE, TEXT_PLAIN);
-        Ok(Response {
-            status: val.1,
-            headers,
-            body: ResponseBody::Bytes(val.0.into()),
-        })
+    fn try_from((val, status): (String, Status)) -> Result<Self, Self::Error> {
+        Ok(Response::with_content_type(status, TEXT_PLAIN, val.into()))
     }
 }
 
@@ -63,27 +44,19 @@ impl TryFrom<(Bound<'_, PyAny>, Status)> for Response {
     type Error = Error;
 
     #[inline]
-    fn try_from(val: (Bound<PyAny>, Status)) -> Result<Self, Self::Error> {
-        let mut headers = HeaderMap::with_capacity(1);
-        headers.insert(CONTENT_TYPE, APP_JSON);
-        Ok(Response {
-            status: val.1,
-            headers,
-            body: ResponseBody::Bytes(json::dumps(&val.0)?.into()),
-        })
+    fn try_from((val, status): (Bound<PyAny>, Status)) -> Result<Self, Self::Error> {
+        Ok(Response::with_content_type(
+            status,
+            APP_JSON,
+            json::dumps(&val)?.into(),
+        ))
     }
 }
 
 impl From<Status> for Response {
     #[inline]
     fn from(val: Status) -> Self {
-        let mut headers = HeaderMap::with_capacity(1);
-        headers.insert(CONTENT_TYPE, APP_JSON);
-        Response {
-            status: val,
-            headers,
-            body: ResponseBody::Bytes(Bytes::new()),
-        }
+        Response::with_content_type(val, APP_JSON, Bytes::new())
     }
 }
 
@@ -107,10 +80,9 @@ impl From<PyErr> for Response {
                     Status::INTERNAL_SERVER_ERROR
                 }
             };
-            let response = Response::from(status);
             let detail = value.value(py).to_string().replace('"', "'");
             let body = serde_json::json!({ "detail": detail }).to_string();
-            response.set_body(body)
+            Response::with_content_type(status, APP_JSON, body.into())
         })
     }
 }

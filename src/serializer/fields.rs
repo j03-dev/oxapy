@@ -108,6 +108,17 @@ impl Field {
     }
 }
 
+pub(crate) fn wrap_array_schema(items: Value, nullable: bool) -> Value {
+    let mut array_schema = Map::with_capacity(2);
+    if nullable {
+        array_schema.insert("type".to_string(), json!(["array", "null"]));
+    } else {
+        array_schema.insert("type".to_string(), json!("array"));
+    }
+    array_schema.insert("items".to_string(), items);
+    json!(array_schema)
+}
+
 impl Field {
     pub fn to_json_schema_value(&self) -> Value {
         let mut schema = Map::with_capacity(6);
@@ -143,14 +154,7 @@ impl Field {
         }
 
         if self.many {
-            let mut array_schema = Map::with_capacity(2);
-            if self.nullable {
-                array_schema.insert("type".to_string(), json!(["array", "null"]))
-            } else {
-                array_schema.insert("type".to_string(), json!("array"))
-            };
-            array_schema.insert("items".to_string(), json!(schema));
-            return json!(array_schema);
+            return wrap_array_schema(json!(schema), self.nullable);
         }
 
         json!(schema)
