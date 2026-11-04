@@ -21,7 +21,6 @@ pyo3 = "0.30"
 pyo3-async-runtimes = { version = "0.30", features = ["tokio-runtime"] }
 pyo3-stub-gen = { git = "https://github.com/Jij-Inc/pyo3-stub-gen", branch = "main", default-features = false, features = [
   "either",
-  "numpy",
   "ordered-float",
 ] }
 

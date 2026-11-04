@@ -155,7 +155,7 @@ impl Jwt {
             .ok_or_else(|| JwtError::new_err("Failed to compute expiration"))?;
         claims.set_item("exp", exp.as_secs())?;
 
-        let claims: Claims = json::from_pydict2rstruct(&claims)?;
+        let claims: Claims = json::from_pydict_to_struct(&claims)?;
 
         let token = jsonwebtoken::encode(&Header::default(), &claims, &self.encoding_key)
             .map_err(|e| JwtError::new_err(e.to_string()))?;
@@ -205,7 +205,7 @@ impl Jwt {
             _ => JwtDecodingError::new_err(format!("JWT decoding error: {e}")),
         })?;
 
-        crate::json::from_rstruct2pydict(token_data.claims, py)
+        json::from_struct_to_pydict(token_data.claims, py)
     }
 }
 

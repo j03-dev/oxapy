@@ -28,10 +28,12 @@ jobs:
             target: x86_64
           - runner: ubuntu-22.04
             target: x86
+            args: --release --out dist --interpreter 3.10 3.11 3.12 3.13 3.14
           - runner: ubuntu-22.04
             target: aarch64
           - runner: ubuntu-22.04
             target: armv7
+            args: --release --out dist --interpreter 3.10 3.11 3.12 3.13 3.14
           - runner: ubuntu-22.04
             target: s390x
           - runner: ubuntu-22.04
@@ -45,7 +47,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --out dist --find-interpreter
+          args: ${{ matrix.platform.args || '--release --out dist --find-interpreter' }}
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
           manylinux: 2_28
       - name: Upload wheels
@@ -63,10 +65,12 @@ jobs:
             target: x86_64
           - runner: ubuntu-22.04
             target: x86
+            args: --release --out dist --interpreter 3.10 3.11 3.12 3.13 3.14
           - runner: ubuntu-22.04
             target: aarch64
           - runner: ubuntu-22.04
             target: armv7
+            args: --release --out dist --interpreter 3.10 3.11 3.12 3.13 3.14
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
@@ -76,7 +80,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --out dist --find-interpreter
+          args: ${{ matrix.platform.args || '--release --out dist --find-interpreter' }}
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
           manylinux: musllinux_1_2
       - name: Upload wheels
