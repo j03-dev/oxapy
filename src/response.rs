@@ -60,14 +60,23 @@ pub struct Response {
     pub headers: HeaderMap,
 }
 
-#[inline(always)]
-fn with_ct(status: Status, content_type: HeaderValue, body: Bytes) -> Response {
-    let mut headers = HeaderMap::with_capacity(1);
-    headers.insert(CONTENT_TYPE, content_type);
-    Response {
-        status,
-        headers,
-        body: ResponseBody::Bytes(body),
+#[inline]
+fn parse_header(key: &str, value: &str) -> PyResult<(HeaderName, HeaderValue)> {
+    let header_name = HeaderName::from_str(key).into_py_exception()?;
+    let header_value = HeaderValue::from_str(value).into_py_exception()?;
+    Ok((header_name, header_value))
+}
+
+impl Response {
+    #[inline(always)]
+    pub fn with_content_type(status: Status, content_type: HeaderValue, body: Bytes) -> Self {
+        let mut headers = HeaderMap::with_capacity(1);
+        headers.insert(CONTENT_TYPE, content_type);
+        Response {
+            status,
+            headers,
+            body: ResponseBody::Bytes(body),
+        }
     }
 }
 
@@ -100,19 +109,26 @@ impl Response {
     #[pyo3(signature=(body, status = Status::OK , content_type="application/json"))]
     #[gen_stub(override_return_type(type_repr = "typing_extensions.Self", imports = ("typing_extensions",)))]
     pub fn new(body: Bound<'_, PyAny>, status: Status, content_type: &str) -> PyResult<Self> {
+        let ct = HeaderValue::from_str(content_type).into_py_exception()?;
+
         if let Ok(s) = body.cast::<PyString>() {
             let text = s.to_str().into_py_exception()?.to_owned();
-            let ct = HeaderValue::from_str(content_type).into_py_exception()?;
-            return Ok(with_ct(status, ct, Bytes::from(text)));
+            return Ok(Self::with_content_type(status, ct, Bytes::from(text)));
         }
 
         if let Ok(b) = body.cast::<PyBytes>() {
-            let ct = HeaderValue::from_str(content_type).into_py_exception()?;
-            return Ok(with_ct(status, ct, Bytes::copy_from_slice(b.as_bytes())));
+            return Ok(Self::with_content_type(
+                status,
+                ct,
+                Bytes::copy_from_slice(b.as_bytes()),
+            ));
         }
 
-        let ct = HeaderValue::from_str(content_type).into_py_exception()?;
-        Ok(with_ct(status, ct, json::dumps(&body)?.into()))
+        Ok(Self::with_content_type(
+            status,
+            ct,
+            json::dumps(&body)?.into(),
+        ))
     }
 
     /// Get the response body as a string.
@@ -176,9 +192,8 @@ impl Response {
     /// response.insert_header("Cache-Control", "no-cache")
     /// ```
     pub fn insert_header(&mut self, key: &str, value: &str) -> PyResult<()> {
-        let header_name = HeaderName::from_str(key).into_py_exception()?;
-        let header_value = HeaderValue::from_str(value).into_py_exception()?;
-        self.headers.insert(header_name, header_value);
+        let (name, val) = parse_header(key, value)?;
+        self.headers.insert(name, val);
         Ok(())
     }
 
@@ -202,9 +217,8 @@ impl Response {
     /// response.append_header("Set-Cookie", "theme=dark")
     /// ```
     pub fn append_header(&mut self, key: &str, value: &str) -> PyResult<()> {
-        let header_name = HeaderName::from_str(key).into_py_exception()?;
-        let header_value = HeaderValue::from_str(value).into_py_exception()?;
-        self.headers.append(header_name, header_value);
+        let (name, val) = parse_header(key, value)?;
+        self.headers.append(name, val);
         Ok(())
     }
 

@@ -15,11 +15,11 @@ use pyo3_stub_gen::derive::*;
 use url::form_urlencoded;
 
 use crate::response::Response;
+use crate::routing::OwnedMatchRoute;
 use crate::status::Status;
 use crate::{
     Context, IntoPyException, ProcessRequest, json, multipart::File, templating::Template,
 };
-use crate::{middleware::Middleware, routing::OwnedMatchRoute};
 use crate::{multipart::parse_multipart, response::Body};
 
 /// HTTP request object containing information about the incoming request.
@@ -294,48 +294,8 @@ impl Request {
                 .map(|m| (OwnedMatchRoute::from(m), router.middlewares.clone()))
         });
 
-        if let Some((match_route, middlewares)) = matched {
-            self.handle_found_route(&ctx, match_route, middlewares)
-                .await
-        } else {
-            self.handle_not_found(&ctx).await
-        }
-    }
-
-    async fn handle_found_route(
-        self,
-        ctx: &Context,
-        match_route: OwnedMatchRoute,
-        middlewares: Option<Arc<[Middleware]>>,
-    ) -> Result<hyper::Response<Body>, hyper::http::Error> {
         let (response_sender, response_receiver) = oneshot::channel();
-
-        let process_request = ProcessRequest {
-            match_route: Some(match_route),
-            middlewares,
-            request: self,
-            response_sender,
-            wrapper: ctx.wrapper.clone(),
-            cors: ctx.cors.clone(),
-        };
-
-        Self::send_and_wait_response(&ctx.request_sender, process_request, response_receiver).await
-    }
-
-    async fn handle_not_found(
-        self,
-        ctx: &Context,
-    ) -> Result<hyper::Response<Body>, hyper::http::Error> {
-        let (response_sender, response_receiver) = oneshot::channel();
-
-        let process_request = ProcessRequest {
-            match_route: None,
-            middlewares: None,
-            request: self,
-            response_sender,
-            wrapper: ctx.wrapper.clone(),
-            cors: ctx.cors.clone(),
-        };
+        let process_request = ProcessRequest::new(self, matched, &ctx, response_sender);
 
         Self::send_and_wait_response(&ctx.request_sender, process_request, response_receiver).await
     }
@@ -377,11 +337,21 @@ impl RequestBuilder {
         }
     }
 
+    pub fn from_context(req: hyper::Request<hyper::body::Incoming>, ctx: &Context) -> Self {
+        Self {
+            app_data: ctx.app_data.clone(),
+            template: ctx.template.clone(),
+            ..Self::new(req)
+        }
+    }
+
+    #[allow(dead_code)]
     pub fn with_app_data(mut self, app_data: &Option<Arc<Py<PyAny>>>) -> Self {
         self.app_data = app_data.clone();
         self
     }
 
+    #[allow(dead_code)]
     pub fn with_template(mut self, template: &Option<Arc<Template>>) -> Self {
         self.template = template.clone();
         self

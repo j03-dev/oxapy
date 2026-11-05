@@ -55,7 +55,7 @@ mod templating;
 
 pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
 
-struct ProcessRequest {
+pub(crate) struct ProcessRequest {
     match_route: Option<OwnedMatchRoute>,
     middlewares: Option<Arc<[Middleware]>>,
     request: Request,
@@ -85,7 +85,7 @@ impl ShutDownSignal {
         ctrlc::set_handler(move || {
             println!("\nShutting Down...");
             running.store(false, Ordering::SeqCst);
-            let _ = block_on(tx.send(()), None);
+            let _ = block_on(tx.send(()), None, 1);
         })
         .into_py_exception()?;
         Ok(Self { rx })
@@ -149,6 +149,7 @@ struct HttpServer {
     app_data: Option<Arc<Py<PyAny>>>,
     wrapper: Option<Arc<Py<PyAny>>>,
     channel_capacity: usize,
+    handler_threads: usize,
     cors: Option<Arc<Cors>>,
     is_async: bool,
     routers: Vec<Arc<Router>>,
@@ -208,6 +209,7 @@ impl HttpServer {
             app_data: None,
             wrapper: None,
             channel_capacity: 100,
+            handler_threads: 1,
             cors: None,
             is_async: false,
             routers: Vec::new(),
@@ -367,6 +369,31 @@ impl HttpServer {
         slf
     }
 
+    /// Set the number of OS threads used to execute synchronous handlers.
+    ///
+    /// By default synchronous handlers run one at a time on a single thread.
+    /// Raising this value lets handlers overlap blocking work (database
+    /// drivers, file I/O, network calls) that releases the GIL. It does not
+    /// bypass the GIL: pure-Python CPU-bound work still needs ``processes=N``.
+    ///
+    /// This option only affects sync mode; async handlers are unaffected.
+    /// Values below ``1`` are treated as ``1``.
+    ///
+    /// Args:
+    ///     handler_threads (int): Number of handler threads (default 1).
+    ///
+    /// Returns:
+    ///     Self
+    ///
+    /// Example:
+    /// ```python
+    /// server.handler_threads(8)
+    /// ```
+    fn handler_threads(mut slf: PyRefMut<'_, Self>, handler_threads: usize) -> PyRefMut<'_, Self> {
+        slf.handler_threads = handler_threads.max(1);
+        slf
+    }
+
     /// Add a global wrapper (middleware) to the server.
     ///
     /// The wrapper is invoked with `(request, response)` after every handler.
@@ -458,10 +485,11 @@ impl HttpServer {
     #[pyo3(signature=(workers=None))]
     fn run<'py>(&self, workers: Option<usize>, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let server = self.clone();
+        let handler_threads = self.handler_threads;
         if self.is_async {
             future_into_py(py, async move { server.run_server().await })
         } else {
-            py.detach(move || block_on(server.run_server(), workers))?;
+            py.detach(move || block_on(server.run_server(), workers, handler_threads))?;
             Ok(py.None().into_bound(py))
         }
     }
@@ -538,9 +566,7 @@ impl HttpServer {
                     hyper::service::service_fn(move |req| {
                         let ctx = ctx.clone();
                         async move {
-                            RequestBuilder::new(req)
-                                .with_app_data(&ctx.app_data)
-                                .with_template(&ctx.template)
+                            RequestBuilder::from_context(req, &ctx)
                                 .build()
                                 .await
                                 .unwrap()
@@ -562,6 +588,7 @@ impl HttpServer {
     ) -> PyResult<()> {
         let mut batch = Vec::with_capacity(64);
         let mut tasks = JoinSet::new();
+        let dispatcher = Dispatcher::new(locals, self.handler_threads);
         loop {
             batch.clear();
             tokio::select! {
@@ -569,13 +596,8 @@ impl HttpServer {
                     if n == 0 {
                         break;
                     }
-                    for pr in batch.drain(..) {
-                        if let Some(ref local) = locals {
-                            let local = local.clone();
-                            tasks.spawn(async move { scope(local, pr.respond(true)).await});
-                        } else {
-                            pr.respond(false).await;
-                        }
+                    for request in batch.drain(..) {
+                        dispatcher.spawn(request, &mut tasks).await;
                     }
                 },
                 Some(_) = tasks.join_next(), if !tasks.is_empty() => {},
@@ -589,44 +611,167 @@ impl HttpServer {
     }
 }
 
+enum Dispatcher {
+    Serial,
+    Async(TaskLocals),
+    Threaded { permits: Arc<Semaphore> },
+}
+
+impl Dispatcher {
+    fn new(locals: Option<TaskLocals>, handler_threads: usize) -> Self {
+        match locals {
+            Some(locals) => Self::Async(locals),
+            None if handler_threads > 1 => Self::Threaded {
+                permits: Arc::new(Semaphore::new(handler_threads)),
+            },
+            None => Self::Serial,
+        }
+    }
+
+    async fn spawn(&self, request: ProcessRequest, tasks: &mut JoinSet<()>) {
+        match self {
+            Self::Serial => request.respond_sync(),
+            Self::Async(locals) => {
+                let locals = locals.clone();
+                tasks.spawn(async move { scope(locals, request.respond_async()).await });
+            }
+            Self::Threaded { permits } => {
+                let permit = permits.clone().acquire_owned().await.unwrap();
+                tasks.spawn_blocking(move || {
+                    let _permit = permit;
+                    request.respond_sync();
+                });
+            }
+        }
+    }
+}
+
 impl ProcessRequest {
-    pub async fn respond(self, is_async: bool) {
-        let Self {
+    pub(crate) fn new(
+        request: Request,
+        matched: Option<(OwnedMatchRoute, Option<Arc<[Middleware]>>)>,
+        ctx: &Context,
+        response_sender: oneshot::Sender<Response>,
+    ) -> Self {
+        let (match_route, middlewares) = match matched {
+            Some((route, mw)) => (Some(route), mw),
+            None => (None, None),
+        };
+
+        Self {
             match_route,
             middlewares,
-            wrapper,
             request,
             response_sender,
-            cors,
-        } = self;
+            cors: ctx.cors.clone(),
+            wrapper: ctx.wrapper.clone(),
+        }
+    }
 
-        let response = Self::dispatch(match_route, middlewares, wrapper, request, is_async)
-            .await
+    pub fn respond_sync(self) {
+        let (target, response_sender, cors) = self.into_dispatch_target();
+        Self::send(target.dispatch_sync(), &cors, response_sender);
+    }
+
+    pub async fn respond_async(self) {
+        let (target, response_sender, cors) = self.into_dispatch_target();
+        Self::send(target.dispatch_async().await, &cors, response_sender);
+    }
+
+    fn into_dispatch_target(
+        self,
+    ) -> (DispatchTarget, oneshot::Sender<Response>, Option<Arc<Cors>>) {
+        (
+            DispatchTarget {
+                match_route: self.match_route,
+                middlewares: self.middlewares,
+                wrapper: self.wrapper,
+                request: self.request,
+            },
+            self.response_sender,
+            self.cors,
+        )
+    }
+
+    fn send(
+        response: PyResult<Response>,
+        cors: &Option<Arc<Cors>>,
+        response_sender: oneshot::Sender<Response>,
+    ) {
+        let response = response
             .unwrap_or_else(Response::from)
-            .apply_cors(&cors)
+            .apply_cors(cors)
             .unwrap_or_else(Response::from);
 
         let _ = response_sender.send(response);
     }
+}
 
-    async fn dispatch(
-        match_route: Option<OwnedMatchRoute>,
-        middlewares: Option<Arc<[Middleware]>>,
-        wrapper: Option<Arc<Py<PyAny>>>,
-        request: Request,
-        is_async: bool,
-    ) -> PyResult<Response> {
-        let Some(match_route) = match_route else {
-            return match wrapper.as_deref() {
-                Some(wrapper) => Python::attach(|py| {
-                    let request = Py::new(py, request)?;
-                    Self::apply_wrapper(py, &request, Status::NOT_FOUND.into(), wrapper)
-                }),
-                None => Ok(Status::NOT_FOUND.into()),
-            };
+struct DispatchTarget {
+    match_route: Option<OwnedMatchRoute>,
+    middlewares: Option<Arc<[Middleware]>>,
+    wrapper: Option<Arc<Py<PyAny>>>,
+    request: Request,
+}
+
+impl DispatchTarget {
+    fn execute(self) -> PyResult<Result<(Py<PyAny>, Py<Request>), Response>> {
+        let wrapper = self.wrapper.as_deref();
+        let Some(match_route) = self.match_route else {
+            return Ok(Err(Self::not_found(self.request, wrapper)?));
         };
 
-        let (result, request) = Python::attach(|py| -> PyResult<_> {
+        let (result, request) =
+            Self::invoke_route(&match_route, self.middlewares.as_deref(), self.request)?;
+        Ok(Ok((result, request)))
+    }
+
+    fn dispatch_sync(self) -> PyResult<Response> {
+        let wrapper = self.wrapper.clone();
+        match self.execute()? {
+            Ok((result, request)) => Self::finalize(result, &request, wrapper.as_deref()),
+            Err(response) => Ok(response),
+        }
+    }
+
+    async fn dispatch_async(self) -> PyResult<Response> {
+        let wrapper = self.wrapper.clone();
+        match self.execute()? {
+            Ok((result, request)) => {
+                let result = Python::attach(|py| into_future(result.into_bound(py)))?.await?;
+                Self::finalize(result, &request, wrapper.as_deref())
+            }
+            Err(response) => Ok(response),
+        }
+    }
+
+    fn finalize(
+        result: Py<PyAny>,
+        request: &Py<Request>,
+        wrapper: Option<&Py<PyAny>>,
+    ) -> PyResult<Response> {
+        Python::attach(|py| {
+            let response = into_response::convert_to_response(result, py)?;
+            Self::wrap_response(py, request, response, wrapper)
+        })
+    }
+
+    fn not_found(request: Request, wrapper: Option<&Py<PyAny>>) -> PyResult<Response> {
+        match wrapper {
+            Some(wrapper) => Python::attach(|py| {
+                let request = Py::new(py, request)?;
+                Self::wrap_response(py, &request, Status::NOT_FOUND.into(), Some(wrapper))
+            }),
+            None => Ok(Status::NOT_FOUND.into()),
+        }
+    }
+
+    fn invoke_route(
+        match_route: &OwnedMatchRoute,
+        middlewares: Option<&[Middleware]>,
+        request: Request,
+    ) -> PyResult<(Py<PyAny>, Py<Request>)> {
+        Python::attach(|py| -> PyResult<_> {
             let request = Py::new(py, request)?;
             let route = &match_route.value;
 
@@ -636,7 +781,7 @@ impl ProcessRequest {
                 Some(build_route_params(py, &match_route.params)?)
             };
 
-            let res = match middlewares.as_deref() {
+            let res = match middlewares {
                 Some(chain) => MiddlewareChain::execute(
                     py,
                     chain,
@@ -649,32 +794,23 @@ impl ProcessRequest {
             }?;
 
             Ok((res, request))
-        })?;
-
-        let result = if is_async {
-            Python::attach(|py| into_future(result.into_bound(py)))?.await?
-        } else {
-            result
-        };
-
-        Python::attach(|py| {
-            let response = into_response::convert_to_response(result, py)?;
-            match wrapper.as_deref() {
-                Some(wrapper) => Self::apply_wrapper(py, &request, response, wrapper),
-                None => Ok(response),
-            }
         })
     }
 
     #[inline]
-    fn apply_wrapper(
+    fn wrap_response(
         py: Python<'_>,
         py_request: &Py<Request>,
         response: Response,
-        wrapper: &Py<PyAny>,
+        wrapper: Option<&Py<PyAny>>,
     ) -> PyResult<Response> {
-        let wrapped = wrapper.call(py, (py_request, response), None)?;
-        into_response::convert_to_response(wrapped, py)
+        match wrapper {
+            Some(wrapper) => {
+                let wrapped = wrapper.call(py, (py_request, response), None)?;
+                into_response::convert_to_response(wrapped, py)
+            }
+            None => Ok(response),
+        }
     }
 }
 
@@ -715,9 +851,16 @@ fn parse_params_value<'py>(py: Python<'py>, value: &str, ty: &str) -> PyResult<B
     }
 }
 
-fn block_on<F: std::future::Future>(future: F, workers: Option<usize>) -> F::Output {
+fn block_on<F: std::future::Future>(
+    future: F,
+    workers: Option<usize>,
+    max_blocking_threads: usize,
+) -> F::Output {
     let mut runtime = tokio::runtime::Builder::new_multi_thread();
     workers.map(|w| runtime.worker_threads(w));
+    if max_blocking_threads > 1 {
+        runtime.max_blocking_threads(max_blocking_threads);
+    }
     runtime.enable_all().build().unwrap().block_on(future)
 }
 
