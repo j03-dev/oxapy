@@ -4,14 +4,15 @@ OxAPY ships a template engine based on [Tera](https://keats.github.io/tera/) (a 
 
 ## Enabling templates
 
-Create a `Template` instance, configure it, and attach it to the server:
+Create a `Template` instance, call `.load()`, and attach it to the server:
 
 ```python
 from oxapy import Oxapy, Router, get, render, templating
 
 
 def main():
-    template = templating.Template()  # loads ./templates/**/*.html by default
+    template = templating.Template()
+    template.load()  # loads ./templates/**/*.html by default
 
     (
         Oxapy(("127.0.0.1", 5555))
@@ -21,10 +22,11 @@ def main():
     )
 ```
 
-The template directory defaults to `./templates/**/*.html`. Pass a glob pattern to use another directory:
+The template directory defaults to `./templates/**/*.html`. Pass a glob pattern to `template.load(...)` to use another directory:
 
 ```python
-template = templating.Template("./views/**/*.html")
+template = templating.Template()
+template.load("./views/**/*.html")
 ```
 
 ## Rendering from a handler

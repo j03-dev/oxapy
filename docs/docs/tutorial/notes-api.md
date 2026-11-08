@@ -217,7 +217,11 @@ def auth(req: Request, next: Next, **kwargs) -> Response:
 - `db` opens a session per request, attaches it as `request.db`, and closes it after the handler runs.
 - `auth` verifies the `Authorization: Bearer <token>` header and stores `request.user_id`. A missing or invalid token short-circuits with `401 Unauthorized`.
 
-Both stay synchronous even in async mode — only handlers need to be `async def`.
+:::note Middleware with async handlers
+
+In async mode, calling `next(req, **kwargs)` with an `async def` handler returns a coroutine object immediately without waiting for the handler to finish. Middleware that uses synchronous context managers (like `with DB(): return next(...)`) will exit the context and close the resource before the coroutine is awaited by the server runtime. For resources like database sessions, ensure the session stays open throughout the handler execution.
+
+:::
 
 See the [Middleware guide](../guides/middleware) and [JWT guide](../guides/jwt-authentication).
 

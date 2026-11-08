@@ -19,13 +19,13 @@ from oxapy import Response, Status
 
 Response({"message": "Success"})                     # JSON
 Response("Hello", content_type="text/plain")         # raw text
-Response("Not found", status=Status.NOT_FOUND)       # 404, JSON-encoded body
+Response("Not found", status=Status.NOT_FOUND)       # 404, raw text body
 Response(b"\x89PNG...", content_type="image/png")    # raw bytes
 ```
 
 :::note
 
-With the default `application/json` content type the body is serialized with `orjson`, so a string body is JSON-encoded (including quotes). Use `content_type="text/plain"` for raw text and a non-JSON content type for raw bytes.
+String and bytes bodies are sent raw without JSON encoding, regardless of content type. Only objects that are not strings or bytes (such as dictionaries) are serialized with `orjson`. Use `content_type="text/plain"` when returning plain text so clients receive the appropriate MIME type.
 
 :::
 

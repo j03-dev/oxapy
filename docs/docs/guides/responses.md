@@ -39,7 +39,7 @@ def create(request):
 
 :::warning
 
-A handler that returns an unsupported type raises a `ValueError`. If you need a custom body, build an explicit `Response`.
+A handler that returns an unsupported type causes the server to return a `500 Internal Server Error` with `{"detail": "Failed to convert this type to response"}`. If you need a custom body, build an explicit `Response`.
 
 :::
 
@@ -67,7 +67,7 @@ Signature: `Response(body, status=Status.OK, content_type="application/json")`.
 
 :::note
 
-The default `content_type` is `application/json`, so a string body is JSON-encoded (quotes included) unless you pass `content_type="text/plain"`. Bytes bodies with a non-JSON content type are sent raw, which is how `send_file` serves files.
+When a `str` or `bytes` object is passed to `Response(body, ...)`, it is transmitted as raw content without JSON serialization (no extra quotes are added). JSON serialization (`orjson`) is only applied when `body` is an object other than a string or bytes (such as a `dict` or `list`). The default `content_type` header is `application/json`.
 
 :::
 

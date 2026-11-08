@@ -1,6 +1,6 @@
 # Async Handlers
 
-Handlers can be plain functions or `async def` coroutines. Enable async mode with `async_mode()` and await the server.
+Handlers in async mode must be `async def` coroutines. Enable async mode with `async_mode()` and await the server.
 
 ## A minimal async app
 
@@ -35,19 +35,35 @@ The two differences from a sync app:
 1. Handlers are declared with `async def` and use `await`.
 2. The server is started with `app.async_mode().run()` inside an async `main()`, which you run with `asyncio.run(main())`.
 
-## Mixing sync and async handlers
+## Handlers in async mode cannot be synchronous
 
-You do not have to choose one style. Register both plain and async handlers on the same router; each is called appropriately:
+`async_mode()` is a server-wide setting. When async mode is enabled, **all** route handlers registered on the server must be `async def` coroutines.
+
+You cannot mix synchronous handlers and `async def` handlers on the same server instance. The async runtime expects every handler execution to return an awaitable/coroutine; if a handler returns a plain synchronous value (such as a `str` or `dict`), the runtime fails when attempting to convert it into a future and returns a `500 Internal Server Error`.
 
 ```python
+# ❌ INCORRECT in async mode: plain def returns a string, causing an exception
 @get("/sync")
 def sync_handler(request):
-    return "I run synchronously"
+    return "I will cause an exception in async mode"
 
 
+# ✅ CORRECT in async mode: declare with async def
 @get("/async")
 async def async_handler(request):
     result = await some_io()
+    return {"result": result}
+```
+
+If you need to perform blocking synchronous I/O or CPU-bound work inside an async app, run it inside a worker thread using `asyncio.to_thread`:
+
+```python
+import asyncio
+
+
+@get("/compute")
+async def compute(request):
+    result = await asyncio.to_thread(blocking_call)
     return {"result": result}
 ```
 
