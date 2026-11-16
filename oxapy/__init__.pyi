@@ -513,6 +513,29 @@ class HttpServer:
         server.channel_capacity(200)
         ```
         """
+    def handler_threads(self, handler_threads: builtins.int) -> HttpServer:
+        r"""
+        Set the number of OS threads used to execute synchronous handlers.
+        
+        By default synchronous handlers run one at a time on a single thread.
+        Raising this value lets handlers overlap blocking work (database
+        drivers, file I/O, network calls) that releases the GIL. It does not
+        bypass the GIL: pure-Python CPU-bound work still needs ``processes=N``.
+        
+        This option only affects sync mode; async handlers are unaffected.
+        Values below ``1`` are treated as ``1``.
+        
+        Args:
+            handler_threads (int): Number of handler threads (default 1).
+        
+        Returns:
+            Self
+        
+        Example:
+        ```python
+        server.handler_threads(8)
+        ```
+        """
     def wrap(self, wrapper: typing.Any) -> HttpServer:
         r"""
         Add a global wrapper (middleware) to the server.

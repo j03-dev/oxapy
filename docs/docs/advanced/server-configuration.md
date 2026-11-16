@@ -28,6 +28,7 @@ server = (
     .template(template)            # template engine
     .max_connections(1000)         # max concurrent connections (default 100)
     .channel_capacity(200)         # pending-request buffer (default 100)
+    .handler_threads(4)            # sync handler threads (default 1 = serial)
     .wrap(global_wrapper)          # global response wrapper
 )
 ```
@@ -53,6 +54,27 @@ server = (
 ### channel_capacity
 
 `server.channel_capacity(n)` — how many pending requests can be buffered internally (default **100**). An advanced setting for tuning throughput under load.
+
+### handler_threads
+
+`server.handler_threads(n)` — number of OS threads used to execute **synchronous** handlers (default **1**, which means serial execution). Values below `1` are treated as `1`.
+
+Raise it when sync handlers block on I/O that releases the GIL — sync database drivers, `requests`, file reads. It does not bypass the GIL: pure-Python CPU-bound work still needs `processes=N`. The option is ignored in async mode.
+
+```python
+server.handler_threads(4)  # up to four sync handlers at once
+```
+
+### Concurrency knobs
+
+| Option | Controls | Default | Use for |
+| --- | --- | --- | --- |
+| `handler_threads(n)` | OS threads running sync Python handlers | `1` (serial) | Blocking I/O inside sync handlers |
+| `workers=n` (`run`) | Tokio runtime threads per process | runtime decides | Network/HTTP throughput |
+| `processes=n` (`run`) | OS processes sharing the port | `1` | CPU-bound Python (bypasses the GIL) |
+| `async_mode()` | Python coroutines on the event loop | off | Non-blocking async I/O |
+| `max_connections(n)` | Concurrent connections | `100` | Load sizing |
+| `channel_capacity(n)` | Pending-request buffer | `100` | Burst absorption |
 
 ### cors
 

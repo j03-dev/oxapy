@@ -20,6 +20,8 @@ def main():
     (
         Oxapy(("0.0.0.0", 3000))
         .attach(Router().routes([index, get_user, create_user]))
+        .max_connections(1024)
+        .channel_capacity(1024)
         .run(workers=1, processes=8)
     )
 

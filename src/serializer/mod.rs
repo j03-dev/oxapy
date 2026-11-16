@@ -475,14 +475,10 @@ impl Serializer {
                         Self::json_schema_value(&attr_obj.get_type(), field.nullable, py)?;
 
                     if field.many {
-                        let mut array_schema = Map::with_capacity(2);
-                        if field.nullable {
-                            array_schema.insert("type".to_string(), json!(["array", "null"]))
-                        } else {
-                            array_schema.insert("type".to_string(), json!("array"))
-                        };
-                        array_schema.insert("items".to_string(), nested_schema);
-                        properties.insert(attr_name, json!(array_schema));
+                        properties.insert(
+                            attr_name,
+                            fields::wrap_array_schema(nested_schema, field.nullable),
+                        );
                     } else {
                         properties.insert(attr_name, nested_schema);
                     }

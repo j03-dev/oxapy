@@ -160,11 +160,8 @@ fn extract_params(path: &str, py: Python<'_>) -> PyResult<Vec<String>> {
     let params = re
         .captures_iter(path)
         .map(|cap| {
-            let arg = cap[1].to_string();
-            match arg.split_once(':') {
-                Some((a, _)) => a.to_string(),
-                None => arg,
-            }
+            let arg = &cap[1];
+            arg.split_once(':').map_or(arg, |(a, _)| a).to_string()
         })
         .collect();
 
